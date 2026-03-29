@@ -30,9 +30,11 @@
           <div class="menu-options menu-options-maps" id="mapOptions">
             <button class="menu-option active" data-map="meadow">Classic</button>
             <button class="menu-option" data-map="canyon">Canyon Fork</button>
-            <button class="menu-option" data-map="ruins">Sunken Ruins</button>
-            <button class="menu-option" data-map="mango">Mango Pass</button>
-            <button class="menu-option" data-map="fortification">Outpost</button>
+        <button class="menu-option" data-map="ruins">Sunken Ruins</button>
+        <button class="menu-option" data-map="mango">Mango Pass</button>
+        <button class="menu-option" data-map="fortification">Outpost</button>
+        <button class="menu-option" data-map="fotification">Fortification</button>
+        <button class="menu-option" data-map="graveyard">Graveyard</button>
           </div>
         </section>
       </div>
@@ -52,6 +54,18 @@
         <button id="resumeGameButton">Resume</button>
         <button id="pauseAlmanacButton" class="secondary">Almanac</button>
         <button id="quitToMenuButton" class="secondary">Quit To Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="gameOverOverlay">
+    <div class="overlay-card">
+      <p class="eyebrow">Defeat</p>
+      <h2>Game Over</h2>
+      <p class="hint" id="gameOverSummary">The base fell.</p>
+      <div class="overlay-actions">
+        <button id="restartGameButton">Play Again</button>
+        <button id="gameOverMenuButton" class="secondary">Main Menu</button>
       </div>
     </div>
   </div>
@@ -107,6 +121,53 @@
           <p class="hint" id="statusText">Ready to solve.</p>
           <p class="hint" id="routeText">Route length: 0</p>
         </div>
+        <div class="panel sandbox-controls" id="sandboxControls" hidden>
+          <div class="panel-head">
+            <h2>Sandbox</h2>
+          </div>
+          <div class="sandbox-grid compact">
+            <label class="sandbox-field">
+              <span>Wave</span>
+              <input id="sandboxWaveInput" type="number" min="0" step="1" value="0">
+            </label>
+            <button id="sandboxSetWaveButton" class="secondary">Set</button>
+            <label class="sandbox-field sandbox-field-wide">
+              <span>Enemy</span>
+              <select id="sandboxEnemySelect"></select>
+            </label>
+            <label class="sandbox-field">
+              <span>Tier</span>
+              <select id="sandboxTierSelect">
+                <option value="1">Tier 1</option>
+                <option value="2">Tier 2</option>
+                <option value="3">Tier 3</option>
+              </select>
+            </label>
+            <label class="sandbox-field">
+              <span>Count</span>
+              <input id="sandboxSpawnCountInput" type="number" min="1" step="1" value="1">
+            </label>
+            <label class="sandbox-field">
+              <span>Portal</span>
+              <select id="sandboxPortalSelect"></select>
+            </label>
+            <button id="sandboxSpawnButton">Summon</button>
+          </div>
+          <div class="sandbox-toggles compact">
+            <label class="toggle-chip" for="sandboxSpawnHidden">
+              <input type="checkbox" id="sandboxSpawnHidden">
+              <span>Hidden</span>
+            </label>
+            <label class="toggle-chip" for="sandboxSpawnArmored">
+              <input type="checkbox" id="sandboxSpawnArmored">
+              <span>Armoured</span>
+            </label>
+            <label class="toggle-chip" for="sandboxSpawnShielded">
+              <input type="checkbox" id="sandboxSpawnShielded">
+              <span>Shielded</span>
+            </label>
+          </div>
+        </div>
         <div class="panel-dock" id="sidePanelDock"></div>
       </aside>
 
@@ -135,10 +196,14 @@
             <div class="tower-scroll tower-scroll-column">
               <div class="tower-grid tower-grid-column" id="towerGrid">
                 <button class="tower-type active" data-tower-type="tesla">Tesla (7)</button>
-                <button class="tower-type" data-tower-type="missile">Missile (9)</button>
-                <button class="tower-type" data-tower-type="trapper">Trap Setter (6)</button>
-                <button class="tower-type" data-tower-type="laser">Laser (10)</button>
-                <button class="tower-type" data-tower-type="drone">Drone (8)</button>
+        <button class="tower-type" data-tower-type="missile">Missile (9)</button>
+        <button class="tower-type" data-tower-type="trapper">Trap Setter (6)</button>
+        <button class="tower-type" data-tower-type="laser">Laser (10)</button>
+        <button class="tower-type" data-tower-type="shotgun">Shotgun (10)</button>
+        <button class="tower-type" data-tower-type="freezer">Freezer (8)</button>
+        <button class="tower-type" data-tower-type="drone">Drone (8)</button>
+        <button class="tower-type" data-tower-type="dippy">Dippy (120)</button>
+        <button class="tower-type" data-tower-type="crossbow">Crossbow (28)</button>
               </div>
             </div>
             <p class="hint" id="towerDescription">Tesla: chain lightning with fast bursts.</p>
@@ -146,6 +211,10 @@
         </div>
         <div class="board-actions">
           <button id="waveButton">Start Wave</button>
+          <label class="toggle-chip" for="autoWaveToggle">
+            <input type="checkbox" id="autoWaveToggle">
+            <span>Auto Wave</span>
+          </label>
         </div>
         <div class="tower-popup" id="towerPopup" hidden>
           <div class="panel tower-popup-card">

@@ -22,7 +22,6 @@
 body {
   margin: 0;
   min-height: 100vh;
-  overflow: hidden;
   font-family: Georgia, "Times New Roman", serif;
   color: var(--ink);
   background:
@@ -500,6 +499,13 @@ button.secondary {
   min-height: 100%;
   width: 100%;
   margin-left: 0;
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.board-frame::-webkit-scrollbar {
+  display: none;
 }
 
 .board-inline-actions {
@@ -510,7 +516,89 @@ button.secondary {
 .board-actions {
   display: flex;
   justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 8px;
+}
+
+.toggle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(255, 249, 240, 0.9);
+  border: 1px solid rgba(127, 61, 29, 0.18);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+}
+
+.toggle-chip input {
+  margin: 0;
+}
+
+.sandbox-controls {
+  margin-top: 8px;
+}
+
+.sandbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.sandbox-grid.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sandbox-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.sandbox-field-wide {
+  grid-column: 1 / -1;
+}
+
+.sandbox-field input,
+.sandbox-field select {
+  width: 100%;
+  border: 1px solid rgba(127, 61, 29, 0.18);
+  border-radius: 12px;
+  padding: 9px 10px;
+  font: inherit;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.sandbox-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sandbox-toggles.compact {
+  gap: 6px;
+}
+
+.sandbox-controls .panel-head {
+  margin-bottom: 8px;
+}
+
+.sandbox-controls .toggle-chip {
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+.sandbox-controls button,
+.sandbox-controls .sandbox-field input,
+.sandbox-controls .sandbox-field select {
+  min-height: 40px;
 }
 
 .towers-strip {
@@ -603,7 +691,8 @@ button.secondary {
 
 canvas {
   display: block;
-  width: 100%;
+  width: auto;
+  max-width: none;
   height: auto;
   border-radius: 18px;
   background:

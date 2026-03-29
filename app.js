@@ -13,20 +13,26 @@ const upgradeText = document.getElementById("upgradeText");
 const nextPieceText = document.getElementById("nextPieceText");
 const towerDescription = document.getElementById("towerDescription");
 const waveButton = document.getElementById("waveButton");
+const autoWaveToggle = document.getElementById("autoWaveToggle");
 const rotateButton = document.getElementById("rotateButton");
 const toolGrid = document.getElementById("toolGrid");
 const towerGrid = document.getElementById("towerGrid");
+const boardFrame = document.querySelector(".board-frame");
 const sidePanelDock = document.getElementById("sidePanelDock");
 const boardPanelDock = document.getElementById("boardPanelDock");
 const blockToolButton = document.querySelector('[data-tool="wall"]');
 const menuOverlay = document.getElementById("menuOverlay");
 const pauseOverlay = document.getElementById("pauseOverlay");
+const gameOverOverlay = document.getElementById("gameOverOverlay");
 const almanacOverlay = document.getElementById("almanacOverlay");
 const startGameButton = document.getElementById("startGameButton");
 const openAlmanacButton = document.getElementById("openAlmanacButton");
 const resumeGameButton = document.getElementById("resumeGameButton");
 const pauseAlmanacButton = document.getElementById("pauseAlmanacButton");
 const quitToMenuButton = document.getElementById("quitToMenuButton");
+const restartGameButton = document.getElementById("restartGameButton");
+const gameOverMenuButton = document.getElementById("gameOverMenuButton");
+const gameOverSummary = document.getElementById("gameOverSummary");
 const closeAlmanacButton = document.getElementById("closeAlmanacButton");
 const almanacGrid = document.getElementById("almanacGrid");
 const almanacTabs = document.getElementById("almanacTabs");
@@ -40,9 +46,20 @@ const towerPopup = document.getElementById("towerPopup");
 const towerPopupTitle = document.getElementById("towerPopupTitle");
 const towerPopupSummary = document.getElementById("towerPopupSummary");
 const towerPopupActions = document.getElementById("towerPopupActions");
+const sandboxControls = document.getElementById("sandboxControls");
+const sandboxWaveInput = document.getElementById("sandboxWaveInput");
+const sandboxSetWaveButton = document.getElementById("sandboxSetWaveButton");
+const sandboxEnemySelect = document.getElementById("sandboxEnemySelect");
+const sandboxTierSelect = document.getElementById("sandboxTierSelect");
+const sandboxSpawnCountInput = document.getElementById("sandboxSpawnCountInput");
+const sandboxPortalSelect = document.getElementById("sandboxPortalSelect");
+const sandboxSpawnButton = document.getElementById("sandboxSpawnButton");
+const sandboxSpawnHidden = document.getElementById("sandboxSpawnHidden");
+const sandboxSpawnArmored = document.getElementById("sandboxSpawnArmored");
+const sandboxSpawnShielded = document.getElementById("sandboxSpawnShielded");
 const closeTowerPopupButton = document.getElementById("closeTowerPopupButton");
 const TARGET_PRIORITIES = ["first", "last", "strong", "weak", "hidden", "random"];
-const PATH_TOWER_TYPES = new Set(["tesla", "missile", "trapper", "drone"]);
+const PATH_TOWER_TYPES = new Set(["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "dippy", "support"]);
 const TARGET_LABELS = {
   first: "First",
   last: "Last",
@@ -52,9 +69,11 @@ const TARGET_LABELS = {
   random: "Random"
 };
 
-const COLS = 26;
-const ROWS = 15;
+const COLS = 30;
+const ROWS = 18;
 const CELL_SIZE = 36;
+const BASE_CANVAS_WIDTH = COLS * CELL_SIZE;
+const BASE_CANVAS_HEIGHT = ROWS * CELL_SIZE;
 const START_MONEY = 50;
 const START_LIVES = 20;
 const DASH_PERIOD = 16;
@@ -63,9 +82,13 @@ const TOWER_BASE_COST = {
   tesla: 30,
   missile: 38,
   trapper: 24,
-  laser: 42,
+  laser: 60,
+  shotgun: 26,
+  freezer: 34,
   drone: 34,
-  crossbow: 0
+  dippy: 100,
+  support: 42,
+  crossbow: 28
 };
 const UPGRADE_COSTS = {
   tesla: {
@@ -84,15 +107,38 @@ const UPGRADE_COSTS = {
     path1: [7, 12, 20, 32, 50],
     path2: [7, 12, 20, 32, 50]
   },
-  laser: [10, 18, 30, 46]
+  laser: {
+    path1: [14, 24, 40, 62, 92],
+    path2: [14, 24, 40, 62, 92]
+  },
+  shotgun: {
+    path1: [8, 14, 24, 38, 62],
+    path2: [8, 14, 24, 38, 62]
+  },
+  freezer: {
+    path1: [8, 13, 22, 36, 56],
+    path2: [8, 13, 22, 36, 56]
+  },
+  dippy: {
+    path1: [32, 48, 76, 116, 190],
+    path2: [30, 46, 74, 112, 178]
+  },
+  support: {
+    path1: [10, 18, 28, 44, 70],
+    path2: [10, 18, 30, 46, 74]
+  }
 };
 const TOWER_INFO = {
   tesla: { name: "Tesla", color: "#92d5ff", description: "Tesla chains lightning between nearby enemies and briefly stuns what it hits." },
   missile: { name: "Missile", color: "#ffae57", description: "Missile fires heavier explosive shots that deal strong splash damage in an area." },
   trapper: { name: "Trap Setter", color: "#89d37a", description: "Trap Setter seeds temporary traps, mines, or wall turrets depending on its upgrade path." },
-  laser: { name: "Laser", color: "#ff7ca8", description: "Laser tracks the nearest enemy with a long-range focused burst." },
+  laser: { name: "Laser", color: "#ff7ca8", description: "Laser locks onto a target, then burns a piercing beam through the lane and beyond tower range." },
+  shotgun: { name: "Shotgun", color: "#ffd34d", description: "Shotgun fires short yellow line blasts and can branch into Bullet Storm or Wavelength." },
+  freezer: { name: "Freezer", color: "#b5ebff", description: "Freezer launches chilling shots that slow targets, then branches into Permafrost pulses or a constant slowing aura." },
   drone: { name: "Drone", color: "#7de3d6", description: "Drone commands mobile gunships that chase targets inside tower coverage and can branch into support or assault roles." },
-  crossbow: { name: "Crossbow", color: "#f3f7ff", description: "Outpost crossbow tower. Fires white bolts and can be upgraded once to shoot a double volley." }
+  dippy: { name: "Dippy", color: "#fff1b8", description: "Dippy is an egg. A very powerful egg." },
+  support: { name: "Support", color: "#c9b6ff", description: "Support hub boosts nearby towers and can branch into income generation or an ammo supplier aura." },
+  crossbow: { name: "Crossbow", color: "#f3f7ff", description: "Outpost crossbow tower. Fires slower bolts and can be upgraded into a heavier fort-defense platform." }
 };
 const ENEMY_TYPES = {
   fast: {
@@ -125,6 +171,40 @@ const ENEMY_TYPES = {
     reward: 5,
     description: "Hexagons are heavy elites with very high health and steady forward pressure."
   },
+  diamond: {
+    key: "diamond",
+    name: "Diamond",
+    color: "#8fe4ff",
+    shape: 4,
+    hpMultiplier: 1.45,
+    speedBonus: 12,
+    reward: 5,
+    description: "Diamonds glide in faster than pentagons and bring sharper mid-wave pressure."
+  },
+  attacker: {
+    key: "attacker",
+    name: "Attacker",
+    color: "#9d63ff",
+    shape: 2,
+    hpMultiplier: 2.4,
+    speedBonus: 20,
+    reward: 6,
+    armor: 5,
+    hidden: true,
+    armored: true,
+    suppressArmorVisual: true,
+    description: "Attackers are fast purple raiders with good health, hidden movement, and a concealed armoured frame."
+  },
+  shield: {
+    key: "shield",
+    name: "Shield",
+    color: "#8fc7ff",
+    shape: 6,
+    hpMultiplier: 1.15,
+    speedBonus: -4,
+    reward: 6,
+    description: "Shield enemies project a force field that protects nearby enemies until the field is broken."
+  },
   waffle16: {
     key: "waffle16",
     name: "Waffle",
@@ -135,28 +215,6 @@ const ENEMY_TYPES = {
     reward: 10,
     waffleSquares: 16,
     description: "Waffles are layered swarm carriers that break apart into smaller waffles when destroyed."
-  },
-  waffle4: {
-    key: "waffle4",
-    name: "Tier Two Waffle",
-    color: "#d9a85e",
-    shape: 4,
-    hpMultiplier: 1.2,
-    speedBonus: -2,
-    reward: 3,
-    waffleSquares: 4,
-    description: "Tier two waffles split again into crumbs if you fail to finish them quickly."
-  },
-  waffle1: {
-    key: "waffle1",
-    name: "Tier One Waffle",
-    color: "#e5bf7f",
-    shape: 4,
-    hpMultiplier: 0.3,
-    speedBonus: 10,
-    reward: 1,
-    waffleSquares: 1,
-    description: "Tier one waffles are tiny crumbs that rush the exit after a larger waffle collapses."
   },
   armored: {
     key: "armored",
@@ -195,7 +253,7 @@ const ENEMY_TYPES = {
     name: "I-daen",
     color: "#8d5f2e",
     shape: 4,
-    hpMultiplier: 16,
+    hpMultiplier: 48,
     speedBonus: -16,
     reward: 60,
     waffleSquares: 16,
@@ -205,8 +263,8 @@ const ENEMY_TYPES = {
 const DIFFICULTIES = {
   easy: { name: "Easy", money: 60, lives: 28, hp: 0.85, reward: 1.15, interval: 1.08, enemyCount: 1 },
   standard: { name: "Standard", money: 50, lives: 20, hp: 1, reward: 1, interval: 1 },
-  hard: { name: "Hard", money: 40, lives: 14, hp: 1.28, reward: 0.9, interval: 0.88, enemyCount: 1 },
-  brutal: { name: "Brutal", money: 40, lives: 14, hp: 1.28, reward: 0.5, interval: 0.88, enemyCount: 2 },
+  hard: { name: "Hard", money: 40, lives: 10, hp: 1.28, reward: 0.9, interval: 0.88, enemyCount: 1 },
+  brutal: { name: "Brutal", money: 50, lives: 5, hp: 1.28, reward: 0.5, interval: 0.88, enemyCount: 2 },
   sandbox: { name: "Sandbox", money: 999999, lives: 999999, hp: 1, reward: 1, interval: 1, enemyCount: 1 }
 };
 const MAPS = {
@@ -256,6 +314,34 @@ const MAPS = {
     obstacles: [],
     enemyCount: 2,
     reward: 0.5
+  },
+  fotification: {
+    name: "Fortification",
+    description: "A larger fort corridor. Scroll left to find the portal beyond the wall while unique spike traps guard the lanes.",
+    scenery: "fortification",
+    goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
+    portals: [{ x: 0, y: Math.floor(ROWS / 2) }],
+    obstacles: [],
+    extraCanvasWidth: 420,
+    initialScrollLeft: 260
+  },
+  graveyard: {
+    name: "Graveyard",
+    description: "Triple enemies. The base sits in the middle while enemies emerge evenly from the edges and path into a central build zone.",
+    scenery: "graveyard",
+    goal: { x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2) },
+    portals: [
+      { x: Math.floor(COLS / 2), y: 0 },
+      { x: COLS - 1, y: Math.floor(ROWS / 2) },
+      { x: Math.floor(COLS / 2), y: ROWS - 1 },
+      { x: 0, y: Math.floor(ROWS / 2) }
+    ],
+    hidePortals: true,
+    hideRoutes: true,
+    buildZone: { x: 8, y: 4, width: 10, height: 7 },
+    obstacles: [],
+    enemyCount: 3,
+    reward: 1 / 3
   }
 };
 const IDAEN_BOSS_WAVES = new Set([25, 50, 75, 100]);
@@ -382,7 +468,16 @@ let selectedAlmanacTower = "tesla";
 const discoveredEnemies = new Set();
 let infiniteMode = false;
 let cheatBuffer = [];
-const ALMANAC_TOWER_TYPES = ["tesla", "missile", "trapper", "laser", "drone"];
+let crossbowUnlocked = false;
+let outpostWalllessQuestFailed = false;
+let screenShakeTimer = 0;
+let screenShakeStrength = 0;
+let spawnPortalCursor = 0;
+let spawnPortalOrder = [];
+let autoWaveEnabled = false;
+let autoWaveTimer = 0;
+const heldScrollKeys = new Set();
+const ALMANAC_TOWER_TYPES = ["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "dippy", "support", "crossbow"];
 
 const createGrid = () =>
   Array.from({ length: ROWS }, () =>
@@ -395,6 +490,9 @@ const createGrid = () =>
 let grid = createGrid();
 
 function activePortals() {
+  if (isGraveyardMap()) {
+    return graveyardEdgePortals();
+  }
   return activeMap.portals;
 }
 
@@ -408,6 +506,69 @@ function baseCenter() {
 
 function isOutpostMap() {
   return selectedMap === "fortification";
+}
+
+function isGraveyardMap() {
+  return selectedMap === "graveyard";
+}
+
+function mapBuildZone() {
+  return activeMap.buildZone || null;
+}
+
+function cellInBuildZone(x, y) {
+  const zone = mapBuildZone();
+  if (!zone) {
+    return true;
+  }
+
+  return x >= zone.x && x < zone.x + zone.width && y >= zone.y && y < zone.y + zone.height;
+}
+
+function shuffleIndices(length) {
+  const values = Array.from({ length }, (_, index) => index);
+  for (let index = values.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(Math.random() * (index + 1));
+    [values[index], values[swap]] = [values[swap], values[index]];
+  }
+  return values;
+}
+
+function graveyardEdgePortals() {
+  const portals = [];
+
+  for (let x = 0; x < COLS; x += 1) {
+    portals.push({ x, y: 0 });
+    portals.push({ x, y: ROWS - 1 });
+  }
+
+  for (let y = 1; y < ROWS - 1; y += 1) {
+    portals.push({ x: 0, y });
+    portals.push({ x: COLS - 1, y });
+  }
+
+  return portals;
+}
+
+function resetSpawnPortalOrder() {
+  spawnPortalCursor = 0;
+  spawnPortalOrder = shuffleIndices(activePortals().length);
+}
+
+function nextSpawnPortalIndex() {
+  if (spawnPortalOrder.length !== activePortals().length || spawnPortalOrder.length === 0) {
+    resetSpawnPortalOrder();
+  }
+
+  const value = spawnPortalOrder[spawnPortalCursor % spawnPortalOrder.length];
+  spawnPortalCursor += 1;
+
+  if (spawnPortalCursor % Math.max(spawnPortalOrder.length, 1) === 0) {
+    spawnPortalOrder = shuffleIndices(activePortals().length);
+    spawnPortalCursor = 0;
+  }
+
+  return value;
 }
 
 function isIdaenWave(round = waveNumber) {
@@ -471,9 +632,14 @@ function setMessage(text, duration = 1.6) {
   messageTimer = duration;
 }
 
+function isSandboxMode() {
+  return selectedDifficulty === "sandbox";
+}
+
 function openOverlay(name) {
   menuOverlay.classList.toggle("active", name === "menu");
   pauseOverlay.classList.toggle("active", name === "pause");
+  gameOverOverlay.classList.toggle("active", name === "gameover");
   almanacOverlay.classList.toggle("active", name === "almanac");
 }
 
@@ -488,12 +654,12 @@ function renderAlmanac() {
     almanacTitle.textContent = "Almanac";
     almanacDetail.innerHTML = `<p class="hint">Select the Towers tab to inspect tower damage, attacks per second, range, and upgrade scaling.</p>`;
 
-    for (const enemy of Object.values(ENEMY_TYPES)) {
+    for (const enemy of Object.values(ENEMY_TYPES).filter((entry) => entry.key !== "shield")) {
       const entry = document.createElement("article");
       const known = discoveredEnemies.has(enemy.key);
       entry.className = `almanac-entry${known ? "" : " locked"}`;
       entry.innerHTML = known
-        ? `<h3>${enemy.name}</h3><p>${enemy.description}</p><p>Reward: ${enemy.reward}</p>`
+        ? renderEnemyAlmanacCard(enemy)
         : `<h3>Unknown</h3><p>Encounter this enemy in battle to unlock this entry.</p>`;
       almanacGrid.appendChild(entry);
     }
@@ -512,9 +678,198 @@ function renderAlmanac() {
   renderTowerAlmanacDetail(selectedAlmanacTower);
 }
 
+function enemySpecialAbilities(enemy) {
+  const specials = [];
+
+  if (enemy.key.startsWith("waffle")) {
+    specials.push("Splits into smaller waffles on defeat");
+  }
+  if (enemy.key === "megaWaffle") {
+    specials.push("Massive summon that stuns nearby towers on arrival");
+  }
+  if (enemy.key === "armored") {
+    specials.push("Armoured shell blocks bullets until broken");
+  }
+  if (enemy.key === "idaen") {
+    specials.push("Boss summon phase");
+    specials.push("Shielded while summon biscuits survive");
+  }
+  if (enemy.key === "biscuit") {
+    specials.push("Extreme speed");
+  }
+  if (enemy.key === "diamond") {
+    specials.push("Resists heat, energy, freeze, and explosions");
+    specials.push("Tier 2 splits into three Tier 1 diamonds");
+    specials.push("Tier 3 splits into three Tier 2 diamonds");
+  }
+  if (enemy.key === "attacker") {
+    specials.push("Always hidden");
+    specials.push("Has armour without showing the white armour ring");
+  }
+  if (enemy.key === "shield") {
+    specials.push("Projects a protective force field for nearby enemies");
+    specials.push("Break the field first, then it becomes a normal enemy");
+    specials.push("Tier 2 splits into three Tier 1 shields");
+    specials.push("Tier 3 splits into three Tier 2 shields");
+  } else if (enemySupportsTiers(enemy.key) && !enemy.key.startsWith("waffle")) {
+    specials.push("Tier 2 splits into three Tier 1s");
+    specials.push("Tier 3 splits into three Tier 2s");
+  }
+
+  return specials;
+}
+
+function renderEnemyAlmanacCard(enemy) {
+  const hp = Math.round((5 + Math.max(waveNumber, 1)) * enemy.hpMultiplier * DIFFICULTIES.standard.hp);
+  const speed = (30 + Math.max(waveNumber, 1) * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval;
+  const specials = enemySpecialAbilities(enemy);
+  const specialText = specials.length ? specials.join(", ") : "None";
+  return `<h3>${enemy.name}</h3><p>${enemy.description}</p><p>Health: ${formatNumber(hp)} | Base Damage: 1 | Speed: ${formatNumber(speed / CELL_SIZE)} cells/s</p><p>Special: ${specialText}</p><p>Reward: ${enemy.reward}</p>`;
+}
+
+function diamondTierForWave(round = waveNumber) {
+  if (round >= 30) {
+    return 3;
+  }
+  if (round >= 14) {
+    return 2;
+  }
+  return 1;
+}
+
+function shieldTierForWave(round = waveNumber) {
+  if (round >= 36) {
+    return 3;
+  }
+  if (round >= 18) {
+    return 2;
+  }
+  return 1;
+}
+
+function genericEnemyTierForWave(round = waveNumber) {
+  if (round >= 30) {
+    return 3;
+  }
+  if (round >= 14) {
+    return 2;
+  }
+  return 1;
+}
+
+function waffleTypeForTier(tier = 3) {
+  return ENEMY_TYPES.waffle16;
+}
+
+function enemySupportsTiers(enemyKey) {
+  return enemyKey !== "idaen";
+}
+
+function isDiamondEnemy(enemy) {
+  return enemy?.key === "diamond";
+}
+
+function isShieldEnemy(enemy) {
+  return enemy?.key === "shield";
+}
+
+function diamondTierConfig(tier = 1) {
+  if (tier >= 3) {
+    return {
+      hpMultiplier: 4.6,
+      speedMultiplier: 0.62,
+      rewardMultiplier: 4.2,
+      radiusMultiplier: 1.45,
+      color: "#55d8ff",
+      coreColor: "#e9fbff"
+    };
+  }
+  if (tier === 2) {
+    return {
+      hpMultiplier: 2.05,
+      speedMultiplier: 0.82,
+      rewardMultiplier: 1.9,
+      radiusMultiplier: 1.18,
+      color: "#71dcff",
+      coreColor: "#f1fcff"
+    };
+  }
+  return {
+    hpMultiplier: 1,
+    speedMultiplier: 1,
+    rewardMultiplier: 1,
+    radiusMultiplier: 1,
+    color: null,
+    coreColor: "#e8fbff"
+  };
+}
+
+function shieldTierConfig(tier = 1) {
+  if (tier >= 3) {
+    return {
+      hpMultiplier: 4.2,
+      speedMultiplier: 0.58,
+      rewardMultiplier: 3.8,
+      radiusMultiplier: 1.5,
+      color: "#5fa8ff",
+      coreColor: "#edf5ff",
+      shieldHpMultiplier: 4.8,
+      shieldRadiusMultiplier: 1.45
+    };
+  }
+  if (tier === 2) {
+    return {
+      hpMultiplier: 2.05,
+      speedMultiplier: 0.8,
+      rewardMultiplier: 1.9,
+      radiusMultiplier: 1.2,
+      color: "#79baff",
+      coreColor: "#f4f8ff",
+      shieldHpMultiplier: 2.15,
+      shieldRadiusMultiplier: 1.18
+    };
+  }
+  return {
+    hpMultiplier: 1,
+    speedMultiplier: 1,
+    rewardMultiplier: 1,
+    radiusMultiplier: 1,
+    color: null,
+    coreColor: "#f4f8ff",
+    shieldHpMultiplier: 1,
+    shieldRadiusMultiplier: 1
+  };
+}
+
+function genericTierConfig(tier = 1) {
+  if (tier >= 3) {
+    return {
+      hpMultiplier: 4.1,
+      speedMultiplier: 0.64,
+      rewardMultiplier: 3.4,
+      radiusMultiplier: 1.4
+    };
+  }
+  if (tier === 2) {
+    return {
+      hpMultiplier: 1.95,
+      speedMultiplier: 0.84,
+      rewardMultiplier: 1.75,
+      radiusMultiplier: 1.14
+    };
+  }
+  return {
+    hpMultiplier: 1,
+    speedMultiplier: 1,
+    rewardMultiplier: 1,
+    radiusMultiplier: 1
+  };
+}
+
 function startGame() {
   resetGame();
   activeMap = MAPS[selectedMap];
+  applyMapViewport();
   if (selectedDifficulty === "sandbox") {
     infiniteMode = true;
     money = 999999;
@@ -536,6 +891,9 @@ function pauseGame() {
 }
 
 function resumeGame() {
+  if (gameMode === "gameover") {
+    return;
+  }
   gameMode = "playing";
   openOverlay(null);
 }
@@ -544,6 +902,18 @@ function quitToMenu() {
   gameMode = "menu";
   closeTowerPopup();
   openOverlay("menu");
+}
+
+function showGameOver() {
+  gameMode = "gameover";
+  wave = null;
+  enemies = [];
+  projectiles = [];
+  closeTowerPopup();
+  if (gameOverSummary) {
+    gameOverSummary.textContent = `You reached wave ${waveNumber} on ${MAPS[selectedMap].name}.`;
+  }
+  openOverlay("gameover");
 }
 
 function openAlmanac(origin) {
@@ -583,7 +953,192 @@ function updateMenuSelectors() {
   menuMapDescription.textContent = `${MAPS[selectedMap].name}: ${MAPS[selectedMap].description}`;
 }
 
+function populateSandboxEnemyOptions() {
+  if (!sandboxEnemySelect) {
+    return;
+  }
+
+  sandboxEnemySelect.innerHTML = Object.values(ENEMY_TYPES)
+    .filter((enemy) => enemy.key !== "shield")
+    .map((enemy) => `<option value="${enemy.key}">${enemy.name}</option>`)
+    .join("");
+  updateSandboxTierOptions();
+}
+
+function enemyUsesTiers(enemyKey) {
+  return enemySupportsTiers(enemyKey) && enemyKey !== "shield";
+}
+
+function updateSandboxTierOptions() {
+  if (!sandboxTierSelect) {
+    return;
+  }
+
+  const tiered = enemyUsesTiers(sandboxEnemySelect?.value || "");
+  sandboxTierSelect.disabled = !tiered;
+  sandboxTierSelect.parentElement?.classList.toggle("disabled", !tiered);
+  if (!tiered) {
+    sandboxTierSelect.value = "1";
+  }
+}
+
+function updateSandboxPortalOptions() {
+  if (!sandboxPortalSelect) {
+    return;
+  }
+
+  const previous = sandboxPortalSelect.value;
+  sandboxPortalSelect.innerHTML = `<option value="auto">Auto</option>${activePortals()
+    .map((portal, index) => `<option value="${index}">Portal ${index + 1} (${portal.x + 1}, ${portal.y + 1})</option>`)
+    .join("")}`;
+  sandboxPortalSelect.value = [...sandboxPortalSelect.options].some((option) => option.value === previous) ? previous : "auto";
+}
+
+function updateSandboxControls() {
+  if (!sandboxControls) {
+    return;
+  }
+
+  const active = isSandboxMode() && gameMode !== "menu";
+  sandboxControls.hidden = !active;
+  if (!active) {
+    return;
+  }
+
+  if (document.activeElement !== sandboxWaveInput) {
+    sandboxWaveInput.value = String(Math.max(0, waveNumber));
+  }
+  updateSandboxPortalOptions();
+}
+
+function isFormFieldFocused() {
+  const active = document.activeElement;
+  if (!active) {
+    return false;
+  }
+  const tag = active.tagName;
+  return active.isContentEditable || tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || tag === "BUTTON";
+}
+
+function scrollBoardByArrowKey(key) {
+  if (!boardFrame || gameMode === "menu" || isFormFieldFocused()) {
+    return false;
+  }
+
+  const maxScrollLeft = Math.max(0, boardFrame.scrollWidth - boardFrame.clientWidth);
+  const maxScrollTop = Math.max(0, boardFrame.scrollHeight - boardFrame.clientHeight);
+  let deltaX = 0;
+  let deltaY = 0;
+
+  if (key === "ArrowLeft") {
+    deltaX = -120;
+  } else if (key === "ArrowRight") {
+    deltaX = 120;
+  } else if (key === "ArrowUp") {
+    deltaY = -90;
+  } else if (key === "ArrowDown") {
+    deltaY = 90;
+  } else {
+    return false;
+  }
+
+  if ((deltaX !== 0 && maxScrollLeft <= 0) || (deltaY !== 0 && maxScrollTop <= 0)) {
+    return false;
+  }
+
+  boardFrame.scrollLeft = Math.max(0, Math.min(maxScrollLeft, boardFrame.scrollLeft + deltaX));
+  boardFrame.scrollTop = Math.max(0, Math.min(maxScrollTop, boardFrame.scrollTop + deltaY));
+  return true;
+}
+
+function updateSmoothBoardScroll(deltaTime) {
+  if (!boardFrame || gameMode === "menu" || isFormFieldFocused() || heldScrollKeys.size === 0) {
+    return;
+  }
+
+  const maxScrollLeft = Math.max(0, boardFrame.scrollWidth - boardFrame.clientWidth);
+  const maxScrollTop = Math.max(0, boardFrame.scrollHeight - boardFrame.clientHeight);
+  const speed = 540;
+  let deltaX = 0;
+  let deltaY = 0;
+
+  if (heldScrollKeys.has("ArrowLeft")) {
+    deltaX -= speed * deltaTime;
+  }
+  if (heldScrollKeys.has("ArrowRight")) {
+    deltaX += speed * deltaTime;
+  }
+  if (heldScrollKeys.has("ArrowUp")) {
+    deltaY -= speed * deltaTime;
+  }
+  if (heldScrollKeys.has("ArrowDown")) {
+    deltaY += speed * deltaTime;
+  }
+
+  if (deltaX !== 0 && maxScrollLeft > 0) {
+    boardFrame.scrollLeft = Math.max(0, Math.min(maxScrollLeft, boardFrame.scrollLeft + deltaX));
+  }
+  if (deltaY !== 0 && maxScrollTop > 0) {
+    boardFrame.scrollTop = Math.max(0, Math.min(maxScrollTop, boardFrame.scrollTop + deltaY));
+  }
+}
+
+function shuffledOrder(length) {
+  const order = Array.from({ length }, (_, index) => index);
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [order[index], order[swapIndex]] = [order[swapIndex], order[index]];
+  }
+  return order;
+}
+
+function dippyAmmoSlotLayout(slotCount) {
+  if (slotCount >= 12) {
+    const slots = [];
+    for (let index = 0; index < 6; index += 1) {
+      const outerAngle = (-Math.PI / 2) + (Math.PI * 2 * index) / 6;
+      const innerAngle = outerAngle + Math.PI / 6;
+      slots.push({ x: Math.cos(outerAngle) * 25, y: Math.sin(outerAngle) * 25, radius: 5.2 });
+      slots.push({ x: Math.cos(innerAngle) * 12.5, y: Math.sin(innerAngle) * 12.5, radius: 4.7 });
+    }
+    return slots;
+  }
+
+  if (slotCount >= 6) {
+    return Array.from({ length: 6 }, (_, index) => {
+      const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / 6;
+      return { x: Math.cos(angle) * 15, y: Math.sin(angle) * 15, radius: 5 };
+    });
+  }
+
+  if (slotCount >= 3) {
+    return Array.from({ length: 3 }, (_, index) => {
+      const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / 3;
+      return { x: Math.cos(angle) * 10.5, y: Math.sin(angle) * 10.5, radius: 5.2 };
+    });
+  }
+
+  return [{ x: 0, y: 0, radius: 5.5 }];
+}
+
+function ensureDippyAmmoOrder(tower, slotCount) {
+  if (!tower) {
+    return shuffledOrder(slotCount);
+  }
+
+  if (!Array.isArray(tower.dippyAmmoOrder) || tower.dippyAmmoOrder.length !== slotCount) {
+    tower.dippyAmmoOrder = shuffledOrder(slotCount);
+  }
+
+  return tower.dippyAmmoOrder;
+}
+
 function setTowerType(nextType) {
+  if (nextType === "crossbow" && !crossbowUnlocked) {
+    setMessage("Crossbow is locked. Reach Brutal wave 50 on Outpost without placing walls to unlock it.", 2.2);
+    return;
+  }
+
   selectedTowerType = nextType;
   currentTool = "tower";
 
@@ -604,12 +1159,34 @@ function setTowerType(nextType) {
 function updateTowerButtons() {
   for (const button of towerGrid.querySelectorAll("button[data-tower-type]")) {
     const type = button.dataset.towerType;
+    const lockedCrossbow = type === "crossbow" && !crossbowUnlocked;
+    button.hidden = lockedCrossbow;
+    button.disabled = false;
     button.textContent = `${TOWER_INFO[type].name} (${towerCost(type)})`;
   }
 }
 
 function maxTowerLevel(tower) {
-  return tower.type === "crossbow" ? 2 : 5;
+  return tower.type === "crossbow" ? 4 : 5;
+}
+
+function towerFootprint(type) {
+  return type === "dippy"
+    ? [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }]
+    : [{ x: 0, y: 0 }];
+}
+
+function towerPlacementCells(type, originX, originY) {
+  return towerFootprint(type).map((offset) => ({ x: originX + offset.x, y: originY + offset.y }));
+}
+
+function towerPlacementCenter(type, originX, originY) {
+  const cells = towerPlacementCells(type, originX, originY);
+  const sum = cells.reduce((acc, cell) => {
+    const center = cellCenter(cell.x, cell.y);
+    return { x: acc.x + center.x, y: acc.y + center.y };
+  }, { x: 0, y: 0 });
+  return { x: sum.x / cells.length, y: sum.y / cells.length };
 }
 
 function activeBossEnemy() {
@@ -703,6 +1280,10 @@ function canPlacePiece(originX, originY) {
       return false;
     }
 
+    if (!cellInBuildZone(cell.x, cell.y)) {
+      return false;
+    }
+
     if (grid[cell.y][cell.x].blockId !== null || obstacleAt(cell.x, cell.y)) {
       return false;
     }
@@ -712,12 +1293,27 @@ function canPlacePiece(originX, originY) {
 }
 
 function canPlaceTowerAt(x, y) {
-  if (!inBounds(x, y) || isEndpoint(x, y)) {
+  if (selectedTowerType === "crossbow" && !crossbowUnlocked) {
     return false;
   }
 
-  const cell = grid[y][x];
-  return cell.blockId !== null && cell.towerId === null && money >= towerCost(selectedTowerType);
+  const cells = towerPlacementCells(selectedTowerType, x, y);
+  if (money < towerCost(selectedTowerType)) {
+    return false;
+  }
+
+  for (const cell of cells) {
+    if (!inBounds(cell.x, cell.y) || isEndpoint(cell.x, cell.y)) {
+      return false;
+    }
+
+    const state = grid[cell.y][cell.x];
+    if (state.blockId === null || state.towerId !== null) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function placePiece(originX, originY) {
@@ -752,6 +1348,9 @@ function placePiece(originX, originY) {
     money -= currentBlockCost;
     currentBlockCost *= 2;
   }
+  if (selectedMap === "fortification") {
+    outpostWalllessQuestFailed = true;
+  }
   activePiece = createRandomPiece();
   return true;
 }
@@ -775,7 +1374,8 @@ function addPresetBlock(cells, color = "#7f8d99", name = "Fort Wall", locked = t
 }
 
 function addPresetTower(type, x, y, overrides = {}) {
-  const center = cellCenter(x, y);
+  const center = towerPlacementCenter(type, x, y);
+  const footprintCells = towerPlacementCells(type, x, y);
   const tower = {
     id: nextTowerId,
     type,
@@ -786,6 +1386,7 @@ function addPresetTower(type, x, y, overrides = {}) {
     spent: overrides.spent ?? 0,
     x,
     y,
+    footprintCells,
     centerX: center.x,
     centerY: center.y,
     cooldown: 0,
@@ -800,7 +1401,9 @@ function addPresetTower(type, x, y, overrides = {}) {
   };
 
   towers.push(tower);
-  grid[y][x].towerId = tower.id;
+  for (const cell of footprintCells) {
+    grid[cell.y][cell.x].towerId = tower.id;
+  }
   nextTowerId += 1;
   return tower;
 }
@@ -808,32 +1411,113 @@ function addPresetTower(type, x, y, overrides = {}) {
 function seedFortificationMap() {
   const centerX = Math.floor(COLS / 2);
   const centerY = Math.floor(ROWS / 2);
-  const wallCells = [
-    { x: centerX - 2, y: centerY - 2 },
-    { x: centerX - 1, y: centerY - 2 },
-    { x: centerX, y: centerY - 2 },
-    { x: centerX + 2, y: centerY - 2 },
-    { x: centerX - 2, y: centerY - 1 },
-    { x: centerX + 2, y: centerY },
-    { x: centerX - 2, y: centerY + 1 },
-    { x: centerX + 2, y: centerY + 1 },
-    { x: centerX - 2, y: centerY + 2 },
-    { x: centerX, y: centerY + 2 },
-    { x: centerX + 1, y: centerY + 2 },
-    { x: centerX + 2, y: centerY + 2 }
+  const layout = [
+    "00xx000",
+    "000x00x",
+    "00xxxxx",
+    "xxxxx00",
+    "x0xxx00",
+    "0xx0000",
+    "0xxx000"
   ];
+  const wallCells = [];
+
+  for (let row = 0; row < layout.length; row += 1) {
+    for (let col = 0; col < layout[row].length; col += 1) {
+      if (layout[row][col] === "0") {
+        wallCells.push({
+          x: centerX - 3 + col,
+          y: centerY - 3 + row
+        });
+      }
+    }
+  }
 
   addPresetBlock(wallCells, "#7b8895", "Fort Wall", true);
-  addPresetTower("crossbow", centerX - 2, centerY - 2, { spent: 0, unique: true });
-  addPresetTower("crossbow", centerX + 2, centerY - 2, { spent: 0, unique: true });
-  addPresetTower("crossbow", centerX - 2, centerY + 2, { spent: 0, unique: true });
-  addPresetTower("crossbow", centerX + 2, centerY + 2, { spent: 0, unique: true });
+  addPresetTower("crossbow", centerX - 3, centerY - 3, { spent: 0, unique: true, level: 2 });
+  addPresetTower("crossbow", centerX + 3, centerY - 3, { spent: 0, unique: true, level: 2 });
+  addPresetTower("crossbow", centerX - 3, centerY + 3, { spent: 0, unique: true, level: 2 });
+  addPresetTower("crossbow", centerX + 3, centerY + 3, { spent: 0, unique: true, level: 2 });
+}
+
+function seedFotificationMap() {
+  const wallCells = [];
+  for (let y = 2; y <= 12; y += 1) {
+    if (y === 6 || y === 7 || y === 8) {
+      continue;
+    }
+    wallCells.push({ x: 4, y });
+  }
+
+  const corridorWalls = [
+    { x: 8, y: 2 }, { x: 9, y: 2 }, { x: 10, y: 2 }, { x: 11, y: 2 }, { x: 12, y: 2 },
+    { x: 8, y: 12 }, { x: 9, y: 12 }, { x: 10, y: 12 }, { x: 11, y: 12 }, { x: 12, y: 12 },
+    { x: 11, y: 4 }, { x: 11, y: 5 }, { x: 11, y: 9 }, { x: 11, y: 10 },
+    { x: 16, y: 4 }, { x: 16, y: 5 }, { x: 16, y: 9 }, { x: 16, y: 10 }
+  ];
+  addPresetBlock(wallCells.concat(corridorWalls), "#6f7c86", "Fortification Wall", true);
+  addPresetTower("crossbow", 4, 4, { spent: 0, unique: true, level: 2, upgradeLocked: true });
+  addPresetTower("crossbow", 4, 10, { spent: 0, unique: true, level: 2, upgradeLocked: true });
+
+  const spikeCells = [
+    { x: 7, y: 7 },
+    { x: 10, y: 7 },
+    { x: 13, y: 5 },
+    { x: 13, y: 9 },
+    { x: 18, y: 7 }
+  ];
+
+  for (const cell of spikeCells) {
+    const center = cellCenter(cell.x, cell.y);
+    traps.push({
+      id: nextTrapId,
+      ownerTowerId: null,
+      kind: "spike",
+      x: cell.x,
+      y: cell.y,
+      centerX: center.x,
+      centerY: center.y,
+      damage: 1.9,
+      radius: 15,
+      ttl: 999999,
+      maxTtl: 999999,
+      cooldown: 0,
+      tickRate: 0.45
+    });
+    nextTrapId += 1;
+  }
+}
+
+function applyMapViewport() {
+  const extraWidth = activeMap.extraCanvasWidth || 0;
+  canvas.width = BASE_CANVAS_WIDTH + extraWidth;
+  canvas.height = BASE_CANVAS_HEIGHT;
+  if (boardFrame) {
+    boardFrame.scrollLeft = activeMap.initialScrollLeft || 0;
+    boardFrame.scrollTop = 0;
+  }
 }
 
 function seedMapFeatures() {
   if (selectedMap === "fortification") {
     seedFortificationMap();
+  } else if (selectedMap === "fotification") {
+    seedFotificationMap();
   }
+}
+
+function maybeUnlockCrossbowQuest() {
+  if (selectedMap === "fortification" && selectedDifficulty === "brutal" && !outpostWalllessQuestFailed && waveNumber >= 50 && !crossbowUnlocked) {
+    crossbowUnlocked = true;
+    setMessage("Secret unlocked: Crossbow tower can now be purchased in future runs.", 3.2);
+    updateHud();
+  }
+}
+
+function supportWaveIncomeBonus() {
+  return towers
+    .filter((tower) => tower.type === "support")
+    .reduce((total, tower) => total + (towerStats(tower).waveCash || 0), 0);
 }
 
 function towerCost(type) {
@@ -841,6 +1525,7 @@ function towerCost(type) {
 }
 
 function mockTower(type, overrides = {}) {
+  const center = towerPlacementCenter(type, 0, 0);
   return {
     id: 0,
     type,
@@ -851,8 +1536,9 @@ function mockTower(type, overrides = {}) {
     spent: towerCost(type),
     x: 0,
     y: 0,
-    centerX: 0,
-    centerY: 0,
+    footprintCells: towerPlacementCells(type, 0, 0),
+    centerX: center.x,
+    centerY: center.y,
     cooldown: 0,
     burstShotsRemaining: 0,
     burstTimer: 0,
@@ -870,7 +1556,7 @@ function upgradeCost(tower, path = null) {
   }
 
   if (tower.type === "crossbow") {
-    return 12;
+    return [12, 18, 28][Math.max(0, tower.level - 1)] || 28;
   }
 
   if (PATH_TOWER_TYPES.has(tower.type) && path !== null) {
@@ -911,6 +1597,111 @@ function trapperPathDescription(path, tier) {
       3: "Path 2 T3: Sticky Traps. Traps now slow enemies.",
       4: "Path 2 T4: Mines. Explodes after 12 steps or when time runs out.",
       5: "Path 2 T5: Mango Mines. Explosions rain slowing mango bombs."
+    }
+  };
+
+  return descriptions[path][tier];
+}
+
+function laserPathDescription(path, tier) {
+  const descriptions = {
+    1: {
+      1: "Path 1 T1: Plasma Ignition. Beam applies burn damage over time.",
+      2: "Path 1 T2: Thermal Feed. Faster firing with stronger burn.",
+      3: "Path 1 T3: Plasma Ray. A continuous white heat stream scorches everything in its path.",
+      4: "Path 1 T4: White Core. Longer burn, wider beam, more damage.",
+      5: "Path 1 T5: Star Furnace. Max burn output with a relentless plasma stream."
+    },
+    2: {
+      1: "Path 2 T1: Focused Crystals. Higher beam damage.",
+      2: "Path 2 T2: Refracted Barrel. More range and burn duration.",
+      3: "Path 2 T3: Photon Beam. Bright yellow doom beam, slower but pierces infinitely.",
+      4: "Path 2 T4: Solar Lance. Much higher damage and burn.",
+      5: "Path 2 T5: Cataclysm Prism. Extreme beam damage with brutal lingering burn."
+    }
+  };
+
+  return descriptions[path][tier];
+}
+
+function shotgunPathDescription(path, tier) {
+  const descriptions = {
+    1: {
+      1: "Path 1 T1: Faster Pump. Reloads faster.",
+      2: "Path 1 T2: Hot Buck. More damage.",
+      3: "Path 1 T3: Bullet Storm. Quite expensive, much faster firing shotgun.",
+      4: "Path 1 T4: Shell Cascade. Even faster firing.",
+      5: "Path 1 T5: Brass Hurricane. Extreme shotgun fire rate and heavy spread damage."
+    },
+    2: {
+      1: "Path 2 T1: Signal Splitter. Fires 4 yellow lines.",
+      2: "Path 2 T2: Harmonic Fan. Fires 5 yellow lines.",
+      3: "Path 2 T3: Broadwave. Fires 18 yellow lines in a 180 degree spread.",
+      4: "Path 2 T4: Golden Spectrum. Keeps the huge half-circle burst and hits harder.",
+      5: "Path 2 T5: Wavelength V. Massive 18-line spread with even stronger shots."
+    }
+  };
+
+  return descriptions[path][tier];
+}
+
+function freezerPathDescription(path, tier) {
+  const descriptions = {
+    1: {
+      1: "Path 1 T1: Colder Shots. More damage and longer chill.",
+      2: "Path 1 T2: Cracking Frost. Chill lasts longer and shots hit harder.",
+      3: "Path 1 T3: Permafrost. Emits a pulsing freeze that immobilises enemies, then recharges.",
+      4: "Path 1 T4: Deep Winter. Permafrost pulse lasts longer and hits a wider area.",
+      5: "Path 1 T5: Ice Age. Massive immobilising bursts with stronger frost shots."
+    },
+    2: {
+      1: "Path 2 T1: Wider Reach. More range.",
+      2: "Path 2 T2: Harsher Wind. Better slow strength and duration.",
+      3: "Path 2 T3: Frost Aura. Constant slowing aura around the tower.",
+      4: "Path 2 T4: Whiteout. Aura grows and can detect hidden enemies.",
+      5: "Path 2 T5: Absolute Zero. Extreme aura slow with stronger frost support."
+    }
+  };
+
+  return descriptions[path][tier];
+}
+
+function dippyPathDescription(path, tier) {
+  const descriptions = {
+    1: {
+      1: "Path 1 T1: Bigger Eggs. More damage.",
+      2: "Path 1 T2: Boiled Eggs. More damage and leaves burn.",
+      3: "Path 1 T3: Animal Welfare Approved Eggs. Faster firing and burst of three.",
+      4: "Path 1 T4: Half-Dozen. Shoots a burst of six.",
+      5: "Path 1 T5: A Dozen Eggs. Shoots 12 before reloading."
+    },
+    2: {
+      1: "Path 2 T1: Fresh Eggs. More explosion radius.",
+      2: "Path 2 T2: Harder Shells. Shells fly out like bullets.",
+      3: "Path 2 T3: Egg Pudding. High damage, bigger radius, slight screen shake, and hidden detection.",
+      4: "Path 2 T4: Mangoes. More damage, more shake, sticky mango syrup slows enemies.",
+      5: "Path 2 T5: Mango Pudding. More stickiness, bigger radius, more damage, two shockwaves."
+    }
+  };
+
+  return descriptions[path][tier];
+}
+
+function supportPathDescription(path, tier) {
+  const descriptions = {
+    1: {
+      1: "Path 1 T1: Budget Desk. Gives extra cash at the end of each wave.",
+      2: "Path 1 T2: Counting House. End-of-wave income increases.",
+      3: "Path 1 T3: Treasury Office. Stronger income payout each wave.",
+      4: "Path 1 T4: Revenue Bureau. Big end-of-wave cash boost.",
+      5: "Path 1 T5: Golden Reserve. Massive bonus cash every wave."
+    },
+    2: {
+      1: "Path 2 T1: Packed Crates. Support radius increases.",
+      2: "Path 2 T2: Better Shells. Support radius increases again.",
+      3: "Path 2 T3: Extra Munitions Supplier. Towers in range can hit armoured and their attacks become explosive.",
+      4: "Path 2 T4: Telescope. Towers in range can also see hidden enemies.",
+      5: "Path 2 T5: Siege Depot. Wider support field with stronger munitions coverage."
     }
   };
 
@@ -1017,6 +1808,22 @@ function canUpgradeTrapperPath(tower, path) {
   return canUpgradeTeslaPath(tower, path);
 }
 
+function canUpgradeLaserPath(tower, path) {
+  return canUpgradeTeslaPath(tower, path);
+}
+
+function canUpgradeFreezerPath(tower, path) {
+  return canUpgradeTeslaPath(tower, path);
+}
+
+function canUpgradeDippyPath(tower, path) {
+  return canUpgradeTeslaPath(tower, path);
+}
+
+function canUpgradeSupportPath(tower, path) {
+  return canUpgradeTeslaPath(tower, path);
+}
+
 function pathDescriptionForTower(tower, path, tier) {
   if (tower.type === "tesla") {
     return teslaPathDescription(path, tier);
@@ -1028,6 +1835,26 @@ function pathDescriptionForTower(tower, path, tier) {
 
   if (tower.type === "trapper") {
     return trapperPathDescription(path, tier);
+  }
+
+  if (tower.type === "laser") {
+    return laserPathDescription(path, tier);
+  }
+
+  if (tower.type === "shotgun") {
+    return shotgunPathDescription(path, tier);
+  }
+
+  if (tower.type === "freezer") {
+    return freezerPathDescription(path, tier);
+  }
+
+  if (tower.type === "dippy") {
+    return dippyPathDescription(path, tier);
+  }
+
+  if (tower.type === "support") {
+    return supportPathDescription(path, tier);
   }
 
   return dronePathDescription(path, tier);
@@ -1046,6 +1873,26 @@ function canUpgradeTowerPath(tower, path) {
     return canUpgradeTrapperPath(tower, path);
   }
 
+  if (tower.type === "laser") {
+    return canUpgradeLaserPath(tower, path);
+  }
+
+  if (tower.type === "shotgun") {
+    return canUpgradeTeslaPath(tower, path);
+  }
+
+  if (tower.type === "freezer") {
+    return canUpgradeFreezerPath(tower, path);
+  }
+
+  if (tower.type === "dippy") {
+    return canUpgradeDippyPath(tower, path);
+  }
+
+  if (tower.type === "support") {
+    return canUpgradeSupportPath(tower, path);
+  }
+
   return canUpgradeDronePath(tower, path);
 }
 
@@ -1062,7 +1909,9 @@ function towerStatSummary(type, overrides = {}) {
   const stats = towerStats(tower);
   const armoredProbe = { armored: true, armorHp: 4, hidden: false };
   const hitsArmored = canTowerDamageEnemy(tower, armoredProbe, stats);
-  const attacksPerSecond = type === "trapper" && stats.turretMode
+  const attacksPerSecond = type === "support"
+    ? 0
+    : type === "trapper" && stats.turretMode
     ? 1 / stats.turretCooldown
     : 1 / stats.cooldown;
   const damage = type === "trapper" && stats.turretMode ? stats.turretDamage : type === "drone" ? Math.max(stats.bulletDamage, stats.rocket ? stats.rocketDamage : 0) : stats.damage;
@@ -1075,6 +1924,10 @@ function towerStatSummary(type, overrides = {}) {
   if (type === "missile" && stats.splash) {
     extras.push(`Splash ${formatNumber(stats.splash)}`);
   }
+  if (type === "shotgun") {
+    extras.push(`Lines ${stats.pellets}`);
+    extras.push(`Spread ${formatNumber(stats.spread)}`);
+  }
   if (type === "tesla" && stats.chainCount) {
     extras.push(`Chains ${stats.chainCount}`);
   }
@@ -1083,6 +1936,20 @@ function towerStatSummary(type, overrides = {}) {
   }
   if (type === "trapper") {
     extras.push(stats.turretMode ? `Turret life ${formatNumber(stats.trapLifetime)}s` : `Life ${formatNumber(stats.trapLifetime)}s`);
+    if (stats.turretMode && stats.turretCap > 0) {
+      extras.push(`Sentry cap ${stats.turretCap}`);
+    }
+  }
+  if (type === "freezer") {
+    extras.push(`Slow ${formatNumber((1 - stats.slow) * 100)}% for ${formatNumber(stats.slowDuration)}s`);
+    if (stats.permafrost) {
+      extras.push(`Freeze pulse ${formatNumber(stats.pulseFreeze)}s`);
+      extras.push(`Pulse damage ${formatNumber(stats.pulseDamage)}`);
+    }
+    if (stats.aura) {
+      extras.push(`Aura slow ${formatNumber((1 - stats.auraSlow) * 100)}%`);
+      extras.push(`Aura damage ${formatNumber(stats.auraDamage)}/tick`);
+    }
   }
   if (type === "drone" && stats.supportCount) {
     extras.push(`Support drones ${stats.supportCount}`);
@@ -1090,8 +1957,60 @@ function towerStatSummary(type, overrides = {}) {
     extras.push(`Mini drone guns ${stats.supportGuns}`);
     extras.push(`Mini drone range ${formatRange(stats.supportRange)}`);
   }
+  if (type === "crossbow" && stats.attackSpeedMultiplier > 1) {
+    extras.push(`Attack speed x${formatNumber(stats.attackSpeedMultiplier)}`);
+  }
+  if (type === "crossbow" && stats.boltPierce > 0) {
+    extras.push(`Bolt pierce ${stats.boltPierce}`);
+  }
+  if (type === "crossbow") {
+    extras.push("Unlocked via Outpost secret");
+  }
+  if (type === "dippy") {
+    extras.push("Needs 2x2 space");
+    extras.push(`Splash ${formatNumber(stats.splash)}`);
+    extras.push(`Dead zone ${formatRange(stats.minRange)}`);
+    if (stats.inaccuracy > 0) {
+      extras.push(`Scatter ${formatRange(stats.inaccuracy)}`);
+    }
+    if (stats.burst > 1) {
+      extras.push(`Burst ${stats.burst}, reload ${formatNumber(stats.cooldown)}s`);
+    }
+    if (stats.burnDamage > 0) {
+      extras.push(`Burn ${formatNumber(stats.burnDamage)}/s for ${formatNumber(stats.burnDuration)}s`);
+    }
+    if (stats.shells) {
+      extras.push(`Shell fragments ${formatNumber(stats.shellDamage)}`);
+    }
+    if (stats.sticky) {
+      extras.push(`Sticky syrup ${formatNumber((1 - stats.stickySlow) * 100)}%`);
+    }
+    if (stats.shockwaves > 1) {
+      extras.push(`Shockwaves ${stats.shockwaves}`);
+    }
+    extras.push(`Shake ${formatNumber(stats.screenShake)}`);
+  }
+  if (type === "support") {
+    extras.push(`Wave cash ${formatNumber(stats.waveCash)}`);
+    extras.push(`Aura radius ${formatRange(stats.auraRadius)}`);
+    if (stats.munitions) {
+      extras.push("Munitions aura");
+      extras.push("Nearby towers deal explosive damage");
+      extras.push("Nearby towers hit armoured");
+    }
+    if (stats.detectHiddenAura) {
+      extras.push("Telescope aura");
+      extras.push("Nearby towers detect hidden");
+    }
+  }
+  if (type === "laser" && stats.beamWidth) {
+    extras.push(`Beam width ${formatNumber(stats.beamWidth)}`);
+  }
   if (type === "missile" && stats.burst > 1) {
     extras.push(`Burst ${stats.burst} rockets, reload ${formatNumber(stats.cooldown)}s`);
+  }
+  if (stats.burnDamage > 0 && stats.burnDuration > 0) {
+    extras.push(`Burn ${formatNumber(stats.burnDamage)}/s for ${formatNumber(stats.burnDuration)}s`);
   }
   if (hitsArmored) {
     extras.push("Hits armoured");
@@ -1124,6 +2043,18 @@ function armoredUnlockText(type) {
     return "Hits armoured at Path 2 T4 when mines unlock.";
   }
 
+  if (type === "freezer") {
+    return "Cannot damage armoured enemies until their shell is broken.";
+  }
+
+  if (type === "dippy") {
+    return "Hits armoured from level 1.";
+  }
+
+  if (type === "support") {
+    return "Support tower does not attack. Path 2 T3 lets nearby towers hit armoured.";
+  }
+
   return "Hits armoured at Path 2 T5 with Electrocannon.";
 }
 
@@ -1141,16 +2072,28 @@ function pathUpgradeSummary(type, path) {
   return entries.join("");
 }
 
-function laserUpgradeSummary() {
+function linearUpgradeSummary(type, maxLevel) {
   const entries = [];
-  const names = ["Base Upgrade", "Focused Lens", "Amplified Beam", "Refined Crystal", "Overcharged Prism"];
 
-  for (let level = 1; level <= 5; level += 1) {
-    const summary = towerStatSummary("laser", { level });
-    entries.push(`<p><strong>${names[level - 1]}</strong>: Damage ${formatNumber(summary.damage)}, APS ${formatNumber(summary.aps)}, Range ${formatRange(summary.range)}${summary.extras.length ? `, ${summary.extras.join(", ")}` : ""}</p>`);
+  for (let level = 2; level <= maxLevel; level += 1) {
+    const summary = towerStatSummary(type, { level });
+    entries.push(`<p><strong>${linearUpgradeName(type, level)}</strong>: Damage ${formatNumber(summary.damage)}, APS ${formatNumber(summary.aps)}, Range ${formatRange(summary.range)}${summary.extras.length ? `, ${summary.extras.join(", ")}` : ""}</p>`);
   }
 
   return entries.join("");
+}
+
+function linearUpgradeName(type, level) {
+  if (type === "crossbow") {
+    const names = {
+      2: "Twin Limbs",
+      3: "Bodkin Rack",
+      4: "Ballista Frame"
+    };
+    return names[level] || `Level ${level}`;
+  }
+
+  return `Level ${level}`;
 }
 
 function renderTowerAlmanacDetail(type) {
@@ -1161,8 +2104,8 @@ function renderTowerAlmanacDetail(type) {
   if (isPathTower(type)) {
     detail += `<h4>Path 1</h4>${pathUpgradeSummary(type, 1)}`;
     detail += `<h4>Path 2</h4>${pathUpgradeSummary(type, 2)}`;
-  } else {
-    detail += `<h4>Upgrade Levels</h4>${laserUpgradeSummary()}`;
+  } else if (maxTowerLevel({ type }) > 1) {
+    detail += `<h4>Upgrade Levels</h4>${linearUpgradeSummary(type, maxTowerLevel({ type }))}`;
   }
 
   almanacDetail.innerHTML = detail;
@@ -1197,7 +2140,7 @@ function appendPriorityButton(container, tower) {
 }
 
 function towerCanDetectHidden(tower) {
-  return Boolean(towerStats(tower).detectHidden);
+  return towerHasHiddenDetection(tower, towerStats(tower));
 }
 
 function availablePrioritiesForTower(tower) {
@@ -1240,6 +2183,7 @@ function openTowerPopup(tower) {
   }
 
   towerPopupActions.innerHTML = "";
+  const upgradesLocked = Boolean(tower.upgradeLocked);
 
   if (isPathTower(tower)) {
     const nextPath1 = tower.path1 + 1;
@@ -1252,20 +2196,24 @@ function openTowerPopup(tower) {
     button1.className = "tower-upgrade";
     button1.dataset.upgradeTowerId = tower.id;
     button1.dataset.upgradePath = "1";
-    button1.textContent = canPath1
+    button1.textContent = upgradesLocked
+      ? "Fort tower: upgrades locked"
+      : canPath1
       ? `${path1Text} (${upgradeCost(tower, 1)})`
       : "Path 1 maxed";
-    button1.disabled = !canPath1;
+    button1.disabled = upgradesLocked || !canPath1;
     towerPopupActions.appendChild(button1);
 
     const button2 = document.createElement("button");
     button2.className = "tower-upgrade";
     button2.dataset.upgradeTowerId = tower.id;
     button2.dataset.upgradePath = "2";
-    button2.textContent = canPath2
+    button2.textContent = upgradesLocked
+      ? "Fort tower: upgrades locked"
+      : canPath2
       ? `${path2Text} (${upgradeCost(tower, 2)})`
       : "Path 2 maxed";
-    button2.disabled = !canPath2;
+    button2.disabled = upgradesLocked || !canPath2;
     towerPopupActions.appendChild(button2);
     appendPriorityButton(towerPopupActions, tower);
     appendSellButton(towerPopupActions, tower);
@@ -1275,23 +2223,21 @@ function openTowerPopup(tower) {
   const upgradeButton = document.createElement("button");
   upgradeButton.className = "tower-upgrade";
   upgradeButton.dataset.upgradeTowerId = tower.id;
-  upgradeButton.textContent = tower.level >= maxTowerLevel(tower) ? "Max upgraded" : `Upgrade (${upgradeCost(tower)})`;
-  upgradeButton.disabled = tower.level >= maxTowerLevel(tower);
+  const nextLinearName = linearUpgradeName(tower.type, tower.level + 1);
+  upgradeButton.textContent = upgradesLocked
+    ? "Fort tower: upgrades locked"
+    : tower.level >= maxTowerLevel(tower)
+      ? "Max upgraded"
+      : `${nextLinearName} (${upgradeCost(tower)})`;
+  upgradeButton.disabled = upgradesLocked || tower.level >= maxTowerLevel(tower);
   towerPopupActions.appendChild(upgradeButton);
   appendPriorityButton(towerPopupActions, tower);
   appendSellButton(towerPopupActions, tower);
 }
 
 function placeTower(x, y) {
-  const cell = grid[y][x];
-
-  if (cell.blockId === null) {
-    setMessage("Towers must be placed on a tetromino block.");
-    return false;
-  }
-
-  if (cell.towerId !== null) {
-    setMessage("That block tile already has a tower.");
+  if (!canPlaceTowerAt(x, y)) {
+    setMessage(selectedTowerType === "dippy" ? "Dippy needs a clear 2x2 block space." : "That block tile cannot take a tower.");
     return false;
   }
 
@@ -1302,7 +2248,8 @@ function placeTower(x, y) {
     return false;
   }
 
-  const center = cellCenter(x, y);
+  const center = towerPlacementCenter(selectedTowerType, x, y);
+  const footprintCells = towerPlacementCells(selectedTowerType, x, y);
   const tower = {
     id: nextTowerId,
     type: selectedTowerType,
@@ -1313,6 +2260,7 @@ function placeTower(x, y) {
     spent: cost,
     x,
     y,
+    footprintCells,
     centerX: center.x,
     centerY: center.y,
     cooldown: 0,
@@ -1342,7 +2290,9 @@ function placeTower(x, y) {
       bodyRadius: 6
     });
   }
-  grid[y][x].towerId = tower.id;
+  for (const cell of footprintCells) {
+    grid[cell.y][cell.x].towerId = tower.id;
+  }
   nextTowerId += 1;
   money -= cost;
   selectedTowerId = tower.id;
@@ -1357,6 +2307,11 @@ function upgradeTower(x, y, path = null) {
     return false;
   }
 
+  if (tower.upgradeLocked) {
+    setMessage("Those fort crossbows are fixed defenses and cannot be upgraded.");
+    return false;
+  }
+
   if (isPathTower(tower) && path === null) {
     selectedTowerId = tower.id;
     openTowerPopup(tower);
@@ -1365,23 +2320,24 @@ function upgradeTower(x, y, path = null) {
   }
 
   if (tower.type === "crossbow") {
-    if (tower.level >= 2) {
+    if (tower.level >= 4) {
       setMessage("That crossbow is already fully upgraded.");
       return false;
     }
 
     const cost = upgradeCost(tower);
+    const nextLevel = tower.level + 1;
 
     if (money < cost) {
       setMessage("Not enough money to upgrade that tower.");
       return false;
     }
 
-    tower.level = 2;
+    tower.level += 1;
     money -= cost;
     tower.spent = (tower.spent || 0) + cost;
     selectedTowerId = tower.id;
-    setMessage("Crossbow upgraded to double bolts.", 1.2);
+    setMessage(`Crossbow upgraded to ${linearUpgradeName("crossbow", nextLevel)}.`, 1.2);
     openTowerPopup(tower);
     return true;
   }
@@ -1429,7 +2385,9 @@ function removeTowerById(towerId) {
     return null;
   }
 
-  grid[tower.y][tower.x].towerId = null;
+  for (const cell of tower.footprintCells || [{ x: tower.x, y: tower.y }]) {
+    grid[cell.y][cell.x].towerId = null;
+  }
   towers = towers.filter((entry) => entry.id !== towerId);
   drones = drones.filter((drone) => drone.towerId !== towerId);
   traps = traps.filter((entry) => entry.ownerTowerId !== towerId);
@@ -1567,7 +2525,9 @@ function routeCells(pathIndex = null) {
 }
 
 function createEnemy(enemyType, options = {}) {
-  const portalIndex = options.portalIndex ?? Math.floor(Math.random() * activePortals().length);
+  const requestedTier = Math.max(1, Math.min(3, options.tier || 1));
+  const resolvedEnemyType = enemyType.key.startsWith("waffle") ? waffleTypeForTier(requestedTier) : enemyType;
+  const portalIndex = options.portalIndex ?? nextSpawnPortalIndex();
   const startCell = options.startCell || activePortals()[portalIndex];
   const route = options.route || (options.startCell ? findPathFrom(startCell) : null);
 
@@ -1576,33 +2536,62 @@ function createEnemy(enemyType, options = {}) {
   }
 
   const center = cellCenter(startCell.x, startCell.y);
-  const hp = options.hp ?? Math.round((5 + waveNumber) * enemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp);
-  const armored = options.armored ?? (enemyType.key === "armored");
-  const armorValue = options.armorHp ?? (armored ? enemyType.armor + Math.floor((waveNumber - 9) / 4) : 0);
+  const tier = resolvedEnemyType.key.startsWith("waffle")
+    ? requestedTier
+    : (enemyUsesTiers(resolvedEnemyType.key) ? requestedTier : 1);
+  const diamondTier = resolvedEnemyType.key === "diamond" ? diamondTierConfig(tier) : null;
+  const shielded = Boolean(options.shielded) || resolvedEnemyType.key === "shield";
+  const shieldTier = shielded ? shieldTierConfig(tier) : null;
+  const genericTier = !diamondTier && !shieldTier && enemyUsesTiers(resolvedEnemyType.key) ? genericTierConfig(tier) : null;
+  const tierConfig = diamondTier || shieldTier || genericTier;
+  const hp = options.hp ?? Math.round((5 + waveNumber) * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tierConfig?.hpMultiplier || 1));
+  const armored = options.armored ?? Boolean(resolvedEnemyType.armored) || resolvedEnemyType.key === "armored";
+  const armorValue = options.armorHp ?? (armored ? resolvedEnemyType.armor + Math.floor((waveNumber - 9) / 4) : 0);
+  const waffleRewardMultiplier = resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? 1 : tier === 2 ? 0.3 : 0.1) : 1;
+  const waffleSpeedBonus = resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? -10 : tier === 2 ? -2 : 10) : 0;
+  const reward = options.reward ?? Math.max(1, Math.round(resolvedEnemyType.reward * waffleRewardMultiplier * rewardMultiplier() * (tierConfig?.rewardMultiplier || 1)));
+  const speed = options.speed ?? ((30 + waveNumber * 2 + (resolvedEnemyType.speedBonus + waffleSpeedBonus)) / DIFFICULTIES[selectedDifficulty].interval) * (tierConfig?.speedMultiplier || 1);
+  const shieldHp = shielded
+    ? (options.shieldHp ?? Math.round((18 + waveNumber * 2.4) * (shieldTier?.shieldHpMultiplier || 1) * 3))
+    : 0;
+  const shieldRadius = shielded
+    ? CELL_SIZE * (2.4 * (shieldTier?.shieldRadiusMultiplier || 1))
+    : 0;
 
   return {
     id: nextEnemyId++,
-    key: enemyType.key,
+    key: resolvedEnemyType.key,
     portalIndex,
     route,
-    type: enemyType.name,
-    shapeSides: enemyType.shape,
-    reward: options.reward ?? Math.max(1, Math.round(enemyType.reward * rewardMultiplier())),
-    color: options.color || enemyType.color,
-    waffleSquares: options.waffleSquares ?? (enemyType.waffleSquares || 0),
+    type: resolvedEnemyType.name,
+    shapeSides: resolvedEnemyType.shape,
+    reward,
+    color: options.color || (shielded ? "#79beff" : null) || tierConfig?.color || resolvedEnemyType.color,
+    waffleSquares: options.waffleSquares ?? (resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? 16 : tier === 2 ? 4 : 1) : (resolvedEnemyType.waffleSquares || 0)),
     x: center.x,
     y: center.y,
     progress: options.progress || 0,
-    speed: options.speed ?? ((30 + waveNumber * 2 + enemyType.speedBonus) / DIFFICULTIES[selectedDifficulty].interval),
+    speed,
     hp,
     maxHp: hp,
-    hidden: options.hidden ?? false,
+    tier,
+    coreColor: tierConfig?.coreColor || null,
+    sizeScale: tierConfig?.radiusMultiplier || 1,
+    shielded,
+    shieldHp,
+    maxShieldHp: shieldHp,
+    shieldRadius,
+    hidden: options.hidden ?? Boolean(resolvedEnemyType.hidden),
     armored,
     armorHp: armorValue,
     maxArmorHp: armorValue,
+    suppressArmorVisual: Boolean(resolvedEnemyType.suppressArmorVisual),
     stunTimer: 0,
     slowFactor: 1,
     slowTimer: 0,
+    burnTimer: 0,
+    burnDamage: 0,
+    whiteoutTimer: 0,
     facingAngle: 0,
     bossOwnerId: options.bossOwnerId || null,
     bossShieldMinion: Boolean(options.bossShieldMinion),
@@ -1617,6 +2606,9 @@ function pushEnemy(enemy) {
 
   discoveredEnemies.add(enemy.key);
   renderAlmanac();
+  if ((enemy.shielded || isShieldEnemy(enemy)) && (enemy.shieldHp || 0) > 0) {
+    addPulse(enemy.x, enemy.y, enemy.shieldRadius || 24, "rgba(176, 225, 255, 0.45)");
+  }
   enemies.push(enemy);
   return enemy;
 }
@@ -1661,7 +2653,7 @@ function stunTowersNear(x, y, radius, duration) {
 
 function spawnIdaenSummons(enemy) {
   const summonCount = waveNumber >= 50 ? 2 : 3;
-  const waffleType = waveNumber >= 50 ? ENEMY_TYPES.waffle16 : ENEMY_TYPES.waffle4;
+  const waffleType = ENEMY_TYPES.waffle16;
 
   for (let index = 0; index < summonCount; index += 1) {
     const cell = spawnBossSummonCell(enemy, 4);
@@ -1672,6 +2664,7 @@ function spawnIdaenSummons(enemy) {
     const waffle = createEnemy(waffleType, {
       startCell: { x: cell.x, y: cell.y },
       route: cell.route,
+      tier: waveNumber >= 50 ? 3 : 2,
       hidden: waveNumber >= 100 ? true : waveNumber >= 75 ? Math.random() < 0.5 : false,
       armored: waveNumber >= 100 ? true : waveNumber >= 75 ? Math.random() < 0.5 : false,
       armorHp: waveNumber >= 75 ? 3 + Math.floor((waveNumber - 75) / 25) : 0,
@@ -1738,6 +2731,38 @@ function spawnIdaenBoss() {
   pushEnemy(boss);
 }
 
+function waffleStatusModifiers() {
+  if (waveNumber >= 100) {
+    return { hidden: true, armored: true, armorHp: 4 + Math.floor((waveNumber - 100) / 20) };
+  }
+
+  if (waveNumber >= 80) {
+    return {
+      hidden: Math.random() < 0.55,
+      armored: Math.random() < 0.55,
+      armorHp: 3 + Math.floor((waveNumber - 80) / 20)
+    };
+  }
+
+  if (waveNumber >= 55) {
+    return {
+      hidden: Math.random() < 0.35,
+      armored: Math.random() < 0.4,
+      armorHp: 2 + Math.floor((waveNumber - 55) / 25)
+    };
+  }
+
+  if (waveNumber >= 35) {
+    return {
+      hidden: Math.random() < 0.22,
+      armored: Math.random() < 0.25,
+      armorHp: 2
+    };
+  }
+
+  return { hidden: false, armored: false, armorHp: 0 };
+}
+
 function spawnWave() {
   if (gameMode !== "playing") {
     return;
@@ -1756,6 +2781,7 @@ function spawnWave() {
   }
 
   waveNumber += 1;
+  resetSpawnPortalOrder();
   wave = {
     count: Math.round((5 + waveNumber * 2) * enemyCountMultiplier()),
     spawned: 0,
@@ -1763,6 +2789,8 @@ function spawnWave() {
     interval: Math.max(0.7 - waveNumber * 0.04, 0.28),
     complete: false
   };
+  autoWaveTimer = 0;
+  maybeUnlockCrossbowQuest();
   if (isIdaenWave()) {
     spawnIdaenBoss();
   }
@@ -1782,12 +2810,62 @@ function spawnWave() {
   updateHud();
 }
 
+function setSandboxWave() {
+  if (!isSandboxMode()) {
+    return;
+  }
+
+  waveNumber = Math.max(0, Number(sandboxWaveInput?.value) || 0);
+  wave = null;
+  autoWaveTimer = 0;
+  setMessage(`Sandbox wave set to ${waveNumber}.`, 1.6);
+  updateHud();
+}
+
+function spawnSandboxEnemyFromControls() {
+  if (!isSandboxMode()) {
+    return;
+  }
+
+  const enemyType = ENEMY_TYPES[sandboxEnemySelect?.value];
+  if (!enemyType) {
+    return;
+  }
+
+  const count = Math.max(1, Math.floor(Number(sandboxSpawnCountInput?.value) || 1));
+  const tier = Math.max(1, Math.min(3, Number(sandboxTierSelect?.value) || 1));
+  const hidden = Boolean(sandboxSpawnHidden?.checked);
+  const armored = Boolean(sandboxSpawnArmored?.checked) || enemyType.key === "armored";
+  const shielded = Boolean(sandboxSpawnShielded?.checked);
+  const portalValue = sandboxPortalSelect?.value || "auto";
+
+  for (let index = 0; index < count; index += 1) {
+    const portalIndex = portalValue === "auto" ? undefined : Number(portalValue);
+    const spawned = pushEnemy(createEnemy(enemyType, { portalIndex, hidden, armored, shielded, tier }));
+    if (!spawned) {
+      continue;
+    }
+  }
+
+  autoWaveTimer = 0;
+  setMessage(`Sandbox summoned ${count} ${enemyType.name}${count === 1 ? "" : "s"}.`, 1.8);
+  updateHud();
+}
+
 function spawnEnemy() {
   const roll = Math.random();
   let enemyType = ENEMY_TYPES.fast;
 
   if (waveNumber >= 2 && roll > 0.45) {
     enemyType = ENEMY_TYPES.pentagon;
+  }
+
+  if (waveNumber >= 5 && roll > 0.62) {
+    enemyType = ENEMY_TYPES.diamond;
+  }
+
+  if (waveNumber >= 10 && roll > 0.72) {
+    enemyType = ENEMY_TYPES.attacker;
   }
 
   if (waveNumber >= 4 && roll > 0.78) {
@@ -1809,9 +2887,19 @@ function spawnEnemy() {
   if (enemyType.key === "armored" && waveNumber < 12) {
     hidden = false;
   }
+  const waffleMods = enemyType.key.startsWith("waffle") ? waffleStatusModifiers() : { hidden: false, armored: false, armorHp: 0 };
   const enemy = createEnemy(enemyType, {
-    hidden,
-    armored: enemyType.key === "armored"
+    tier: enemyType.key === "diamond"
+      ? diamondTierForWave()
+      : genericEnemyTierForWave(),
+    hidden: enemyType.key === "attacker" ? true : enemyType.key.startsWith("waffle") ? waffleMods.hidden : hidden,
+    armored: enemyType.key === "attacker" || enemyType.key === "armored" || (enemyType.key.startsWith("waffle") && waffleMods.armored),
+    armorHp: enemyType.key === "attacker"
+      ? ENEMY_TYPES.attacker.armor + Math.max(0, Math.floor((waveNumber - 10) / 4))
+      : enemyType.key.startsWith("waffle")
+        ? waffleMods.armorHp
+        : undefined,
+    shielded: waveNumber >= 18 && Math.random() < Math.min(0.08 + (waveNumber - 18) * 0.01, 0.26)
   });
   pushEnemy(enemy);
 }
@@ -1832,8 +2920,10 @@ function updateWave(deltaTime) {
   if (wave.spawned === wave.count && enemies.length === 0) {
     wave.complete = true;
     money += Math.max(2, Math.round((5 + waveNumber) * rewardMultiplier()));
+    money += supportWaveIncomeBonus();
     freeBlocks = 1;
     currentBlockCost = BLOCK_COST;
+    autoWaveTimer = autoWaveEnabled ? 0.9 : 0;
     setMessage(`Wave ${waveNumber} cleared.`, 1.6);
   }
 }
@@ -1855,6 +2945,18 @@ function updateEnemies(deltaTime) {
       enemy.slowTimer = Math.max(0, enemy.slowTimer - deltaTime);
       if (enemy.slowTimer === 0) {
         enemy.slowFactor = 1;
+      }
+    }
+
+    if ((enemy.whiteoutTimer || 0) > 0) {
+      enemy.whiteoutTimer = Math.max(0, enemy.whiteoutTimer - deltaTime);
+    }
+
+    if (enemy.burnTimer > 0 && enemy.hp > 0) {
+      enemy.burnTimer = Math.max(0, enemy.burnTimer - deltaTime);
+      damageEnemy(enemy, enemy.burnDamage * deltaTime, "laser");
+      if (enemy.burnTimer === 0) {
+        enemy.burnDamage = 0;
       }
     }
 
@@ -1902,12 +3004,127 @@ function towerStats(tower) {
   const levelBonus = tower.level - 1;
 
   if (tower.type === "crossbow") {
+    const level = tower.level || 1;
+    const attackSpeedMultiplier = level >= 4 ? 4 : level >= 2 ? 2 : 1;
     return {
       range: CELL_SIZE * 4.15,
-      cooldown: tower.level >= 2 ? 0.48 : 0.64,
-      damage: tower.level >= 2 ? 1.7 : 1.35,
+      cooldown: (level >= 3 ? 0.72 : 0.86) / attackSpeedMultiplier,
+      damage: [1.35, 1.8, 2.45, 3.2][level - 1] || 3.2,
       boltSpeed: 520,
-      doubleShots: tower.level >= 2
+      boltHoming: 4.2,
+      detectHidden: true,
+      attackSpeedMultiplier,
+      boltPierce: level >= 3 ? level - 2 : 0
+    };
+  }
+
+  if (tower.type === "laser") {
+    const path1 = tower.path1 || 0;
+    const path2 = tower.path2 || 0;
+    const plasma = path1 >= 3;
+    const photon = path2 >= 3;
+    return {
+      range: CELL_SIZE * (4.9 + path2 * 0.16 + path1 * 0.04 + (plasma ? 0.28 : 0)),
+      cooldown: photon
+        ? Math.max(1.05 - path1 * 0.04 - path2 * 0.04, 0.54)
+        : Math.max(0.84 - path1 * 0.09 - path2 * 0.04 - (plasma ? 0.14 : 0), 0.14),
+      damage: 2.5 + path1 * 0.7 + path2 * 1.45 + (plasma ? 1.8 : 0) + (photon ? 3.6 : 0),
+      burnDamage: path1 > 0 || path2 > 0 ? 0.8 + path1 * 0.65 + path2 * 0.95 + (photon ? 1.9 : 0) : 0,
+      burnDuration: path1 > 0 || path2 > 0 ? 1.5 + path1 * 0.34 + path2 * 0.46 + (plasma ? 0.6 : 0) : 0,
+      beamWidth: 12 + path1 * 1.6 + path2 * 2 + (plasma ? 3 : 0) + (photon ? 4 : 0),
+      beamColor: photon ? "#ffe35c" : plasma ? "#ffffff" : "#ff96b8",
+      beamTtl: plasma ? 0.18 : photon ? 0.16 : 0.12
+    };
+  }
+
+  if (tower.type === "shotgun") {
+    const path1 = tower.path1 || 0;
+    const path2 = tower.path2 || 0;
+    const bulletStorm = path1 >= 3;
+    const wavelength = path2 >= 3;
+    const lines = wavelength ? 18 : Math.max(bulletStorm ? 5 : 3, 3 + path2);
+    return {
+      range: CELL_SIZE * (2.6 + path2 * 0.12),
+      cooldown: bulletStorm
+        ? Math.max(0.32 - path1 * 0.03 - path2 * 0.02, 0.08)
+        : Math.max(0.96 - path1 * 0.07 - path2 * 0.03, 0.3),
+      damage: 1.05 + path1 * 0.24 + path2 * 0.42 + (path2 >= 3 ? 0.95 : 0) + (path2 >= 5 ? 0.55 : 0),
+      pellets: lines,
+      spread: wavelength ? Math.PI : Math.max(0.55 - path2 * 0.045 - (bulletStorm ? 0.04 : 0), 0.18),
+      pelletSpeed: 270 + path2 * 12,
+      pelletLife: 0.24 + path2 * 0.01,
+      detectHidden: false,
+      bulletStorm
+    };
+  }
+
+  if (tower.type === "freezer") {
+    const path1 = tower.path1 || 0;
+    const path2 = tower.path2 || 0;
+    const permafrost = path1 >= 3;
+    const aura = path2 >= 3;
+    return {
+      range: CELL_SIZE * (3.5 + path2 * 0.2 + (path1 >= 4 ? 0.15 : 0)),
+      cooldown: Math.max(1.12 - path1 * 0.09 - path2 * 0.03, 0.42),
+      damage: 0.7 + path1 * 0.35 + path2 * 0.18 + (path1 >= 5 ? 0.7 : 0),
+      slow: Math.max(0.72 - path2 * 0.05 - (path2 >= 5 ? 0.06 : 0), 0.34),
+      slowDuration: 1.15 + path1 * 0.22 + path2 * 0.18,
+      detectHidden: path2 >= 4,
+      permafrost,
+      pulseRadius: CELL_SIZE * (2.4 + path1 * 0.12),
+      pulseDamage: permafrost ? 1.2 + path1 * 0.5 + path2 * 0.2 : 0,
+      pulseFreeze: permafrost ? 0.9 + (path1 - 3) * 0.35 : 0,
+      pulseCooldown: permafrost ? Math.max(4.6 - path1 * 0.45, 2.2) : 0,
+      aura,
+      auraRadius: CELL_SIZE * (2.2 + path2 * 0.16),
+      auraDamage: aura ? 0.2 + path2 * 0.16 + path1 * 0.08 : 0,
+      auraSlow: aura ? Math.max(0.62 - (path2 - 3) * 0.08, 0.28) : 1,
+      auraTick: aura ? 0.22 : 0,
+      boltSpeed: 250
+    };
+  }
+
+  if (tower.type === "dippy") {
+    const path1 = tower.path1 || 0;
+    const path2 = tower.path2 || 0;
+    return {
+      range: CELL_SIZE * (10.4 + path2 * 0.16),
+      minRange: CELL_SIZE * 3.5,
+      cooldown: Math.max(2.3 - path1 * 0.16, 1.32),
+      damage: (14 + path1 * 3.2 + (path2 >= 3 ? 10 : 0) + (path2 >= 4 ? 7 : 0) + (path2 >= 5 ? 9 : 0)) * 0.5,
+      splash: Math.max(42, (34 - path1 * 2.5 + path2 * 10 + (path2 >= 3 ? 14 : 0) + (path2 >= 5 ? 8 : 0)) * 2),
+      burst: path1 >= 5 ? 12 : path1 >= 4 ? 6 : path1 >= 3 ? 3 : 1,
+      burstDelay: path1 >= 5 ? 0.06 : path1 >= 4 ? 0.07 : path1 >= 3 ? 0.09 : 0,
+      holdDelay: 1,
+      burnDamage: path1 >= 2 ? 4.4 + path1 * 1.2 : 0,
+      burnDuration: path1 >= 2 ? 3 : 0,
+      detectHidden: path2 >= 3,
+      shells: path2 >= 2,
+      shellDamage: 3.8 + path2 * 1.1,
+      sticky: path2 >= 4,
+      stickySlow: path2 >= 5 ? 0.35 : path2 >= 4 ? 0.48 : 1,
+      stickyDuration: path2 >= 5 ? 3.4 : path2 >= 4 ? 2.3 : 0,
+      shockwaves: path2 >= 5 ? 2 : 1,
+      screenShake: path2 >= 5 ? 1.8 : path2 >= 4 ? 0.85 : path2 >= 3 ? 0.48 : 0.2,
+      screenShakeDuration: path2 >= 5 ? 0.62 : path2 >= 4 ? 0.36 : path2 >= 3 ? 0.22 : 0.12,
+      projectileSize: path2 >= 5 ? 18 : path2 >= 3 ? 14 : 10,
+      whiteoutDuration: path2 >= 5 ? 0.9 : 0,
+      yolkColor: path2 >= 5 ? "#ffd11a" : path2 >= 4 ? "#ffcf33" : path2 >= 3 ? "#ffcc4a" : "#ffce54",
+      inaccuracy: path1 >= 5 ? CELL_SIZE * 3 : path2 >= 5 ? CELL_SIZE * 1.5 : 0
+    };
+  }
+
+  if (tower.type === "support") {
+    const path1 = tower.path1 || 0;
+    const path2 = tower.path2 || 0;
+    return {
+      range: CELL_SIZE * (1.9 + path2 * 0.14),
+      cooldown: Infinity,
+      damage: 0,
+      waveCash: 4 + path1 * 3 + (path1 >= 3 ? 3 : 0) + (path1 >= 5 ? 6 : 0),
+      munitions: path2 >= 3,
+      detectHiddenAura: path2 >= 4,
+      auraRadius: CELL_SIZE * (1.9 + path2 * 0.14)
     };
   }
 
@@ -1948,6 +3165,7 @@ function towerStats(tower) {
       acceleration: 520 + (path1 >= 3 ? 220 : 0),
       burst: path1 >= 5 ? 6 : path1 >= 4 ? 2 : 1,
       burstDelay: path1 >= 5 ? 0.1 : path1 >= 4 ? 0.25 : 0,
+      homing: path1 >= 3,
       shrapnel: path2 >= 3,
       clusters: path2 >= 4,
       rain: path2 >= 5
@@ -1972,6 +3190,7 @@ function towerStats(tower) {
       mine: path2 >= 4,
       mango: path2 >= 5,
       turretMode,
+      turretCap: path1 >= 5 ? 20 : path1 >= 4 ? 12 : path1 >= 3 ? 6 : 0,
       turretCooldown: Math.max(0.78 - (path1 >= 5 ? 0.18 : 0), 0.24),
       turretDamage: 1.75 + path2 * 0.6 + (path1 >= 5 ? 1.4 : 0),
       turretRange: CELL_SIZE * (2 + path2 * 0.08 + (path1 >= 5 ? 0.4 : 0)),
@@ -2020,17 +3239,105 @@ function canHitArmored(enemy, damageType) {
   return !enemy.armored || enemy.armorHp <= 0 || damageType === "laser" || damageType === "explosion";
 }
 
+function supportBuffsForTower(tower) {
+  const buffs = {
+    munitions: false,
+    detectHidden: false
+  };
+
+  if (!tower) {
+    return buffs;
+  }
+
+  for (const ally of towers) {
+    if (ally.id === tower.id || ally.type !== "support") {
+      continue;
+    }
+
+    const stats = towerStats(ally);
+    if (Math.hypot(tower.centerX - ally.centerX, tower.centerY - ally.centerY) > stats.auraRadius) {
+      continue;
+    }
+
+    buffs.munitions ||= Boolean(stats.munitions);
+    buffs.detectHidden ||= Boolean(stats.detectHiddenAura);
+  }
+
+  return buffs;
+}
+
+function towerHasHiddenDetection(tower, stats = towerStats(tower)) {
+  const buffs = supportBuffsForTower(tower);
+  return Boolean(stats.detectHidden || buffs.detectHidden);
+}
+
+function effectiveTowerDamageType(tower, baseType, stats = towerStats(tower)) {
+  if (baseType === "laser" || baseType === "shock" || baseType === "explosion") {
+    return baseType;
+  }
+
+  const buffs = supportBuffsForTower(tower);
+  return buffs.munitions ? "explosion" : baseType;
+}
+
+function activeShieldSourceForEnemy(enemy) {
+  let nearest = null;
+  let nearestDistance = Infinity;
+
+  for (const source of enemies) {
+    if ((!source.shielded && !isShieldEnemy(source)) || source.hp <= 0 || (source.shieldHp || 0) <= 0) {
+      continue;
+    }
+
+    const distance = Math.hypot(enemy.x - source.x, enemy.y - source.y);
+    if (distance <= (source.shieldRadius || 0) && distance < nearestDistance) {
+      nearest = source;
+      nearestDistance = distance;
+    }
+  }
+
+  return nearest;
+}
+
 function damageEnemy(enemy, amount, damageType, options = {}) {
   if (!enemy || amount <= 0) {
     return false;
   }
 
-  const { stun = 0, slow = null, slowDuration = 0 } = options;
+  const bypassShield = Boolean(options.bypassShield);
+  let { stun = 0, slow = null, slowDuration = 0, burnDamage = 0, burnDuration = 0 } = options;
   const bossBiscuitsAlive = enemy.key === "idaen" && enemies.some((entry) => entry.bossShieldMinion && entry.bossOwnerId === enemy.id && entry.hp > 0);
 
   if (enemy.key === "idaen" && ((enemy.phaseTimer || 0) > 0 || bossBiscuitsAlive)) {
     enemy.phaseColor = "#8a5b2d";
     return false;
+  }
+
+  if (!bypassShield) {
+    const shieldSource = activeShieldSourceForEnemy(enemy);
+    if (shieldSource) {
+      const shieldDamage = damageType === "laser" || damageType === "shock"
+        ? amount * ((shieldSource.tier || 1) >= 3 ? 3 : 2.6)
+        : amount;
+      shieldSource.shieldHp = Math.max(0, (shieldSource.shieldHp || 0) - shieldDamage);
+      addPulse(shieldSource.x, shieldSource.y, shieldSource.shieldRadius || 18, "rgba(156, 209, 255, 0.38)");
+      return true;
+    }
+  }
+
+  if (isDiamondEnemy(enemy)) {
+    if (damageType === "laser" || damageType === "shock" || damageType === "freeze") {
+      amount *= 0.45;
+      stun = 0;
+      slow = null;
+      slowDuration = 0;
+      burnDamage = 0;
+      burnDuration = 0;
+    } else if (damageType === "explosion") {
+      amount *= 0.65;
+      burnDamage = 0;
+      burnDuration = 0;
+    }
   }
 
   if (enemy.armored && enemy.armorHp > 0) {
@@ -2055,16 +3362,31 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
     enemy.slowTimer = Math.max(enemy.slowTimer, slowDuration);
   }
 
+  if (burnDamage > 0 && burnDuration > 0) {
+    enemy.burnDamage = Math.max(enemy.burnDamage || 0, burnDamage);
+    enemy.burnTimer = Math.max(enemy.burnTimer || 0, burnDuration);
+  }
+
   return true;
 }
 
 function canTowerDamageEnemy(tower, enemy, stats = towerStats(tower)) {
+  const effectiveType = effectiveTowerDamageType(tower, tower.type === "freezer" ? "freeze" : tower.type === "trapper" ? (stats.mine ? "explosion" : "trap") : tower.type === "drone" ? (stats.rocket ? "explosion" : "bullet") : "bullet", stats);
+
   if (tower.type === "missile" || tower.type === "laser") {
     return true;
   }
 
+  if (tower.type === "support") {
+    return false;
+  }
+
   if (tower.type === "crossbow") {
-    return canHitArmored(enemy, "bullet");
+    return canHitArmored(enemy, effectiveType);
+  }
+
+  if (tower.type === "shotgun") {
+    return canHitArmored(enemy, effectiveType);
   }
 
   if (tower.type === "tesla") {
@@ -2073,13 +3395,21 @@ function canTowerDamageEnemy(tower, enemy, stats = towerStats(tower)) {
 
   if (tower.type === "trapper") {
     if (stats.turretMode) {
-      return canHitArmored(enemy, "bullet");
+      return canHitArmored(enemy, effectiveTowerDamageType(tower, "bullet", stats));
     }
-    return canHitArmored(enemy, stats.mine ? "explosion" : "trap");
+    return canHitArmored(enemy, effectiveType);
+  }
+
+  if (tower.type === "freezer") {
+    return canHitArmored(enemy, effectiveType);
+  }
+
+  if (tower.type === "dippy") {
+    return true;
   }
 
   if (tower.type === "drone") {
-    return canHitArmored(enemy, stats.rocket ? "explosion" : "bullet");
+    return canHitArmored(enemy, effectiveType);
   }
 
   return canHitArmored(enemy, "laser");
@@ -2135,6 +3465,7 @@ function selectEnemyByPriority(candidates, priority = "first") {
 function nearestEnemyInRange(tower, range, detectHidden = false) {
   const stats = towerStats(tower);
   const candidates = enemiesInRange(tower.centerX, tower.centerY, range, detectHidden, true)
+    .filter((enemy) => Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY) >= (stats.minRange || 0))
     .filter((enemy) => canTowerDamageEnemy(tower, enemy, stats));
   return selectEnemyByPriority(candidates, tower.targetPriority || "first");
 }
@@ -2157,7 +3488,7 @@ function hasLineOfSight(x1, y1, x2, y2) {
   return true;
 }
 
-function addBeam(x1, y1, x2, y2, color) {
+function addBeam(x1, y1, x2, y2, color, width = 3, ttl = 0.12) {
   effects.push({
     id: nextEffectId,
     kind: "beam",
@@ -2166,7 +3497,9 @@ function addBeam(x1, y1, x2, y2, color) {
     x2,
     y2,
     color,
-    ttl: 0.12
+    width,
+    maxTtl: ttl,
+    ttl
   });
   nextEffectId += 1;
 }
@@ -2180,6 +3513,146 @@ function addPulse(x, y, radius, color) {
     radius,
     color,
     ttl: 0.18
+  });
+  nextEffectId += 1;
+}
+
+function beamEndPoint(x, y, angle, reach = Math.max(canvas.width, canvas.height) * 2) {
+  return {
+    x: x + Math.cos(angle) * reach,
+    y: y + Math.sin(angle) * reach
+  };
+}
+
+function distanceToBeam(enemy, startX, startY, angle) {
+  const dx = enemy.x - startX;
+  const dy = enemy.y - startY;
+  const projection = dx * Math.cos(angle) + dy * Math.sin(angle);
+  const perpendicular = Math.abs((-Math.sin(angle) * dx) + (Math.cos(angle) * dy));
+  return { projection, perpendicular };
+}
+
+function fireLaserBeam(tower, target, stats) {
+  const angle = Math.atan2(target.y - tower.centerY, target.x - tower.centerX);
+  const end = beamEndPoint(tower.centerX, tower.centerY, angle);
+  const maxDistance = Math.hypot(end.x - tower.centerX, end.y - tower.centerY);
+
+  for (const enemy of enemies) {
+    if (!canSeeEnemy(enemy, stats.detectHidden)) {
+      continue;
+    }
+
+    const { projection, perpendicular } = distanceToBeam(enemy, tower.centerX, tower.centerY, angle);
+    if (projection < 0 || projection > maxDistance || perpendicular > stats.beamWidth) {
+      continue;
+    }
+
+    damageEnemy(enemy, stats.damage, "laser", {
+      burnDamage: stats.burnDamage,
+      burnDuration: stats.burnDuration
+    });
+  }
+
+  addBeam(tower.centerX, tower.centerY, end.x, end.y, stats.beamColor, Math.max(3, stats.beamWidth * 0.32), stats.beamTtl);
+}
+
+function spawnDippyEgg(tower, target, stats) {
+  const scatter = stats.inaccuracy || 0;
+  const scatterAngle = Math.random() * Math.PI * 2;
+  const scatterDistance = Math.random() * scatter;
+  const scatterX = Math.cos(scatterAngle) * scatterDistance;
+  const scatterY = Math.sin(scatterAngle) * scatterDistance;
+  addBeam(tower.centerX, tower.centerY, tower.centerX, -30, "#fff4c8", 2.5, 0.16);
+  projectiles.push({
+    id: nextProjectileId,
+    kind: "dippyEgg",
+    x: tower.centerX,
+    y: tower.centerY,
+    delay: stats.eggDelay,
+    targetId: target.id,
+    targetX: target.x + scatterX,
+    targetY: target.y + scatterY,
+    holdDelay: stats.holdDelay,
+    damage: stats.damage,
+    splash: stats.splash,
+    burnDamage: stats.burnDamage,
+    burnDuration: stats.burnDuration,
+    shells: stats.shells,
+    shellDamage: stats.shellDamage,
+    sticky: stats.sticky,
+    stickySlow: stats.stickySlow,
+    stickyDuration: stats.stickyDuration,
+    shockwaves: stats.shockwaves,
+    screenShake: stats.screenShake,
+    screenShakeDuration: stats.screenShakeDuration,
+    projectileSize: stats.projectileSize,
+    whiteoutDuration: stats.whiteoutDuration,
+    yolkColor: stats.yolkColor,
+    speed: 1400
+  });
+  nextProjectileId += 1;
+  tower.dippyAmmo = Math.max(0, (tower.dippyAmmo ?? stats.burst) - 1);
+}
+
+function applyFreezeEffect(enemy, damage, slow, slowDuration, freezeDuration = 0) {
+  const dealtDamage = damage > 0 ? damageEnemy(enemy, damage, "freeze") : true;
+
+  if (!dealtDamage) {
+    return false;
+  }
+
+  if (isDiamondEnemy(enemy)) {
+    return true;
+  }
+
+  if ((!enemy.armored || enemy.armorHp <= 0) && slow < 1 && slowDuration > 0) {
+    enemy.slowFactor = Math.min(enemy.slowFactor, slow);
+    enemy.slowTimer = Math.max(enemy.slowTimer, slowDuration);
+  }
+
+  if ((!enemy.armored || enemy.armorHp <= 0) && freezeDuration > 0) {
+    enemy.stunTimer = Math.max(enemy.stunTimer, freezeDuration);
+  }
+
+  return dealtDamage;
+}
+
+function triggerScreenShake(strength, duration) {
+  screenShakeStrength = Math.max(screenShakeStrength, strength);
+  screenShakeTimer = Math.max(screenShakeTimer, duration);
+}
+
+function addBurstParticles(x, y, count, color, speedMin = 40, speedMax = 120, ttlMin = 0.18, ttlMax = 0.42) {
+  for (let index = 0; index < count; index += 1) {
+    const angle = (Math.PI * 2 * index) / Math.max(count, 1) + Math.random() * 0.4;
+    const speed = speedMin + Math.random() * (speedMax - speedMin);
+    effects.push({
+      id: nextEffectId,
+      kind: "spark",
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      radius: 2 + Math.random() * 3,
+      color,
+      maxTtl: ttlMin + Math.random() * (ttlMax - ttlMin),
+      ttl: ttlMin + Math.random() * (ttlMax - ttlMin)
+    });
+    nextEffectId += 1;
+  }
+}
+
+function addStickyPuddle(x, y, radius, slow, ttl, color = "rgba(255, 215, 82, 0.55)") {
+  effects.push({
+    id: nextEffectId,
+    kind: "puddle",
+    x,
+    y,
+    radius,
+    slow,
+    maxTtl: ttl,
+    ttl,
+    color
   });
   nextEffectId += 1;
 }
@@ -2207,9 +3680,45 @@ function wallCellsInRange(tower, range) {
   return cells;
 }
 
+function groundCellsInRange(tower, range) {
+  const cells = [];
+
+  for (let y = 0; y < ROWS; y += 1) {
+    for (let x = 0; x < COLS; x += 1) {
+      if (!inBounds(x, y) || isEndpoint(x, y) || obstacleAt(x, y) || grid[y][x].blockId !== null) {
+        continue;
+      }
+
+      const center = cellCenter(x, y);
+      if (Math.hypot(center.x - tower.centerX, center.y - tower.centerY) <= range) {
+        cells.push({ x, y });
+      }
+    }
+  }
+
+  return cells;
+}
+
+function randomPointInCell(x, y, padding = 8) {
+  const min = padding;
+  const max = CELL_SIZE - padding;
+  return {
+    x: x * CELL_SIZE + min + Math.random() * Math.max(max - min, 1),
+    y: y * CELL_SIZE + min + Math.random() * Math.max(max - min, 1)
+  };
+}
+
 function spawnTrapperConstruct(tower) {
   const stats = towerStats(tower);
-  const cells = stats.turretMode ? wallCellsInRange(tower, stats.range) : routeCells();
+  const trapDamageType = effectiveTowerDamageType(tower, stats.mine ? "explosion" : "trap", stats);
+  const turretDamageType = effectiveTowerDamageType(tower, "bullet", stats);
+  if (stats.turretMode && stats.turretCap > 0) {
+    const activeTurrets = traps.filter((trap) => trap.ownerTowerId === tower.id && trap.kind === "turret").length;
+    if (activeTurrets >= stats.turretCap) {
+      return false;
+    }
+  }
+  const cells = stats.turretMode ? wallCellsInRange(tower, stats.range) : groundCellsInRange(tower, stats.range);
 
   if (cells.length === 0) {
     return false;
@@ -2225,24 +3734,32 @@ function spawnTrapperConstruct(tower) {
   }
 
   const choice = candidates[Math.floor(Math.random() * candidates.length)];
-  const center = cellCenter(choice.x, choice.y);
-  const offsetRadius = stats.turretMode ? 14 : stats.mine ? 14 : 16;
-  const offsetAngle = Math.random() * Math.PI * 2;
-  const offsetDistance = Math.random() * offsetRadius;
-  const offsetX = Math.cos(offsetAngle) * offsetDistance;
-  const offsetY = Math.sin(offsetAngle) * offsetDistance;
+  const center = randomPointInCell(choice.x, choice.y, stats.turretMode ? 10 : 7);
+  effects.push({
+    id: nextEffectId,
+    kind: "constructLaunch",
+    x1: tower.centerX,
+    y1: tower.centerY,
+    x2: center.x,
+    y2: center.y,
+    color: stats.turretMode ? "#d9ffb7" : stats.mine ? "#ffd067" : "#9de67b",
+    ttl: 0.18,
+    maxTtl: 0.18
+  });
+  nextEffectId += 1;
   traps.push({
     id: nextTrapId,
     ownerTowerId: tower.id,
     kind: stats.turretMode ? "turret" : stats.mine ? "mine" : "trap",
     x: choice.x,
     y: choice.y,
-    centerX: center.x + offsetX,
-    centerY: center.y + offsetY,
+    centerX: center.x,
+    centerY: center.y,
     damage: stats.turretMode ? stats.turretDamage : stats.damage,
     slow: stats.slow,
     duration: stats.duration,
     radius: stats.trapRadius,
+    damageType: stats.turretMode ? turretDamageType : trapDamageType,
     usesRemaining: stats.trapUses,
     ttl: stats.trapLifetime,
     maxTtl: stats.trapLifetime,
@@ -2282,19 +3799,40 @@ function explodeTrap(trap) {
 
 function fireTower(tower, target) {
   const stats = towerStats(tower);
+  const supportDamageType = effectiveTowerDamageType(tower, "bullet", stats);
   tower.aimAngle = Math.atan2(target.y - tower.centerY, target.x - tower.centerX);
 
   if (tower.type === "crossbow") {
-    const volley = stats.doubleShots ? [-0.06, 0.06] : [0];
-    for (const spread of volley) {
+    projectiles.push({
+      id: nextProjectileId,
+      kind: "crossbowBolt",
+      x: tower.centerX,
+      y: tower.centerY,
+      targetId: target.id,
+      angle: tower.aimAngle,
+      speed: stats.boltSpeed,
+      homing: stats.boltHoming,
+      damage: stats.damage,
+      damageType: supportDamageType,
+      pierce: stats.boltPierce,
+      hitIds: []
+    });
+    nextProjectileId += 1;
+    return;
+  }
+
+  if (tower.type === "shotgun") {
+    for (let index = 0; index < stats.pellets; index += 1) {
+      const spread = (Math.random() - 0.5) * stats.spread;
       projectiles.push({
         id: nextProjectileId,
-        kind: "crossbowBolt",
+        kind: "shotgunPellet",
         x: tower.centerX,
         y: tower.centerY,
         angle: tower.aimAngle + spread,
-        speed: stats.boltSpeed,
-        damage: stats.damage
+        speed: stats.pelletSpeed,
+        damage: stats.damage,
+        damageType: supportDamageType
       });
       nextProjectileId += 1;
     }
@@ -2336,13 +3874,41 @@ function fireTower(tower, target) {
   }
 
   if (tower.type === "laser") {
-    damageEnemy(target, stats.damage, "laser");
-    addBeam(tower.centerX, tower.centerY, target.x, target.y, "#ff96b8");
+    fireLaserBeam(tower, target, stats);
+    return;
+  }
+
+  if (tower.type === "freezer") {
+    projectiles.push({
+      id: nextProjectileId,
+      kind: "frostBolt",
+      x: tower.centerX,
+      y: tower.centerY,
+      angle: tower.aimAngle,
+      speed: stats.boltSpeed,
+      damage: stats.damage,
+      damageType: effectiveTowerDamageType(tower, "freeze", stats),
+      slow: stats.slow,
+      slowDuration: stats.slowDuration
+    });
+    nextProjectileId += 1;
+    return;
+  }
+
+  if (tower.type === "dippy") {
+    spawnDippyEgg(tower, target, stats);
+    tower.burstTargetId = null;
+    tower.burstShotsRemaining = Math.max(0, stats.burst - 1);
+    tower.burstTimer = tower.burstShotsRemaining > 0 ? stats.burstDelay : 0;
     return;
   }
 
   if (tower.type === "trapper") {
     spawnTrapperConstruct(tower);
+    return;
+  }
+
+  if (tower.type === "support") {
     return;
   }
 
@@ -2359,6 +3925,22 @@ function fireTower(tower, target) {
 function updateTowers(deltaTime) {
   for (const tower of towers) {
     const stats = towerStats(tower);
+    const detectHidden = towerHasHiddenDetection(tower, stats);
+    if (tower.type === "dippy") {
+      tower.dippyAmmo = tower.dippyAmmo ?? stats.burst;
+      tower.dippyAmmo = Math.min(tower.dippyAmmo, stats.burst);
+      tower.dippyReloadTimer = Math.max(0, tower.dippyReloadTimer || 0);
+      if (tower.burstShotsRemaining === 0 && tower.cooldown > 0 && tower.dippyAmmo < stats.burst) {
+        tower.dippyReloadTimer -= deltaTime;
+        const reloadStep = stats.cooldown / Math.max(stats.burst, 1);
+        if (tower.dippyReloadTimer <= 0) {
+          tower.dippyAmmo += 1;
+          tower.dippyReloadTimer = reloadStep;
+        }
+      } else if (tower.dippyAmmo >= stats.burst) {
+        tower.dippyReloadTimer = 0;
+      }
+    }
     tower.stunnedTimer = Math.max(0, (tower.stunnedTimer || 0) - deltaTime);
     tower.cooldown = Math.max(0, tower.cooldown - deltaTime);
     tower.burstTimer = Math.max(0, (tower.burstTimer || 0) - deltaTime);
@@ -2370,12 +3952,42 @@ function updateTowers(deltaTime) {
 
     if (tower.type === "tesla" && stats.field && tower.fieldCooldown === 0) {
       const fieldDamageType = stats.electrocannon ? "laser" : "shock";
-      const fieldTargets = enemies.filter((enemy) => Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY) <= stats.range);
+      const fieldTargets = enemies.filter((enemy) => canSeeEnemy(enemy, detectHidden) && Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY) <= stats.range);
       for (const enemy of fieldTargets) {
         damageEnemy(enemy, stats.fieldDamage, fieldDamageType, { stun: stats.fieldStun });
         addBeam(tower.centerX, tower.centerY, enemy.x, enemy.y, "#7cc8ff");
       }
       tower.fieldCooldown = stats.fieldCooldown;
+    }
+
+    if (tower.type === "freezer" && stats.permafrost && tower.fieldCooldown === 0) {
+      const pulseTargets = enemies.filter((enemy) =>
+        canSeeEnemy(enemy, detectHidden)
+        && Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY) <= stats.pulseRadius
+      );
+
+      if (pulseTargets.length > 0) {
+        for (const enemy of pulseTargets) {
+          applyFreezeEffect(enemy, stats.pulseDamage, stats.slow, stats.slowDuration, stats.pulseFreeze);
+        }
+        addPulse(tower.centerX, tower.centerY, stats.pulseRadius, "#d9fbff");
+        tower.fieldCooldown = stats.pulseCooldown;
+      }
+    }
+
+    if (tower.type === "freezer" && stats.aura && tower.fieldCooldown === 0) {
+      const auraTargets = enemies.filter((enemy) =>
+        canSeeEnemy(enemy, detectHidden)
+        && Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY) <= stats.auraRadius
+      );
+
+      if (auraTargets.length > 0) {
+        for (const enemy of auraTargets) {
+          applyFreezeEffect(enemy, stats.auraDamage, stats.auraSlow, 0.32, 0);
+        }
+        addPulse(tower.centerX, tower.centerY, stats.auraRadius, "rgba(196, 243, 255, 0.7)");
+      }
+      tower.fieldCooldown = stats.auraTick;
     }
 
     if (tower.type === "tesla" && stats.supercharge && tower.cooldown > 0) {
@@ -2390,11 +4002,31 @@ function updateTowers(deltaTime) {
         continue;
       }
 
-      const burstTarget = nearestEnemyInRange(tower, stats.range, stats.detectHidden);
+      const burstTarget = nearestEnemyInRange(tower, stats.range, detectHidden);
 
       if (burstTarget) {
         tower.aimAngle = Math.atan2(burstTarget.y - tower.centerY, burstTarget.x - tower.centerX);
         spawnMissileProjectile(tower, burstTarget, stats);
+      }
+
+      tower.burstShotsRemaining -= 1;
+      if (tower.burstShotsRemaining > 0) {
+        tower.burstTimer = stats.burstDelay;
+      } else {
+        tower.cooldown = stats.cooldown;
+      }
+      continue;
+    }
+
+    if (tower.type === "dippy" && tower.burstShotsRemaining > 0) {
+      if (tower.burstTimer > 0) {
+        continue;
+      }
+
+      const burstTarget = nearestEnemyInRange(tower, stats.range, detectHidden);
+      if (burstTarget) {
+        tower.aimAngle = Math.atan2(burstTarget.y - tower.centerY, burstTarget.x - tower.centerX);
+        spawnDippyEgg(tower, burstTarget, stats);
       }
 
       tower.burstShotsRemaining -= 1;
@@ -2417,7 +4049,11 @@ function updateTowers(deltaTime) {
       continue;
     }
 
-    const target = nearestEnemyInRange(tower, stats.range, stats.detectHidden);
+    if (tower.type === "support") {
+      continue;
+    }
+
+    const target = nearestEnemyInRange(tower, stats.range, detectHidden);
 
     if (!target) {
       if (tower.type === "tesla" && stats.supercharge) {
@@ -2434,7 +4070,7 @@ function updateTowers(deltaTime) {
       continue;
     }
     fireTower(tower, target);
-    if (tower.type !== "missile" || tower.burstShotsRemaining === 0) {
+    if ((tower.type !== "missile" && tower.type !== "dippy") || tower.burstShotsRemaining === 0) {
       tower.cooldown = stats.cooldown;
     }
   }
@@ -2451,6 +4087,7 @@ function spawnMissileProjectile(tower, target, stats) {
     speed: stats.speed,
     acceleration: stats.acceleration,
     angle,
+    homing: stats.homing,
     damage: stats.damage,
     splash: stats.splash,
     shrapnel: stats.shrapnel,
@@ -2502,7 +4139,7 @@ function updateDrones(deltaTime) {
 
     const stats = towerStats(tower);
     const isSupport = drone.support;
-    const detection = stats.detectHidden;
+    const detection = towerHasHiddenDetection(tower, stats);
     const attackRange = isSupport ? stats.supportRange : stats.droneRange;
     const baseDamage = isSupport ? stats.supportDamage : stats.bulletDamage;
     const gunCount = isSupport ? stats.supportGuns : stats.bulletGuns;
@@ -2542,11 +4179,12 @@ function updateDrones(deltaTime) {
         drone.y = nextY;
       }
     } else {
-      const base = baseCenter();
-      const dx = base.x - drone.x;
-      const dy = base.y - drone.y;
+      const hoverX = tower.centerX;
+      const hoverY = tower.centerY;
+      const dx = hoverX - drone.x;
+      const dy = hoverY - drone.y;
       const distance = Math.hypot(dx, dy) || 1;
-      const settleRadius = isSupport ? 18 : 26;
+      const settleRadius = isSupport ? 20 : 28;
 
       if (distance > settleRadius) {
         const travel = Math.min(distance - settleRadius, stats.droneSpeed * deltaTime);
@@ -2555,8 +4193,8 @@ function updateDrones(deltaTime) {
       } else {
         drone.angle += deltaTime * (1 + tower.level * 0.08 + (isSupport ? 0.18 : 0));
         drone.orbitRadius = settleRadius;
-        drone.x = base.x + Math.cos(drone.angle + drone.slot) * settleRadius;
-        drone.y = base.y + Math.sin(drone.angle + drone.slot) * settleRadius;
+        drone.x = hoverX + Math.cos(drone.angle + drone.slot) * settleRadius;
+        drone.y = hoverY + Math.sin(drone.angle + drone.slot) * settleRadius;
       }
     }
 
@@ -2579,6 +4217,7 @@ function updateDrones(deltaTime) {
             angle: angle + spread,
             speed: 260,
             damage: baseDamage,
+            damageType: effectiveTowerDamageType(tower, "bullet", stats),
             pierce: stats.bulletPierce,
             hitIds: []
           });
@@ -2617,10 +4256,22 @@ function updateTraps(deltaTime) {
     trap.cooldown = Math.max(0, (trap.cooldown || 0) - deltaTime);
     let removeTrap = false;
 
-    if (trap.kind === "turret") {
+    if (trap.kind === "spike") {
+      const touching = enemies.filter((entry) => Math.hypot(entry.x - trap.centerX, entry.y - trap.centerY) <= trap.radius);
+      if (touching.length > 0) {
+        const scale = deltaTime / Math.max(trap.tickRate || 0.2, 0.05);
+        for (const enemy of touching) {
+          damageEnemy(enemy, trap.damage * scale, trap.damageType || "trap");
+        }
+        if (trap.cooldown === 0) {
+          addPulse(trap.centerX, trap.centerY, trap.radius, "rgba(225, 236, 244, 0.6)");
+          trap.cooldown = 0.14;
+        }
+      }
+    } else if (trap.kind === "turret") {
       if (trap.cooldown === 0) {
         const target = selectEnemyByPriority(
-          enemies.filter((enemy) => canSeeEnemy(enemy, false) && canHitArmored(enemy, "bullet") && Math.hypot(enemy.x - trap.centerX, enemy.y - trap.centerY) <= trap.range),
+          enemies.filter((enemy) => canSeeEnemy(enemy, false) && canHitArmored(enemy, trap.damageType || "bullet") && Math.hypot(enemy.x - trap.centerX, enemy.y - trap.centerY) <= trap.range),
           "first"
         );
 
@@ -2634,7 +4285,8 @@ function updateTraps(deltaTime) {
               y: trap.centerY,
               angle: Math.atan2(target.y - trap.centerY, target.x - trap.centerX) + spread,
               speed: 250,
-              damage: trap.damage
+              damage: trap.damage,
+              damageType: trap.damageType || "bullet"
             });
             nextProjectileId += 1;
           }
@@ -2642,37 +4294,40 @@ function updateTraps(deltaTime) {
         }
       }
     } else {
-      const target = enemies.find((enemy) => enemy.id === trap.targetEnemyId);
-      if (!target || target.hp <= 0 || Math.hypot(target.x - trap.centerX, target.y - trap.centerY) > trap.radius) {
-        const nextTarget = enemies.find((enemy) => Math.hypot(enemy.x - trap.centerX, enemy.y - trap.centerY) <= trap.radius);
-        trap.targetEnemyId = nextTarget ? nextTarget.id : null;
-      }
+      const touching = enemies.filter((enemy) =>
+        Math.hypot(enemy.x - trap.centerX, enemy.y - trap.centerY) <= trap.radius &&
+        canHitArmored(enemy, "trap")
+      );
 
-      if (trap.targetEnemyId && trap.cooldown === 0) {
-        const enemy = enemies.find((entry) => entry.id === trap.targetEnemyId);
+      if (touching.length > 0) {
+        const scale = deltaTime / Math.max(trap.tickRate || 0.2, 0.05);
+        trap.targetEnemyId = touching[0].id;
+        trap.usesRemaining -= scale;
 
-        if (enemy) {
-          trap.usesRemaining -= 1;
-
+        for (const enemy of touching) {
           if (trap.kind === "mine") {
-            damageEnemy(enemy, trap.damage * 0.35, "trap");
-            if (trap.usesRemaining <= 0) {
-              explodeTrap(trap);
-              removeTrap = true;
-            }
+            damageEnemy(enemy, trap.damage * 0.35 * scale, trap.damageType || "trap");
           } else {
-            damageEnemy(enemy, trap.damage, "trap", {
+            damageEnemy(enemy, trap.damage * scale, trap.damageType || "trap", {
               slow: trap.slow < 1 ? trap.slow : null,
               slowDuration: trap.slow < 1 ? trap.duration : 0
             });
-            addPulse(trap.centerX, trap.centerY, trap.radius, "#9de67b");
-            if (trap.usesRemaining <= 0) {
-              removeTrap = true;
-            }
           }
-
-          trap.cooldown = trap.tickRate;
         }
+
+        if (trap.cooldown === 0) {
+          addPulse(trap.centerX, trap.centerY, trap.radius, trap.kind === "mine" ? "#ffd067" : "#9de67b");
+          trap.cooldown = trap.kind === "mine" ? 0.18 : 0.12;
+        }
+
+        if (trap.usesRemaining <= 0) {
+          if (trap.kind === "mine") {
+            explodeTrap(trap);
+          }
+          removeTrap = true;
+        }
+      } else if (trap.targetEnemyId) {
+        trap.targetEnemyId = null;
       }
     }
 
@@ -2681,7 +4336,7 @@ function updateTraps(deltaTime) {
       removeTrap = true;
     }
 
-    if (!removeTrap && trap.ttl > 0 && (trap.kind === "turret" || trap.usesRemaining > 0)) {
+    if (!removeTrap && trap.ttl > 0 && (trap.kind === "turret" || trap.kind === "spike" || trap.usesRemaining > 0)) {
       nextTraps.push(trap);
     }
   }
@@ -2691,14 +4346,16 @@ function updateTraps(deltaTime) {
 
 function spawnSecondaryProjectiles(originX, originY, count, kind, damage, splash, rain = false) {
   for (let index = 0; index < count; index += 1) {
-    const angle = (Math.PI * 2 * index) / count;
+    const angle = kind === "dippyShell"
+      ? Math.random() * Math.PI * 2
+      : (Math.PI * 2 * index) / count;
     projectiles.push({
       id: nextProjectileId,
       kind,
       x: originX,
       y: originY,
       targetId: null,
-      speed: kind === "cluster" ? 130 : kind === "mangoBomb" ? 62 : 180,
+      speed: kind === "cluster" ? 130 : kind === "mangoBomb" ? 62 : kind === "dippyShell" ? 60 + Math.random() * 85 : 180,
       acceleration: 0,
       angle,
       damage,
@@ -2706,7 +4363,8 @@ function spawnSecondaryProjectiles(originX, originY, count, kind, damage, splash
       shrapnel: false,
       clusters: false,
       rain,
-      ttl: kind === "cluster" ? 0.32 : kind === "mangoBomb" ? 0.42 : 0.35
+      ttl: kind === "dippyShell" ? 0.06 + Math.random() * 0.11 : kind === "cluster" ? 0.32 : kind === "mangoBomb" ? 0.42 : 0.35,
+      turnRate: kind === "dippyShell" ? (Math.random() - 0.5) * 32 : 0
     });
     nextProjectileId += 1;
   }
@@ -2720,7 +4378,7 @@ function explodeProjectile(projectile) {
 
     if (distance <= projectile.splash) {
       damageEnemy(enemy, projectile.damage * (1 - distance / Math.max(projectile.splash, 1) * 0.5), "explosion");
-      if (projectile.kind === "mangoBomb") {
+      if (projectile.kind === "mangoBomb" && !activeShieldSourceForEnemy(enemy)) {
         enemy.slowFactor = Math.min(enemy.slowFactor, 0.5);
         enemy.slowTimer = Math.max(enemy.slowTimer, 1.8);
       }
@@ -2742,20 +4400,115 @@ function explodeProjectile(projectile) {
   }
 }
 
+function projectileCollisionRadius(projectile) {
+  if (projectile.kind === "missile" || projectile.kind === "droneRocket") {
+    return 12;
+  }
+
+  if (projectile.kind === "mangoBomb" || projectile.kind === "cluster" || projectile.kind === "shard" || projectile.kind === "dippyShell") {
+    return 10;
+  }
+
+  return 10;
+}
+
+function firstEnemyTouchingProjectile(projectile) {
+  const radius = projectileCollisionRadius(projectile);
+  return enemies.find((enemy) => Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= radius) || null;
+}
+
+function explodeDroneRocket(projectile) {
+  addPulse(projectile.x, projectile.y, projectile.splash, "#ffbb73");
+  for (const enemy of enemies) {
+    const distance = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
+    if (distance <= projectile.splash) {
+      damageEnemy(enemy, projectile.damage * (1 - distance / Math.max(projectile.splash, 1) * 0.45), "explosion");
+    }
+  }
+}
+
+function explodeDippyEgg(projectile) {
+  triggerScreenShake(projectile.screenShake || 0, projectile.screenShakeDuration || 0);
+  addPulse(projectile.x, projectile.y, projectile.splash, "#ffe8a3");
+  addBurstParticles(projectile.x, projectile.y, projectile.whiteoutDuration > 0 ? 22 : 8, projectile.whiteoutDuration > 0 ? "#fff6c2" : "#ffe199", projectile.whiteoutDuration > 0 ? 80 : 35, projectile.whiteoutDuration > 0 ? 180 : 90);
+
+  for (const enemy of enemies) {
+    const distance = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
+    if (distance > projectile.splash) {
+      continue;
+    }
+
+    damageEnemy(enemy, projectile.damage * (1 - distance / Math.max(projectile.splash, 1) * 0.35), "explosion", {
+      burnDamage: projectile.burnDamage,
+      burnDuration: projectile.burnDuration
+    });
+
+    if (projectile.sticky && !activeShieldSourceForEnemy(enemy)) {
+      enemy.slowFactor = Math.min(enemy.slowFactor, projectile.stickySlow);
+      enemy.slowTimer = Math.max(enemy.slowTimer, projectile.stickyDuration);
+      if (projectile.whiteoutDuration > 0) {
+        enemy.whiteoutTimer = Math.max(enemy.whiteoutTimer || 0, projectile.whiteoutDuration);
+      }
+    }
+  }
+
+  if (projectile.sticky) {
+    addStickyPuddle(projectile.x, projectile.y, projectile.splash * 0.72, projectile.stickySlow, projectile.stickyDuration + 1.2);
+  }
+
+  if (projectile.shells) {
+    spawnSecondaryProjectiles(projectile.x, projectile.y, 10, "dippyShell", projectile.shellDamage, 0);
+  }
+
+  if ((projectile.shockwaves || 1) > 1) {
+    const secondRadius = projectile.splash * 1.45;
+    addPulse(projectile.x, projectile.y, secondRadius, "rgba(255, 224, 146, 0.8)");
+    for (const enemy of enemies) {
+      const distance = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
+      if (distance <= secondRadius) {
+        damageEnemy(enemy, projectile.damage * 0.42 * (1 - distance / Math.max(secondRadius, 1) * 0.3), "explosion");
+        if (projectile.sticky && !activeShieldSourceForEnemy(enemy)) {
+          enemy.slowFactor = Math.min(enemy.slowFactor, projectile.stickySlow);
+          enemy.slowTimer = Math.max(enemy.slowTimer, projectile.stickyDuration);
+          if (projectile.whiteoutDuration > 0) {
+            enemy.whiteoutTimer = Math.max(enemy.whiteoutTimer || 0, projectile.whiteoutDuration);
+          }
+        }
+      }
+    }
+  }
+}
+
 function updateProjectiles(deltaTime) {
   const survivors = [];
 
   for (const projectile of projectiles) {
     if (projectile.kind === "crossbowBolt") {
+      const target = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null;
+      if (target) {
+        const desiredAngle = Math.atan2(target.y - projectile.y, target.x - projectile.x);
+        const angleDelta = Math.atan2(Math.sin(desiredAngle - projectile.angle), Math.cos(desiredAngle - projectile.angle));
+        const maxTurn = (projectile.homing || 0) * deltaTime;
+        projectile.angle += Math.max(-maxTurn, Math.min(maxTurn, angleDelta));
+      }
       projectile.x += Math.cos(projectile.angle) * projectile.speed * deltaTime;
       projectile.y += Math.sin(projectile.angle) * projectile.speed * deltaTime;
       let removed = false;
 
       for (const enemy of enemies) {
+        if (projectile.hitIds.includes(enemy.id)) {
+          continue;
+        }
+
         if (Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= 10) {
-          damageEnemy(enemy, projectile.damage, "bullet");
-          removed = true;
-          break;
+          if (damageEnemy(enemy, projectile.damage, projectile.damageType || "bullet")) {
+            projectile.hitIds.push(enemy.id);
+            projectile.pierce -= 1;
+            if (projectile.pierce < 0) {
+              removed = true;
+              break;
+            }
+          }
         }
       }
 
@@ -2776,7 +4529,7 @@ function updateProjectiles(deltaTime) {
         }
 
         if (Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= 11) {
-          if (damageEnemy(enemy, projectile.damage, "bullet")) {
+          if (damageEnemy(enemy, projectile.damage, projectile.damageType || "bullet")) {
             projectile.hitIds.push(enemy.id);
             projectile.pierce -= 1;
             if (projectile.pierce < 0) {
@@ -2800,7 +4553,7 @@ function updateProjectiles(deltaTime) {
 
       for (const enemy of enemies) {
         if (Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= 10) {
-          damageEnemy(enemy, projectile.damage, "bullet");
+          damageEnemy(enemy, projectile.damage, projectile.damageType || "bullet");
           removed = true;
           break;
         }
@@ -2812,9 +4565,114 @@ function updateProjectiles(deltaTime) {
       continue;
     }
 
+    if (projectile.kind === "shotgunPellet") {
+      projectile.x += Math.cos(projectile.angle) * projectile.speed * deltaTime;
+      projectile.y += Math.sin(projectile.angle) * projectile.speed * deltaTime;
+      let removed = false;
+
+      for (const enemy of enemies) {
+        if (Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= 9) {
+          damageEnemy(enemy, projectile.damage, projectile.damageType || "bullet");
+          removed = true;
+          break;
+        }
+      }
+
+      if (!removed && projectile.x > -20 && projectile.x < canvas.width + 20 && projectile.y > -20 && projectile.y < canvas.height + 20) {
+        survivors.push(projectile);
+      }
+      continue;
+    }
+
+    if (projectile.kind === "frostBolt") {
+      projectile.x += Math.cos(projectile.angle) * projectile.speed * deltaTime;
+      projectile.y += Math.sin(projectile.angle) * projectile.speed * deltaTime;
+      let removed = false;
+
+      for (const enemy of enemies) {
+        if (Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= 10) {
+          if ((projectile.damageType || "freeze") === "explosion") {
+            damageEnemy(enemy, projectile.damage, "explosion");
+          } else {
+            applyFreezeEffect(enemy, projectile.damage, projectile.slow, projectile.slowDuration, 0);
+          }
+          addPulse(projectile.x, projectile.y, 12, "#c8f6ff");
+          removed = true;
+          break;
+        }
+      }
+
+      if (!removed && projectile.x > -20 && projectile.x < canvas.width + 20 && projectile.y > -20 && projectile.y < canvas.height + 20) {
+        survivors.push(projectile);
+      }
+      continue;
+    }
+
+    if (projectile.kind === "dippyShell") {
+      projectile.angle += (projectile.turnRate || 0) * deltaTime;
+      projectile.speed = Math.max(18, projectile.speed - 420 * deltaTime);
+      projectile.x += Math.cos(projectile.angle) * projectile.speed * deltaTime;
+      projectile.y += Math.sin(projectile.angle) * projectile.speed * deltaTime;
+      projectile.ttl -= deltaTime;
+      let removed = false;
+
+      for (const enemy of enemies) {
+        if (Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= 10) {
+          damageEnemy(enemy, projectile.damage, projectile.damageType || "bullet");
+          removed = true;
+          break;
+        }
+      }
+
+      if (!removed && projectile.ttl > 0 && projectile.x > -20 && projectile.x < canvas.width + 20 && projectile.y > -20 && projectile.y < canvas.height + 20) {
+        survivors.push(projectile);
+      }
+      continue;
+    }
+
+    if (projectile.kind === "dippyEgg") {
+      if (!(projectile.risingComplete)) {
+        projectile.y -= 2200 * deltaTime;
+        if (projectile.y <= 0) {
+          projectile.risingComplete = true;
+          projectile.y = 0;
+          projectile.hiddenOffscreen = true;
+        }
+        survivors.push(projectile);
+        continue;
+      }
+
+      if ((projectile.holdDelay || 0) > 0) {
+        projectile.holdDelay -= deltaTime;
+        survivors.push(projectile);
+        continue;
+      }
+
+      const target = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null;
+      if (!projectile.falling) {
+        projectile.falling = true;
+        projectile.hiddenOffscreen = false;
+        projectile.x = target ? target.x : projectile.targetX;
+        projectile.y = -24;
+      }
+      if (target) {
+        projectile.x += (target.x - projectile.x) * Math.min(1, deltaTime * 4);
+        projectile.targetY = target.y;
+      }
+
+      projectile.y += projectile.speed * deltaTime;
+      const impactEnemy = firstEnemyTouchingProjectile(projectile);
+      if (impactEnemy || projectile.y >= projectile.targetY) {
+        explodeDippyEgg(projectile);
+      } else if (projectile.y < canvas.height + 40) {
+        survivors.push(projectile);
+      }
+      continue;
+    }
+
     const target = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null;
 
-    if (target) {
+    if (target && (projectile.homing || projectile.kind === "droneRocket")) {
       projectile.angle = Math.atan2(target.y - projectile.y, target.x - projectile.x);
     }
 
@@ -2830,15 +4688,11 @@ function updateProjectiles(deltaTime) {
       }
     }
 
-    if (target && Math.hypot(target.x - projectile.x, target.y - projectile.y) <= 12) {
+    const impactEnemy = firstEnemyTouchingProjectile(projectile);
+
+    if (impactEnemy || (target && Math.hypot(target.x - projectile.x, target.y - projectile.y) <= 12)) {
       if (projectile.kind === "droneRocket") {
-        addPulse(projectile.x, projectile.y, projectile.splash, "#ffbb73");
-        for (const enemy of enemies) {
-          const distance = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
-          if (distance <= projectile.splash) {
-            damageEnemy(enemy, projectile.damage * (1 - distance / Math.max(projectile.splash, 1) * 0.45), "explosion");
-          }
-        }
+        explodeDroneRocket(projectile);
         continue;
       }
       explodeProjectile(projectile);
@@ -2854,6 +4708,20 @@ function updateProjectiles(deltaTime) {
 }
 
 function updateEffects(deltaTime) {
+  for (const effect of effects) {
+    if (effect.kind === "puddle") {
+      for (const enemy of enemies) {
+        if (Math.hypot(enemy.x - effect.x, enemy.y - effect.y) <= effect.radius && !activeShieldSourceForEnemy(enemy)) {
+          enemy.slowFactor = Math.min(enemy.slowFactor, effect.slow);
+          enemy.slowTimer = Math.max(enemy.slowTimer, 0.24);
+        }
+      }
+    } else if (effect.kind === "spark") {
+      effect.x += effect.vx * deltaTime;
+      effect.y += effect.vy * deltaTime;
+    }
+  }
+
   effects = effects
     .map((effect) => ({ ...effect, ttl: effect.ttl - deltaTime }))
     .filter((effect) => effect.ttl > 0);
@@ -2863,28 +4731,214 @@ function spawnWaffleChildren(enemy, type, count, hpDivisor) {
   discoveredEnemies.add(type.key);
   renderAlmanac();
 
+  const originCell = {
+    x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x / CELL_SIZE))),
+    y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y / CELL_SIZE)))
+  };
+  const directionsForSpawn = [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: -1 },
+    { x: 0, y: 1 }
+  ];
+
   for (let index = 0; index < count; index += 1) {
-    enemies.push({
-      id: nextEnemyId,
-      portalIndex: enemy.portalIndex,
-      type: type.name,
-      shapeSides: type.shape,
-      reward: Math.max(1, Math.round(type.reward * rewardMultiplier())),
-      color: type.color,
-      waffleSquares: type.waffleSquares,
-      x: enemy.x + (index % 2 === 0 ? -6 : 6),
-      y: enemy.y + (index < 2 ? -6 : 6),
-      progress: enemy.progress,
-      speed: Math.max(18, enemy.speed + type.speedBonus),
-      hp: Math.max(1, Math.round(enemy.maxHp / hpDivisor)),
-      maxHp: Math.max(1, Math.round(enemy.maxHp / hpDivisor)),
-      hidden: false,
-      stunTimer: 0,
-      slowFactor: 1,
-      slowTimer: 0,
-      facingAngle: enemy.facingAngle || 0
-    });
-    nextEnemyId += 1;
+    const direction = directionsForSpawn[index % directionsForSpawn.length];
+    const startCell = {
+      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
+      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
+    };
+    const route = findPathFrom(startCell);
+    const child = route.length > 0
+      ? createEnemy(type, {
+        portalIndex: enemy.portalIndex,
+        startCell,
+        route,
+        reward: Math.max(1, Math.round(type.reward * rewardMultiplier())),
+        hp: Math.max(1, Math.round(enemy.maxHp / hpDivisor)),
+        speed: Math.max(18, enemy.speed + type.speedBonus),
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(enemy.maxArmorHp || 0, enemy.armorHp || 0) : 0,
+        shielded: enemy.shielded
+      })
+      : createEnemy(type, {
+        portalIndex: enemy.portalIndex,
+        reward: Math.max(1, Math.round(type.reward * rewardMultiplier())),
+        hp: Math.max(1, Math.round(enemy.maxHp / hpDivisor)),
+        speed: Math.max(18, enemy.speed + type.speedBonus),
+        progress: enemy.progress,
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(enemy.maxArmorHp || 0, enemy.armorHp || 0) : 0,
+        shielded: enemy.shielded
+      });
+
+    if (child) {
+      child.facingAngle = enemy.facingAngle || 0;
+      pushEnemy(child);
+    }
+  }
+}
+
+function spawnDiamondChildren(enemy) {
+  const nextTier = Math.max(1, (enemy.tier || 1) - 1);
+  if (nextTier === enemy.tier || nextTier < 1) {
+    return;
+  }
+
+  const originCell = {
+    x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x / CELL_SIZE))),
+    y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y / CELL_SIZE)))
+  };
+  const directionsForSpawn = [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: -1 }
+  ];
+
+  for (const direction of directionsForSpawn) {
+    const startCell = {
+      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
+      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
+    };
+    const route = findPathFrom(startCell);
+    const child = route.length > 0
+      ? createEnemy(ENEMY_TYPES.diamond, {
+        portalIndex: enemy.portalIndex,
+        startCell,
+        route,
+        tier: nextTier,
+        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+        shielded: enemy.shielded
+      })
+      : createEnemy(ENEMY_TYPES.diamond, {
+        portalIndex: enemy.portalIndex,
+        tier: nextTier,
+        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        progress: enemy.progress,
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+        shielded: enemy.shielded
+      });
+
+    if (child) {
+      child.facingAngle = enemy.facingAngle || 0;
+      pushEnemy(child);
+    }
+  }
+}
+
+function spawnShieldChildren(enemy) {
+  const nextTier = Math.max(1, (enemy.tier || 1) - 1);
+  if (nextTier === enemy.tier || nextTier < 1) {
+    return;
+  }
+
+  const originCell = {
+    x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x / CELL_SIZE))),
+    y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y / CELL_SIZE)))
+  };
+  const directionsForSpawn = [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 }
+  ];
+
+  for (const direction of directionsForSpawn) {
+    const startCell = {
+      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
+      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
+    };
+    const route = findPathFrom(startCell);
+    const child = route.length > 0
+      ? createEnemy(ENEMY_TYPES.shield, {
+        portalIndex: enemy.portalIndex,
+        startCell,
+        route,
+        tier: nextTier,
+        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+        shielded: true
+      })
+      : createEnemy(ENEMY_TYPES.shield, {
+        portalIndex: enemy.portalIndex,
+        tier: nextTier,
+        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        progress: enemy.progress,
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+        shielded: true
+      });
+
+    if (child) {
+      child.facingAngle = enemy.facingAngle || 0;
+      pushEnemy(child);
+    }
+  }
+}
+
+function spawnGenericTierChildren(enemy) {
+  const nextTier = Math.max(1, (enemy.tier || 1) - 1);
+  if (nextTier === enemy.tier || nextTier < 1 || !enemySupportsTiers(enemy.key) || enemy.key.startsWith("waffle")) {
+    return;
+  }
+
+  const enemyType = ENEMY_TYPES[enemy.key];
+  if (!enemyType) {
+    return;
+  }
+
+  const originCell = {
+    x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x / CELL_SIZE))),
+    y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y / CELL_SIZE)))
+  };
+  const directionsForSpawn = [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 }
+  ];
+
+  for (const direction of directionsForSpawn) {
+    const startCell = {
+      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
+      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
+    };
+    const route = findPathFrom(startCell);
+    const child = route.length > 0
+      ? createEnemy(enemyType, {
+        portalIndex: enemy.portalIndex,
+        startCell,
+        route,
+        tier: nextTier,
+        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+        shielded: enemy.shielded
+      })
+      : createEnemy(enemyType, {
+        portalIndex: enemy.portalIndex,
+        tier: nextTier,
+        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        progress: enemy.progress,
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+        shielded: enemy.shielded
+      });
+
+    if (child) {
+      child.facingAngle = enemy.facingAngle || 0;
+      pushEnemy(child);
+    }
   }
 }
 
@@ -2895,10 +4949,14 @@ function purgeDefeatedEnemies() {
     if (enemy.hp > 0) {
       nextEnemies.push(enemy);
     } else {
-      if (enemy.key === "waffle16") {
-        spawnWaffleChildren(enemy, ENEMY_TYPES.waffle4, 4, 4);
-      } else if (enemy.key === "waffle4") {
-        spawnWaffleChildren(enemy, ENEMY_TYPES.waffle1, 4, 4);
+  if (enemy.key === "waffle16" && (enemy.tier || 1) > 1) {
+    spawnWaffleChildren(enemy, ENEMY_TYPES.waffle16, 4, 4);
+  } else if (enemy.key === "diamond" && (enemy.tier || 1) > 1) {
+        spawnDiamondChildren(enemy);
+      } else if (enemy.key === "shield" && (enemy.tier || 1) > 1) {
+        spawnShieldChildren(enemy);
+      } else if ((enemy.tier || 1) > 1) {
+        spawnGenericTierChildren(enemy);
       }
       money += enemy.reward;
     }
@@ -2909,7 +4967,9 @@ function purgeDefeatedEnemies() {
 
 function updateHud() {
   nextPieceText.textContent = `Next block: ${activePiece.name}`;
-  routeText.textContent = allRoutesOpen(routes) ? `Routes: ${routes.length} open` : "Routes: blocked";
+  routeText.textContent = isGraveyardMap()
+    ? "Routes: gravebound"
+    : allRoutesOpen(routes) ? `Routes: ${routes.length} open` : "Routes: blocked";
   updateTowerButtons();
   if (blockToolButton) {
     blockToolButton.textContent = freeBlocks > 0 ? "Block (Free)" : `Block (${currentBlockCost})`;
@@ -2922,17 +4982,24 @@ function updateHud() {
   livesText.textContent = `Lives: ${lives}`;
   waveText.textContent = `Wave: ${waveNumber}`;
   enemyText.textContent = `Enemies: ${enemies.length}`;
+  if (autoWaveToggle) {
+    autoWaveToggle.checked = autoWaveEnabled;
+  }
+  waveButton.textContent = autoWaveEnabled ? "Start Wave Now" : "Start Wave";
   selectionText.textContent = `Selected: ${TOWER_INFO[selectedTowerType].name}`;
-  upgradeText.textContent = `Upgrade: ${currentTool === "upgrade" ? "click tower, max 5" : "max 5"}`;
+  upgradeText.textContent = `Upgrade: ${currentTool === "upgrade" ? "click tower, max 5" : "max 5"}${selectedMap === "fortification" && !crossbowUnlocked ? " | Secret: Brutal Outpost wave 50 without placing walls" : ""}`;
+  updateSandboxControls();
 
   if (messageTimer > 0) {
     statusText.textContent = message;
   } else if (lives <= 0) {
-    statusText.textContent = "Game over. Reset to try another layout.";
+    statusText.textContent = "Game over.";
   } else if (!allRoutesOpen(routes)) {
     statusText.textContent = "The path is blocked. Erase a block to reopen the route.";
   } else if (wave && !wave.complete) {
     statusText.textContent = `Wave ${waveNumber} in progress.`;
+  } else if (autoWaveEnabled) {
+    statusText.textContent = `Auto wave armed. Next wave ${waveNumber + 1} will start on its own.`;
   } else {
     statusText.textContent = `Path ready. Build and start wave ${waveNumber + 1}.`;
   }
@@ -2941,7 +5008,7 @@ function updateHud() {
 function updateAmbientEffects(deltaTime) {
   ambientTimer += deltaTime;
 
-  const spawnRate = activeMap.scenery === "canyon" ? 0.22 : activeMap.scenery === "ruins" ? 0.32 : activeMap.scenery === "mango" ? 0.2 : Infinity;
+  const spawnRate = activeMap.scenery === "canyon" ? 0.22 : activeMap.scenery === "ruins" ? 0.32 : activeMap.scenery === "mango" ? 0.2 : activeMap.scenery === "graveyard" ? 0.26 : Infinity;
 
   while (ambientTimer >= spawnRate && spawnRate !== Infinity) {
     ambientTimer -= spawnRate;
@@ -2977,6 +5044,16 @@ function updateAmbientEffects(deltaTime) {
         color: Math.random() > 0.5
           ? `rgba(255, 193, 77, ${0.08 + Math.random() * 0.08})`
           : `rgba(255, 149, 64, ${0.08 + Math.random() * 0.08})`
+      });
+    } else if (activeMap.scenery === "graveyard") {
+      ambientParticles.push({
+        x: Math.random() * canvas.width,
+        y: canvas.height + 10,
+        vx: -4 + Math.random() * 8,
+        vy: -(10 + Math.random() * 12),
+        radius: 3 + Math.random() * 5,
+        ttl: 2 + Math.random() * 1.2,
+        color: `rgba(220, 235, 222, ${0.05 + Math.random() * 0.05})`
       });
     }
   }
@@ -3039,6 +5116,13 @@ function drawMapScenery() {
     gradient.addColorStop(1, "#ebb24f");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else if (activeMap.scenery === "graveyard") {
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, "#2f3b33");
+    gradient.addColorStop(0.5, "#1f2923");
+    gradient.addColorStop(1, "#131917");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
   } else {
     const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
     gradient.addColorStop(0, "#d9efd2");
@@ -3059,6 +5143,13 @@ function drawMapScenery() {
         ctx.fillRect(x + 6, y + 6, 24, 24);
       }
     }
+    if (selectedMap === "fotification") {
+      ctx.fillStyle = "rgba(35, 47, 58, 0.18)";
+      ctx.fillRect(0, 4 * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 2);
+      ctx.fillRect(0, 9 * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 2);
+      ctx.fillStyle = "rgba(233, 240, 246, 0.12)";
+      ctx.fillRect(0, 6 * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 3);
+    }
   } else if (activeMap.scenery === "ruins") {
     ctx.fillStyle = "rgba(117, 189, 227, 0.08)";
     for (let band = 0; band < 4; band += 1) {
@@ -3069,6 +5160,19 @@ function drawMapScenery() {
     ctx.beginPath();
     ctx.arc(canvas.width * 0.83, canvas.height * 0.22, 68, 0, Math.PI * 2);
     ctx.fill();
+  } else if (activeMap.scenery === "graveyard") {
+    ctx.fillStyle = "rgba(196, 214, 197, 0.06)";
+    for (let x = 18; x < canvas.width; x += 86) {
+      ctx.fillRect(x, 20, 8, canvas.height - 40);
+    }
+    const zone = mapBuildZone();
+    if (zone) {
+      ctx.fillStyle = "rgba(173, 211, 181, 0.12)";
+      ctx.fillRect(zone.x * CELL_SIZE, zone.y * CELL_SIZE, zone.width * CELL_SIZE, zone.height * CELL_SIZE);
+      ctx.strokeStyle = "rgba(205, 235, 210, 0.35)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(zone.x * CELL_SIZE, zone.y * CELL_SIZE, zone.width * CELL_SIZE, zone.height * CELL_SIZE);
+    }
   }
 
   for (const particle of ambientParticles) {
@@ -3078,15 +5182,17 @@ function drawMapScenery() {
     ctx.fill();
   }
 
-  for (const portal of activePortals()) {
-    const center = cellCenter(portal.x, portal.y);
-    ctx.fillStyle = "rgba(45, 108, 223, 0.18)";
-    ctx.beginPath();
-    ctx.arc(center.x, center.y, 16, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#2d6cdf";
-    ctx.lineWidth = 3;
-    ctx.stroke();
+  if (!activeMap.hidePortals) {
+    for (const portal of activePortals()) {
+      const center = cellCenter(portal.x, portal.y);
+      ctx.fillStyle = "rgba(45, 108, 223, 0.18)";
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#2d6cdf";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
   }
 
   for (const obstacle of activeMap.obstacles) {
@@ -3110,7 +5216,7 @@ function drawRoundedRect(x, y, width, height, radius) {
 }
 
 function drawRoute() {
-  if (!allRoutesOpen(routes)) {
+  if (activeMap.hideRoutes || !allRoutesOpen(routes)) {
     return;
   }
 
@@ -3235,6 +5341,22 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
       ctx.lineTo(12, 3);
       ctx.stroke();
     }
+    if (level >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(255, 239, 190, 0.82)" : "#ffe4a8";
+      ctx.beginPath();
+      ctx.moveTo(-4, -10);
+      ctx.lineTo(4, -10);
+      ctx.moveTo(-4, 10);
+      ctx.lineTo(4, 10);
+      ctx.stroke();
+    }
+    if (level >= 4) {
+      ctx.strokeStyle = ghost ? "rgba(255, 255, 255, 0.88)" : "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(2, 0);
+      ctx.lineTo(15, 0);
+      ctx.stroke();
+    }
   } else if (type === "laser") {
     ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(255, 124, 168, 0.45)") : "#ff7ca8";
     ctx.beginPath();
@@ -3243,6 +5365,171 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
     ctx.lineTo(-10, 12);
     ctx.closePath();
     ctx.fill();
+    if (path1 >= 1) {
+      ctx.strokeStyle = ghost ? "rgba(255, 250, 250, 0.8)" : "#fffdf8";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-3, -7);
+      ctx.lineTo(9, 0);
+      ctx.lineTo(-3, 7);
+      ctx.stroke();
+    }
+    if (path2 >= 1) {
+      ctx.fillStyle = ghost ? "rgba(255, 227, 92, 0.65)" : "#ffe35c";
+      ctx.fillRect(-2, -2.5, 10, 5);
+    }
+    if (path1 >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(255, 255, 255, 0.85)" : "#ffffff";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(-8, -10);
+      ctx.lineTo(-12, 0);
+      ctx.lineTo(-8, 10);
+      ctx.stroke();
+    }
+    if (path2 >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(255, 238, 147, 0.85)" : "#fff095";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(3, -10);
+      ctx.lineTo(13, 0);
+      ctx.lineTo(3, 10);
+      ctx.stroke();
+    }
+  } else if (type === "shotgun") {
+    ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(255, 211, 77, 0.52)") : "#ffd34d";
+    ctx.beginPath();
+    ctx.moveTo(13, 0);
+    ctx.lineTo(-7, -9);
+    ctx.lineTo(-13, -5);
+    ctx.lineTo(-13, 5);
+    ctx.lineTo(-7, 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = ghost ? "rgba(255, 246, 196, 0.82)" : "#fff0a8";
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    if (path1 >= 1) {
+      ctx.fillStyle = ghost ? "rgba(255, 183, 87, 0.75)" : "#ffb64f";
+      ctx.fillRect(-5, -3, 10, 6);
+    }
+    if (path1 >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(255, 198, 124, 0.85)" : "#ffc76e";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-10, -7);
+      ctx.lineTo(-3, -2);
+      ctx.moveTo(-10, 7);
+      ctx.lineTo(-3, 2);
+      ctx.stroke();
+    }
+    if (path2 >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(255, 248, 161, 0.88)" : "#fff38c";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(4, -6);
+      ctx.lineTo(16, -3);
+      ctx.moveTo(4, 6);
+      ctx.lineTo(16, 3);
+      ctx.stroke();
+    }
+  } else if (type === "freezer") {
+    ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(181, 235, 255, 0.5)") : "#b5ebff";
+    ctx.beginPath();
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = ghost ? "rgba(255, 255, 255, 0.8)" : "#f8ffff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-7, 0);
+    ctx.lineTo(7, 0);
+    ctx.moveTo(0, -7);
+    ctx.lineTo(0, 7);
+    ctx.stroke();
+    if (path1 >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(220, 250, 255, 0.8)" : "#e4fbff";
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (path2 >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(168, 231, 255, 0.75)" : "#8fdfff";
+      ctx.beginPath();
+      ctx.arc(0, 0, 17, 0.3, Math.PI * 1.7);
+      ctx.stroke();
+    }
+  } else if (type === "dippy") {
+    const dippyStats = stats || towerStats(tower || mockTower("dippy"));
+    const ammoCount = path1 >= 3 ? dippyStats.burst : 0;
+    const visibleAmmo = ammoCount > 0 ? (tower ? Math.max(0, tower.dippyAmmo ?? dippyStats.burst) : dippyStats.burst) : 0;
+    const sunny = path2 >= 3;
+    if (sunny) {
+      ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(255, 255, 245, 0.7)") : "#fffdf7";
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 21, 17, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = ghost ? "rgba(255, 205, 84, 0.8)" : dippyStats.yolkColor || "#ffce54";
+      ctx.beginPath();
+      ctx.arc(2, 0, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = ghost ? "rgba(255,255,255,0.8)" : "#fefefe";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(255, 246, 214, 0.72)") : "#fff0d1";
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 15, 20, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = ghost ? "rgba(214, 180, 120, 0.85)" : "#c9964b";
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+    }
+    if (ammoCount > 1) {
+      const ammoSlots = dippyAmmoSlotLayout(ammoCount);
+      const fillOrder = ensureDippyAmmoOrder(tower, ammoSlots.length);
+      const filledSlots = new Set(fillOrder.slice(0, Math.min(visibleAmmo, ammoSlots.length)));
+      const rackRadius = ammoCount >= 12 ? 33 : ammoCount >= 6 ? 24 : 18;
+      ctx.save();
+      ctx.fillStyle = ghost ? "rgba(91, 102, 112, 0.55)" : "#5c6670";
+      ctx.strokeStyle = ghost ? "rgba(216, 226, 234, 0.55)" : "#dbe4ea";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, rackRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      for (let index = 0; index < ammoSlots.length; index += 1) {
+        const slot = ammoSlots[index];
+        ctx.fillStyle = ghost ? "rgba(24, 31, 38, 0.55)" : "#24303a";
+        ctx.beginPath();
+        ctx.arc(slot.x, slot.y, slot.radius, 0, Math.PI * 2);
+        ctx.fill();
+        if (filledSlots.has(index)) {
+          ctx.fillStyle = ghost ? "rgba(255, 247, 224, 0.7)" : "#fff4dc";
+          ctx.beginPath();
+          ctx.arc(slot.x, slot.y, slot.radius * 0.62, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.fillStyle = ghost ? "rgba(24, 31, 38, 0.35)" : "#1f2a33";
+      ctx.beginPath();
+      ctx.arc(0, 0, ammoCount >= 12 ? 5.8 : 5.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    if (path1 >= 2) {
+      ctx.strokeStyle = ghost ? "rgba(255, 209, 139, 0.85)" : "#ffcb86";
+      ctx.beginPath();
+      ctx.moveTo(-5, -8);
+      ctx.lineTo(4, -2);
+      ctx.lineTo(-2, 7);
+      ctx.stroke();
+    }
+    if (path2 >= 2) {
+      ctx.fillStyle = ghost ? "rgba(255,255,255,0.8)" : "#fffdf5";
+      ctx.beginPath();
+      ctx.arc(8, -4, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
   } else if (type === "missile") {
     ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(138, 99, 235, 0.42)") : "#8a63eb";
     regularPolygon(0, 0, 12, 6);
@@ -3402,12 +5689,20 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
 }
 
 function drawTowerGhost(x, y) {
-  const center = cellCenter(x, y);
+  const center = towerPlacementCenter(selectedTowerType, x, y);
   const valid = canPlaceTowerAt(x, y);
   const shake = !valid ? Math.sin(lastTimestamp / 18) * (invalidPlacementTimer > 0 ? 4 : 2) : 0;
+  const footprint = towerPlacementCells(selectedTowerType, x, y);
 
   ctx.save();
   ctx.translate(shake, 0);
+  for (const cell of footprint) {
+    if (!inBounds(cell.x, cell.y)) {
+      continue;
+    }
+    ctx.fillStyle = valid ? "rgba(255, 250, 240, 0.12)" : "rgba(204, 63, 92, 0.25)";
+    ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+  }
   ctx.shadowColor = valid ? "rgba(21, 30, 42, 0.22)" : "rgba(212, 73, 96, 0.48)";
   ctx.shadowBlur = 14;
   drawTowerShape(selectedTowerType, 1, center.x, center.y, -Math.PI / 2, true, !valid);
@@ -3415,10 +5710,8 @@ function drawTowerGhost(x, y) {
 }
 
 function drawTower(tower) {
-  const x = tower.x * CELL_SIZE;
-  const y = tower.y * CELL_SIZE;
-  const centerX = x + CELL_SIZE / 2;
-  const centerY = y + CELL_SIZE / 2;
+  const centerX = tower.centerX;
+  const centerY = tower.centerY;
   const stats = towerStats(tower);
 
   if (tower.type === "tesla" && stats.field) {
@@ -3427,6 +5720,16 @@ function drawTower(tower) {
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(centerX, centerY, stats.range * 0.84, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (tower.type === "freezer" && stats.aura) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(196, 243, 255, 0.28)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, stats.auraRadius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -3471,6 +5774,25 @@ function drawDrones() {
 function drawTraps() {
   for (const trap of traps) {
     const hovered = hoverPoint && Math.hypot(hoverPoint.x - trap.centerX, hoverPoint.y - trap.centerY) <= 24;
+
+    if (trap.kind === "spike") {
+      ctx.strokeStyle = "#e9f0f6";
+      ctx.lineWidth = 2;
+      for (let index = 0; index < 6; index += 1) {
+        const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / 6;
+        const inner = 3;
+        const outer = 11;
+        ctx.beginPath();
+        ctx.moveTo(trap.centerX + Math.cos(angle) * inner, trap.centerY + Math.sin(angle) * inner);
+        ctx.lineTo(trap.centerX + Math.cos(angle) * outer, trap.centerY + Math.sin(angle) * outer);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#8b9aa7";
+      ctx.beginPath();
+      ctx.arc(trap.centerX, trap.centerY, 4.2, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
 
     if (trap.kind === "turret") {
       const target = enemies.find((enemy) => Math.hypot(enemy.x - trap.centerX, enemy.y - trap.centerY) <= trap.range);
@@ -3615,10 +5937,15 @@ function drawEnemyShape(enemy) {
     return;
   }
 
-  const radius = enemy.shapeSides >= 6 ? 12 : 10.5;
+  if (enemy.key === "attacker") {
+    drawAttackerEnemy(enemy);
+    return;
+  }
+
+  const radius = (enemy.shapeSides >= 6 ? 12 : 10.5) * (enemy.sizeScale || 1);
   const rotation = (enemy.facingAngle || 0) + (enemy.shapeSides === 3 ? 0 : Math.PI / enemy.shapeSides);
 
-  ctx.fillStyle = enemy.hidden ? "rgba(210, 224, 239, 0.36)" : enemy.slowFactor < 1 ? "#7fd0ff" : enemy.color;
+  ctx.fillStyle = enemy.color;
   ctx.beginPath();
 
   for (let index = 0; index < enemy.shapeSides; index += 1) {
@@ -3636,7 +5963,70 @@ function drawEnemyShape(enemy) {
   ctx.closePath();
   ctx.fill();
 
-  if (enemy.armored && enemy.armorHp > 0) {
+  if (enemy.key === "diamond") {
+    ctx.fillStyle = enemy.coreColor || "#e8fbff";
+    ctx.beginPath();
+    const coreRadius = 5 + ((enemy.tier || 1) - 1) * 1.5;
+    ctx.moveTo(enemy.x, enemy.y - coreRadius);
+    ctx.lineTo(enemy.x + coreRadius, enemy.y);
+    ctx.lineTo(enemy.x, enemy.y + coreRadius);
+    ctx.lineTo(enemy.x - coreRadius, enemy.y);
+    ctx.closePath();
+    ctx.fill();
+    if ((enemy.tier || 1) >= 2) {
+      ctx.strokeStyle = "rgba(255,255,255,0.9)";
+      ctx.lineWidth = enemy.tier >= 3 ? 2.4 : 1.6;
+      ctx.beginPath();
+      ctx.moveTo(enemy.x, enemy.y - radius - 2);
+      ctx.lineTo(enemy.x + radius + 2, enemy.y);
+      ctx.lineTo(enemy.x, enemy.y + radius + 2);
+      ctx.lineTo(enemy.x - radius - 2, enemy.y);
+      ctx.closePath();
+      ctx.stroke();
+    }
+  }
+
+  if (enemy.shielded || enemy.key === "shield") {
+    const coreRadius = 4.5 + ((enemy.tier || 1) - 1) * 1.8;
+    ctx.fillStyle = enemy.coreColor || "#f4f8ff";
+    ctx.beginPath();
+    ctx.arc(enemy.x, enemy.y, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
+    if ((enemy.shieldHp || 0) > 0) {
+      const shieldRatio = Math.max(0, Math.min(1, enemy.shieldHp / Math.max(enemy.maxShieldHp || 1, 1)));
+      const outerRadius = enemy.shieldRadius || radius + 10;
+      ctx.strokeStyle = `rgba(156, 222, 255, ${0.4 + shieldRatio * 0.45})`;
+      ctx.lineWidth = 2 + ((enemy.tier || 1) - 1) * 0.5;
+      ctx.beginPath();
+      ctx.arc(enemy.x, enemy.y, outerRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([8, 6]);
+      ctx.lineDashOffset = -(lastTimestamp / 20);
+      ctx.strokeStyle = "rgba(220, 244, 255, 0.85)";
+      ctx.beginPath();
+      ctx.arc(enemy.x, enemy.y, Math.max(coreRadius + 5, outerRadius - 6), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = `rgba(180, 230, 255, ${0.08 + shieldRatio * 0.08})`;
+      ctx.beginPath();
+      ctx.arc(enemy.x, enemy.y, outerRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if ((enemy.tier || 1) >= 2 && enemy.key !== "diamond" && enemy.key !== "shield" && !enemy.waffleSquares) {
+    ctx.strokeStyle = enemy.tier >= 3 ? "rgba(255, 244, 189, 0.9)" : "rgba(255,255,255,0.8)";
+    ctx.lineWidth = enemy.tier >= 3 ? 2.6 : 1.6;
+    ctx.beginPath();
+    ctx.arc(enemy.x, enemy.y, radius + (enemy.tier >= 3 ? 3 : 1.5), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = enemy.tier >= 3 ? "rgba(255, 241, 176, 0.8)" : "rgba(255,255,255,0.72)";
+    ctx.beginPath();
+    ctx.arc(enemy.x, enemy.y, enemy.tier >= 3 ? 4.2 : 2.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (enemy.armored && enemy.armorHp > 0 && !enemy.suppressArmorVisual) {
     ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -3645,15 +6035,96 @@ function drawEnemyShape(enemy) {
   }
 
   if (enemy.hidden) {
-    ctx.strokeStyle = "rgba(214, 233, 255, 0.75)";
+    ctx.strokeStyle = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
   }
+
+}
+
+function drawAttackerEnemy(enemy) {
+  const scale = enemy.sizeScale || 1;
+  const bodyLength = (enemy.tier >= 3 ? 20 : enemy.tier === 2 ? 16 : 13) * scale;
+  const bodyWidth = (enemy.tier >= 3 ? 7.5 : enemy.tier === 2 ? 6.5 : 5.5) * scale;
+  const wingLength = bodyLength * 0.7;
+  const wingSpread = bodyLength * 0.48;
+  const outlineColor = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
+
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.rotate(enemy.facingAngle || 0);
+  ctx.lineCap = "round";
+
+  ctx.strokeStyle = enemy.color;
+  ctx.lineWidth = bodyWidth;
+  ctx.beginPath();
+  ctx.moveTo(bodyLength * 0.56, 0);
+  ctx.lineTo(-bodyLength * 0.56, 0);
+  ctx.stroke();
+
+  ctx.lineWidth = Math.max(2.8, bodyWidth * 0.5);
+  ctx.beginPath();
+  ctx.moveTo(-bodyLength * 0.14, 0);
+  ctx.lineTo(-wingLength, -wingSpread);
+  ctx.moveTo(-bodyLength * 0.14, 0);
+  ctx.lineTo(-wingLength, wingSpread);
+  if (enemy.tier >= 2) {
+    ctx.moveTo(-bodyLength * 0.36, 0);
+    ctx.lineTo(-bodyLength * 0.94, -wingSpread * 0.54);
+    ctx.moveTo(-bodyLength * 0.36, 0);
+    ctx.lineTo(-bodyLength * 0.94, wingSpread * 0.54);
+  }
+  ctx.stroke();
+
+  if (enemy.hidden) {
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = bodyWidth + 3;
+    ctx.beginPath();
+    ctx.moveTo(bodyLength * 0.56, 0);
+    ctx.lineTo(-bodyLength * 0.56, 0);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(4, bodyWidth * 0.56);
+    ctx.beginPath();
+    ctx.moveTo(-bodyLength * 0.14, 0);
+    ctx.lineTo(-wingLength, -wingSpread);
+    ctx.moveTo(-bodyLength * 0.14, 0);
+    ctx.lineTo(-wingLength, wingSpread);
+    if (enemy.tier >= 2) {
+      ctx.moveTo(-bodyLength * 0.36, 0);
+      ctx.lineTo(-bodyLength * 0.94, -wingSpread * 0.54);
+      ctx.moveTo(-bodyLength * 0.36, 0);
+      ctx.lineTo(-bodyLength * 0.94, wingSpread * 0.54);
+    }
+    ctx.stroke();
+  }
+
+  if (enemy.shielded && enemy.shieldHp > 0) {
+    const outerRadius = enemy.shieldRadius || bodyLength + 10;
+    const shieldRatio = Math.max(0, Math.min(1, enemy.shieldHp / Math.max(enemy.maxShieldHp || 1, 1)));
+    ctx.strokeStyle = `rgba(156, 222, 255, ${0.4 + shieldRatio * 0.45})`;
+    ctx.lineWidth = 2 + ((enemy.tier || 1) - 1) * 0.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, outerRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([8, 6]);
+    ctx.lineDashOffset = -(lastTimestamp / 20);
+    ctx.strokeStyle = "rgba(220, 244, 255, 0.85)";
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.max(bodyLength * 0.55, outerRadius - 6), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(180, 230, 255, ${0.08 + shieldRatio * 0.08})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, outerRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
 }
 
 function drawWaffleEnemy(enemy) {
   const gridSize = enemy.waffleSquares === 25 ? 5 : enemy.waffleSquares === 16 ? 4 : enemy.waffleSquares === 4 ? 2 : 1;
-  const cellSize = enemy.waffleSquares === 25 ? 4.5 : enemy.waffleSquares === 16 ? 5 : enemy.waffleSquares === 4 ? 7 : 10;
+  const cellSize = 6;
   const gap = 1.5;
   const totalSize = gridSize * cellSize + (gridSize - 1) * gap;
   const left = -totalSize / 2;
@@ -3662,7 +6133,7 @@ function drawWaffleEnemy(enemy) {
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
   ctx.rotate(enemy.facingAngle || 0);
-  ctx.fillStyle = enemy.hidden ? "rgba(210, 224, 239, 0.36)" : enemy.color;
+  ctx.fillStyle = enemy.color;
   ctx.strokeStyle = "rgba(111, 68, 18, 0.55)";
   ctx.lineWidth = 1;
 
@@ -3676,15 +6147,63 @@ function drawWaffleEnemy(enemy) {
   }
 
   if (enemy.hidden) {
-    ctx.strokeStyle = "rgba(214, 233, 255, 0.75)";
+    ctx.strokeStyle = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
     ctx.lineWidth = 1.5;
     ctx.strokeRect(left - 2, top - 2, totalSize + 4, totalSize + 4);
   }
 
-  if (enemy.armored && enemy.armorHp > 0) {
+  if (enemy.armored && enemy.armorHp > 0 && !enemy.suppressArmorVisual) {
     ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
     ctx.lineWidth = 4;
     ctx.strokeRect(left - 4, top - 4, totalSize + 8, totalSize + 8);
+  }
+
+  if (enemy.shielded && enemy.shieldHp > 0) {
+    const shieldRadius = enemy.shieldRadius || totalSize * 0.72 + 10;
+    const shieldAlpha = 0.18 + 0.22 * Math.min(1, enemy.shieldHp / Math.max(enemy.maxShieldHp || enemy.shieldHp || 1, 1));
+    ctx.fillStyle = `rgba(170, 221, 255, ${shieldAlpha})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, shieldRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(150, 215, 255, 0.95)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, shieldRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(232, 248, 255, 0.85)";
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([7, 5]);
+    ctx.beginPath();
+    ctx.arc(0, 0, shieldRadius - 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
+function drawBurningEnemyEffect(enemy) {
+  if (!(enemy.burnTimer > 0)) {
+    return;
+  }
+
+  const radius = enemy.waffleSquares ? 14 : enemy.key === "idaen" ? 22 : 12;
+  ctx.save();
+  ctx.globalAlpha = Math.min(0.85, 0.25 + enemy.burnTimer * 0.12);
+  ctx.strokeStyle = "#ffb45f";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(enemy.x, enemy.y, radius + Math.sin(lastTimestamp / 85 + enemy.id) * 2, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#ffd07d";
+  for (let index = 0; index < 3; index += 1) {
+    const angle = lastTimestamp / 220 + enemy.id + index * 2.1;
+    const sparkX = enemy.x + Math.cos(angle) * (radius - 2);
+    const sparkY = enemy.y + Math.sin(angle) * (radius - 2);
+    ctx.beginPath();
+    ctx.arc(sparkX, sparkY, 2.2, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.restore();
 }
@@ -3710,10 +6229,11 @@ function drawIdaenEnemy(enemy) {
   ctx.fillRect(-8, 14, 6, 10);
   ctx.fillRect(2, 14, 6, 10);
   if (enemy.hidden) {
-    ctx.strokeStyle = "rgba(214, 233, 255, 0.75)";
+    ctx.strokeStyle = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(-20, -18, 40, 36);
   }
-  if (enemy.armored && enemy.armorHp > 0) {
+  if (enemy.armored && enemy.armorHp > 0 && !enemy.suppressArmorVisual) {
     ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
     ctx.lineWidth = 4;
     ctx.strokeRect(-22, -20, 44, 40);
@@ -3787,8 +6307,67 @@ function drawProjectiles() {
       continue;
     }
 
+    if (projectile.kind === "shotgunPellet") {
+      ctx.save();
+      ctx.translate(projectile.x, projectile.y);
+      ctx.rotate(projectile.angle || 0);
+      ctx.strokeStyle = "#ffe177";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-4, 0);
+      ctx.lineTo(4, 0);
+      ctx.stroke();
+      ctx.restore();
+      continue;
+    }
+
     if (projectile.kind === "trapTurretBullet") {
       ctx.fillStyle = "#d8f8c2";
+      ctx.beginPath();
+      ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
+
+    if (projectile.kind === "frostBolt") {
+      ctx.fillStyle = "#c8f6ff";
+      ctx.beginPath();
+      ctx.arc(projectile.x, projectile.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      continue;
+    }
+
+    if (projectile.kind === "dippyEgg") {
+      if (projectile.hiddenOffscreen) {
+        continue;
+      }
+      const size = projectile.projectileSize || 10;
+      if ((projectile.projectileSize || 10) > 10) {
+        ctx.fillStyle = "#fffdf7";
+        ctx.beginPath();
+        ctx.ellipse(projectile.x, projectile.y, size, size * 0.76, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = projectile.yolkColor || "#ffce54";
+        ctx.beginPath();
+        ctx.arc(projectile.x + size * 0.12, projectile.y, size * 0.34, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = "#fff0d1";
+        ctx.beginPath();
+        ctx.ellipse(projectile.x, projectile.y, size * 0.82, size, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#c9964b";
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
+      continue;
+    }
+
+    if (projectile.kind === "dippyShell") {
+      ctx.fillStyle = "#fff8da";
       ctx.beginPath();
       ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
       ctx.fill();
@@ -3827,14 +6406,54 @@ function drawProjectiles() {
 
 function drawEffects() {
   for (const effect of effects) {
-    if (effect.kind === "beam") {
+  if (effect.kind === "beam") {
       ctx.strokeStyle = effect.color;
-      ctx.lineWidth = 3;
-      ctx.globalAlpha = effect.ttl / 0.12;
+      ctx.lineWidth = effect.width || 3;
+      ctx.globalAlpha = effect.ttl / Math.max(effect.maxTtl || 0.12, 0.01);
       ctx.beginPath();
       ctx.moveTo(effect.x1, effect.y1);
       ctx.lineTo(effect.x2, effect.y2);
       ctx.stroke();
+      ctx.globalAlpha = 1;
+      continue;
+    }
+
+    if (effect.kind === "puddle") {
+      ctx.fillStyle = effect.color;
+      ctx.globalAlpha = Math.max(0.2, effect.ttl / Math.max(effect.maxTtl || 1, 1));
+      ctx.beginPath();
+      ctx.ellipse(effect.x, effect.y, effect.radius, effect.radius * 0.66, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      continue;
+    }
+
+    if (effect.kind === "spark") {
+      const alpha = effect.ttl / Math.max(effect.maxTtl || 0.2, 0.01);
+      ctx.fillStyle = effect.color;
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      continue;
+    }
+
+    if (effect.kind === "constructLaunch") {
+      const progress = 1 - effect.ttl / Math.max(effect.maxTtl || 0.18, 0.01);
+      const headX = effect.x1 + (effect.x2 - effect.x1) * progress;
+      const headY = effect.y1 + (effect.y2 - effect.y1) * progress;
+      ctx.strokeStyle = effect.color;
+      ctx.lineWidth = 2.5;
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.moveTo(effect.x1, effect.y1);
+      ctx.lineTo(headX, headY);
+      ctx.stroke();
+      ctx.fillStyle = effect.color;
+      ctx.beginPath();
+      ctx.arc(headX, headY, 4, 0, Math.PI * 2);
+      ctx.fill();
       ctx.globalAlpha = 1;
       continue;
     }
@@ -3862,6 +6481,10 @@ function drawEndpoint(point, fill) {
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  if (screenShakeTimer > 0 && screenShakeStrength > 0) {
+    ctx.translate((Math.random() - 0.5) * 10 * screenShakeStrength, (Math.random() - 0.5) * 10 * screenShakeStrength);
+  }
   drawMapScenery();
   drawGrid();
   drawRoute();
@@ -3879,10 +6502,13 @@ function draw() {
   drawEffects();
   drawEnemies();
   drawBossBar();
-  for (const portal of activePortals()) {
-    drawEndpoint(portal, "#1f8a70");
+  if (!activeMap.hidePortals) {
+    for (const portal of activePortals()) {
+      drawEndpoint(portal, "#1f8a70");
+    }
   }
   drawEndpoint(goalPortal(), "#cc3f5c");
+  ctx.restore();
 }
 
 function drawSelectedTowerRange() {
@@ -3901,6 +6527,14 @@ function drawSelectedTowerRange() {
   ctx.arc(tower.centerX, tower.centerY, stats.range, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  if (tower.type === "dippy" && stats.minRange > 0) {
+    ctx.strokeStyle = "rgba(214, 55, 55, 0.9)";
+    ctx.fillStyle = "rgba(214, 55, 55, 0.08)";
+    ctx.beginPath();
+    ctx.arc(tower.centerX, tower.centerY, stats.minRange, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
   if (tower.type === "tesla" && stats.field) {
     ctx.strokeStyle = "rgba(126, 226, 255, 0.78)";
     ctx.lineWidth = 3;
@@ -3915,6 +6549,7 @@ function drawSelectedTowerRange() {
 
 function resetGame() {
   activeMap = MAPS[selectedMap];
+  applyMapViewport();
   grid = createGrid();
   blocks = new Map();
   towers = [];
@@ -3943,9 +6578,14 @@ function resetGame() {
   invalidPlacementTimer = 0;
   infiniteMode = selectedDifficulty === "sandbox";
   cheatBuffer = [];
-  seedMapFeatures();
-  routes = computeRoutes();
-  closeTowerPopup();
+  outpostWalllessQuestFailed = false;
+  screenShakeTimer = 0;
+  screenShakeStrength = 0;
+  autoWaveTimer = 0;
+  resetSpawnPortalOrder();
+seedMapFeatures();
+routes = computeRoutes();
+closeTowerPopup();
   setMessage("Board reset.", 1.0);
   updateHud();
   draw();
@@ -3955,6 +6595,11 @@ function updateGame(deltaTime) {
   dashOffset = (dashOffset + deltaTime * 18) % DASH_PERIOD;
   messageTimer = Math.max(0, messageTimer - deltaTime);
   invalidPlacementTimer = Math.max(0, invalidPlacementTimer - deltaTime);
+  screenShakeTimer = Math.max(0, screenShakeTimer - deltaTime);
+  updateSmoothBoardScroll(deltaTime);
+  if (screenShakeTimer === 0) {
+    screenShakeStrength = 0;
+  }
 
   if (infiniteMode) {
     money = 999999;
@@ -3962,9 +6607,9 @@ function updateGame(deltaTime) {
   }
 
   if (lives <= 0) {
-    enemies = [];
-    projectiles = [];
-    wave = null;
+    if (gameMode !== "gameover") {
+      showGameOver();
+    }
     updateHud();
     return;
   }
@@ -3978,6 +6623,12 @@ function updateGame(deltaTime) {
   updateProjectiles(deltaTime);
   updateEffects(deltaTime);
   purgeDefeatedEnemies();
+  if (autoWaveEnabled && allRoutesOpen(routes) && (!wave || wave.complete)) {
+    autoWaveTimer = Math.max(0, autoWaveTimer - deltaTime);
+    if (autoWaveTimer === 0) {
+      spawnWave();
+    }
+  }
   updateHud();
 }
 
@@ -4214,6 +6865,12 @@ mapOptions.addEventListener("click", (event) => {
 
 rotateButton.addEventListener("click", rotateActivePiece);
 waveButton.addEventListener("click", spawnWave);
+autoWaveToggle?.addEventListener("change", () => {
+  autoWaveEnabled = autoWaveToggle.checked;
+  autoWaveTimer = autoWaveEnabled ? 0.45 : 0;
+  setMessage(autoWaveEnabled ? "Auto wave enabled." : "Auto wave disabled.", 1.3);
+  updateHud();
+});
 pauseButton.addEventListener("click", pauseGame);
 startGameButton.addEventListener("click", startGame);
 openAlmanacButton.addEventListener("click", () => openAlmanac("menu"));
@@ -4222,8 +6879,22 @@ pauseAlmanacButton.addEventListener("click", () => openAlmanac("pause"));
 quitToMenuButton.addEventListener("click", quitToMenu);
 closeAlmanacButton.addEventListener("click", closeAlmanac);
 closeTowerPopupButton.addEventListener("click", closeTowerPopup);
+sandboxSetWaveButton?.addEventListener("click", setSandboxWave);
+sandboxEnemySelect?.addEventListener("change", updateSandboxTierOptions);
+sandboxSpawnButton?.addEventListener("click", spawnSandboxEnemyFromControls);
+restartGameButton?.addEventListener("click", startGame);
+gameOverMenuButton?.addEventListener("click", quitToMenu);
 
 window.addEventListener("keydown", (event) => {
+  if (event.key.startsWith("Arrow")) {
+    heldScrollKeys.add(event.key);
+  }
+
+  if (scrollBoardByArrowKey(event.key)) {
+    event.preventDefault();
+    return;
+  }
+
   if (/^[0-9]$/.test(event.key)) {
     cheatBuffer.push(event.key);
     cheatBuffer = cheatBuffer.slice(-3);
@@ -4256,7 +6927,15 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
+window.addEventListener("keyup", (event) => {
+  if (event.key.startsWith("Arrow")) {
+    heldScrollKeys.delete(event.key);
+  }
+});
+
+applyMapViewport();
 routes = computeRoutes();
+populateSandboxEnemyOptions();
 renderAlmanac();
 updateMenuSelectors();
 openOverlay("menu");
