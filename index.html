@@ -10,7 +10,8 @@
   <div class="overlay active" id="menuOverlay">
     <div class="overlay-card menu-card">
       <div class="menu-title" aria-label="Block Defence">
-        <span class="menu-word">BLOCK</span>
+        <span class="menu-word menu-word-block">BLOCK</span>
+        <span class="menu-side-tile" aria-hidden="true"><span></span><span></span><span></span><span></span><i></i></span>
         <span class="menu-word">DEFENCE</span>
       </div>
       <p class="hint menu-subtitle">Choose a difficulty and map. Some maps use extra portals, scenery changes, and obstacles that block tower line of sight.</p>
@@ -18,8 +19,8 @@
         <section>
           <p class="eyebrow">Difficulty</p>
           <div class="menu-options" id="difficultyOptions">
-            <button class="menu-option active" data-difficulty="easy">Easy</button>
-            <button class="menu-option" data-difficulty="standard">Standard</button>
+            <button class="menu-option" data-difficulty="easy">Easy</button>
+            <button class="menu-option active" data-difficulty="standard">Standard</button>
             <button class="menu-option" data-difficulty="hard">Hard</button>
             <button class="menu-option" data-difficulty="brutal">Brutal</button>
             <button class="menu-option" data-difficulty="sandbox">Sandbox</button>
@@ -30,11 +31,12 @@
           <div class="menu-options menu-options-maps" id="mapOptions">
             <button class="menu-option active" data-map="meadow">Classic</button>
             <button class="menu-option" data-map="canyon">Canyon Fork</button>
-        <button class="menu-option" data-map="ruins">Sunken Ruins</button>
-        <button class="menu-option" data-map="mango">Mango Pass</button>
-        <button class="menu-option" data-map="fortification">Outpost</button>
-        <button class="menu-option" data-map="fotification">Fortification</button>
-        <button class="menu-option" data-map="graveyard">Graveyard</button>
+            <button class="menu-option" data-map="ruins">Sunken Ruins</button>
+            <button class="menu-option" data-map="mango">Mango Pass</button>
+            <button class="menu-option" data-map="factory">Factory</button>
+            <button class="menu-option" data-map="outpost">Outpost</button>
+            <button class="menu-option" data-map="fortification">Fortification</button>
+            <button class="menu-option" data-map="graveyard">Graveyard</button>
           </div>
         </section>
       </div>
@@ -54,6 +56,18 @@
         <button id="resumeGameButton">Resume</button>
         <button id="pauseAlmanacButton" class="secondary">Almanac</button>
         <button id="quitToMenuButton" class="secondary">Quit To Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="tutorialOverlay">
+    <div class="overlay-card">
+      <p class="eyebrow">Tutorial</p>
+      <h2 id="tutorialOverlayTitle">Welcome</h2>
+      <div class="tutorial-overlay-body" id="tutorialOverlayBody"></div>
+      <div class="overlay-actions">
+        <button id="tutorialOverlayButton">Continue</button>
+        <button id="tutorialDismissButton" class="secondary">Dismiss Tutorial</button>
       </div>
     </div>
   </div>
@@ -135,8 +149,8 @@
               <span>Enemy</span>
               <select id="sandboxEnemySelect"></select>
             </label>
-            <label class="sandbox-field">
-              <span>Tier</span>
+            <label class="sandbox-field" id="sandboxTierField">
+              <span id="sandboxTierLabel">Tier</span>
               <select id="sandboxTierSelect">
                 <option value="1">Tier 1</option>
                 <option value="2">Tier 2</option>
@@ -167,6 +181,13 @@
               <span>Shielded</span>
             </label>
           </div>
+        </div>
+        <div class="panel" id="tutorialPanel">
+          <div class="panel-head">
+            <h2>Tutorial</h2>
+          </div>
+          <div class="tutorial-copy" id="tutorialList"></div>
+          <p class="hint" id="tutorialHint">Use arrow keys to pan and start shaping the route.</p>
         </div>
         <div class="panel-dock" id="sidePanelDock"></div>
       </aside>
@@ -202,11 +223,13 @@
         <button class="tower-type" data-tower-type="shotgun">Shotgun (10)</button>
         <button class="tower-type" data-tower-type="freezer">Freezer (8)</button>
         <button class="tower-type" data-tower-type="drone">Drone (8)</button>
-        <button class="tower-type" data-tower-type="dippy">Dippy (120)</button>
-        <button class="tower-type" data-tower-type="crossbow">Crossbow (28)</button>
-              </div>
-            </div>
-            <p class="hint" id="towerDescription">Tesla: chain lightning with fast bursts.</p>
+            <button class="tower-type" data-tower-type="dippy">Dippy (100)</button>
+            <button class="tower-type" data-tower-type="support">Support (42)</button>
+            <button class="tower-type" data-tower-type="crossbow">Crossbow (28)</button>
+            <button class="tower-type" data-tower-type="gate">Sprayer (56)</button>
+          </div>
+        </div>
+        <p class="hint" id="towerDescription">Tesla: chain lightning with fast bursts.</p>
           </div>
         </div>
         <div class="board-actions">
@@ -231,6 +254,99 @@
     </section>
   </main>
 
-  <script src="./app.js"></script>
-</body>
+    <script src="./app.js"></script>
+    <script>
+      (() => {
+        const difficultyOptions = document.getElementById("difficultyOptions");
+        const mapOptions = document.getElementById("mapOptions");
+        const startGameButton = document.getElementById("startGameButton");
+        const openAlmanacButton = document.getElementById("openAlmanacButton");
+        const menuMapDescription = document.getElementById("menuMapDescription");
+        const bridge = window.__blockDefenceMenuBridge;
+        const maps = window.__blockDefenceMenuMaps || {};
+        document.body.dataset.menuBridge = bridge ? "ready" : "missing";
+
+        function syncMenuState() {
+          const state = bridge?.getState?.();
+
+          if (!state) {
+            return;
+          }
+
+          difficultyOptions?.querySelectorAll("[data-difficulty]").forEach((button) => {
+            button.classList.toggle("active", button.dataset.difficulty === state.difficulty);
+          });
+
+          mapOptions?.querySelectorAll("[data-map]").forEach((button) => {
+            button.classList.toggle("active", button.dataset.map === state.map);
+          });
+
+          const map = maps[state.map];
+          if (map && menuMapDescription) {
+            menuMapDescription.textContent = `${map.name}: ${map.description}`;
+          }
+        }
+
+        difficultyOptions?.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-difficulty]");
+
+          if (!button) {
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+          if (bridge?.setDifficulty?.(button.dataset.difficulty)) {
+            syncMenuState();
+          }
+        }, true);
+
+        mapOptions?.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-map]");
+
+          if (!button) {
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+          if (bridge?.setMap?.(button.dataset.map)) {
+            syncMenuState();
+          }
+        }, true);
+
+        startGameButton?.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (bridge?.startFromMenu) {
+            bridge.startFromMenu();
+          } else if (menuMapDescription) {
+            const detail = [window.__blockDefenceBootError, window.__blockDefenceCompileError].filter(Boolean).join(" | ");
+            menuMapDescription.textContent = detail
+              ? `Start Game is unavailable. ${detail}`
+              : "Start Game is unavailable because the game script did not finish loading.";
+          }
+        }, true);
+
+        openAlmanacButton?.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (bridge?.openAlmanacFromMenu) {
+            bridge.openAlmanacFromMenu();
+          } else if (menuMapDescription) {
+            const detail = [window.__blockDefenceBootError, window.__blockDefenceCompileError].filter(Boolean).join(" | ");
+            menuMapDescription.textContent = detail
+              ? `Almanac is unavailable. ${detail}`
+              : "Almanac is unavailable because the game script did not finish loading.";
+          }
+        }, true);
+
+        syncMenuState();
+      })();
+    </script>
+  </body>
 </html>
+
+
+
+
