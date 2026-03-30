@@ -1,5 +1,6 @@
+document.body.dataset.appBootStage = "script-start";
 const canvas = document.getElementById("board");
-const ctx = canvas.getContext("2d");
+const ctx = canvas?.getContext("2d");
 const statusText = document.getElementById("statusText");
 const routeText = document.getElementById("routeText");
 const moneyText = document.getElementById("moneyText");
@@ -15,6 +16,7 @@ const towerDescription = document.getElementById("towerDescription");
 const waveButton = document.getElementById("waveButton");
 const autoWaveToggle = document.getElementById("autoWaveToggle");
 const rotateButton = document.getElementById("rotateButton");
+const pauseButton = document.getElementById("pauseButton");
 const toolGrid = document.getElementById("toolGrid");
 const towerGrid = document.getElementById("towerGrid");
 const boardFrame = document.querySelector(".board-frame");
@@ -23,6 +25,7 @@ const boardPanelDock = document.getElementById("boardPanelDock");
 const blockToolButton = document.querySelector('[data-tool="wall"]');
 const menuOverlay = document.getElementById("menuOverlay");
 const pauseOverlay = document.getElementById("pauseOverlay");
+const tutorialOverlay = document.getElementById("tutorialOverlay");
 const gameOverOverlay = document.getElementById("gameOverOverlay");
 const almanacOverlay = document.getElementById("almanacOverlay");
 const startGameButton = document.getElementById("startGameButton");
@@ -51,15 +54,26 @@ const sandboxWaveInput = document.getElementById("sandboxWaveInput");
 const sandboxSetWaveButton = document.getElementById("sandboxSetWaveButton");
 const sandboxEnemySelect = document.getElementById("sandboxEnemySelect");
 const sandboxTierSelect = document.getElementById("sandboxTierSelect");
+const sandboxTierLabel = document.getElementById("sandboxTierLabel");
 const sandboxSpawnCountInput = document.getElementById("sandboxSpawnCountInput");
 const sandboxPortalSelect = document.getElementById("sandboxPortalSelect");
 const sandboxSpawnButton = document.getElementById("sandboxSpawnButton");
 const sandboxSpawnHidden = document.getElementById("sandboxSpawnHidden");
 const sandboxSpawnArmored = document.getElementById("sandboxSpawnArmored");
 const sandboxSpawnShielded = document.getElementById("sandboxSpawnShielded");
+const airstrikePanel = document.getElementById("airstrikePanel");
+const airstrikeButton = document.getElementById("airstrikeButton");
+const airstrikeStatusText = document.getElementById("airstrikeStatusText");
+const airstrikeTitleText = airstrikeButton?.querySelector(".airstrike-copy > span:first-child");
+const tutorialOverlayTitle = document.getElementById("tutorialOverlayTitle");
+const tutorialOverlayBody = document.getElementById("tutorialOverlayBody");
+const tutorialOverlayButton = document.getElementById("tutorialOverlayButton");
+const tutorialDismissButton = document.getElementById("tutorialDismissButton");
 const closeTowerPopupButton = document.getElementById("closeTowerPopupButton");
+const tutorialList = document.getElementById("tutorialList");
+const tutorialHint = document.getElementById("tutorialHint");
 const TARGET_PRIORITIES = ["first", "last", "strong", "weak", "hidden", "random"];
-const PATH_TOWER_TYPES = new Set(["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "dippy", "support"]);
+const PATH_TOWER_TYPES = new Set(["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "dippy", "support", "gate"]);
 const TARGET_LABELS = {
   first: "First",
   last: "Last",
@@ -69,9 +83,11 @@ const TARGET_LABELS = {
   random: "Random"
 };
 
+document.body.dataset.appBootStage = "constants";
+
 const COLS = 30;
 const ROWS = 18;
-const CELL_SIZE = 36;
+const CELL_SIZE = 28;
 const BASE_CANVAS_WIDTH = COLS * CELL_SIZE;
 const BASE_CANVAS_HEIGHT = ROWS * CELL_SIZE;
 const START_MONEY = 50;
@@ -83,12 +99,13 @@ const TOWER_BASE_COST = {
   missile: 38,
   trapper: 24,
   laser: 60,
-  shotgun: 26,
+  shotgun: 22,
   freezer: 34,
   drone: 34,
   dippy: 100,
   support: 42,
-  crossbow: 28
+  crossbow: 28,
+  gate: 56
 };
 const UPGRADE_COSTS = {
   tesla: {
@@ -120,12 +137,16 @@ const UPGRADE_COSTS = {
     path2: [8, 13, 22, 36, 56]
   },
   dippy: {
-    path1: [32, 48, 76, 116, 190],
-    path2: [30, 46, 74, 112, 178]
+    path1: [32, 48, 76, 116, 240],
+    path2: [30, 46, 74, 112, 232]
   },
   support: {
-    path1: [10, 18, 28, 44, 70],
+    path1: [30, 70, 130, 220, 360],
     path2: [10, 18, 30, 46, 74]
+  },
+  gate: {
+    path1: [12, 20, 34, 52, 84],
+    path2: [12, 18, 30, 50, 82]
   }
 };
 const TOWER_INFO = {
@@ -138,7 +159,8 @@ const TOWER_INFO = {
   drone: { name: "Drone", color: "#7de3d6", description: "Drone commands mobile gunships that chase targets inside tower coverage and can branch into support or assault roles." },
   dippy: { name: "Dippy", color: "#fff1b8", description: "Dippy is an egg. A very powerful egg." },
   support: { name: "Support", color: "#c9b6ff", description: "Support hub boosts nearby towers and can branch into income generation or an ammo supplier aura." },
-  crossbow: { name: "Crossbow", color: "#f3f7ff", description: "Outpost crossbow tower. Fires slower bolts and can be upgraded into a heavier fort-defense platform." }
+  crossbow: { name: "Crossbow", color: "#8b5d33", description: "Outpost crossbow tower. Fires slower bolts and can be upgraded into a heavier fort-defense platform." },
+  gate: { name: "Acid Gate", color: "#91e59d", description: "A three-tile acid gate. Rotate it to span a wall-path-wall lane, then let its mounted battery slabs flood the opening with stacking acid pools." }
 };
 const ENEMY_TYPES = {
   fast: {
@@ -146,7 +168,7 @@ const ENEMY_TYPES = {
     name: "Fast",
     color: "#d64545",
     shape: 3,
-    hpMultiplier: 0.7,
+    hpMultiplier: 0.8,
     speedBonus: 24,
     reward: 2,
     description: "Fast triangles sprint through lanes and punish slow reaction times."
@@ -156,7 +178,7 @@ const ENEMY_TYPES = {
     name: "Pentagon",
     color: "#7f56d9",
     shape: 5,
-    hpMultiplier: 1.65,
+    hpMultiplier: 1.85,
     speedBonus: -8,
     reward: 4,
     description: "Pentagons are slower but absorb far more punishment than standard creeps."
@@ -166,7 +188,7 @@ const ENEMY_TYPES = {
     name: "Hexagon",
     color: "#f1c84c",
     shape: 6,
-    hpMultiplier: 2.25,
+    hpMultiplier: 2.55,
     speedBonus: -3,
     reward: 5,
     description: "Hexagons are heavy elites with very high health and steady forward pressure."
@@ -176,7 +198,7 @@ const ENEMY_TYPES = {
     name: "Diamond",
     color: "#8fe4ff",
     shape: 4,
-    hpMultiplier: 1.45,
+    hpMultiplier: 1.6,
     speedBonus: 12,
     reward: 5,
     description: "Diamonds glide in faster than pentagons and bring sharper mid-wave pressure."
@@ -186,8 +208,8 @@ const ENEMY_TYPES = {
     name: "Attacker",
     color: "#9d63ff",
     shape: 2,
-    hpMultiplier: 2.4,
-    speedBonus: 20,
+    hpMultiplier: 2.7,
+    speedBonus: 42,
     reward: 6,
     armor: 5,
     hidden: true,
@@ -200,7 +222,7 @@ const ENEMY_TYPES = {
     name: "Shield",
     color: "#8fc7ff",
     shape: 6,
-    hpMultiplier: 1.15,
+    hpMultiplier: 1.3,
     speedBonus: -4,
     reward: 6,
     description: "Shield enemies project a force field that protects nearby enemies until the field is broken."
@@ -210,7 +232,7 @@ const ENEMY_TYPES = {
     name: "Waffle",
     color: "#d69a43",
     shape: 4,
-    hpMultiplier: 4.8,
+    hpMultiplier: 5.4,
     speedBonus: -10,
     reward: 10,
     waffleSquares: 16,
@@ -221,7 +243,7 @@ const ENEMY_TYPES = {
     name: "Armoured",
     color: "#93a1b5",
     shape: 6,
-    hpMultiplier: 1.95,
+    hpMultiplier: 2.15,
     speedBonus: -5,
     reward: 6,
     armor: 4,
@@ -232,7 +254,7 @@ const ENEMY_TYPES = {
     name: "Biscuit",
     color: "#e6b26e",
     shape: 3,
-    hpMultiplier: 0.5,
+    hpMultiplier: 0.65,
     speedBonus: 42,
     reward: 4,
     description: "Biscuits are sharp triangular runners that sprint for the exit with very high speed."
@@ -242,7 +264,7 @@ const ENEMY_TYPES = {
     name: "Mega Waffle",
     color: "#b87d36",
     shape: 4,
-    hpMultiplier: 7.2,
+    hpMultiplier: 7.8,
     speedBonus: -14,
     reward: 18,
     waffleSquares: 25,
@@ -253,11 +275,23 @@ const ENEMY_TYPES = {
     name: "I-daen",
     color: "#8d5f2e",
     shape: 4,
-    hpMultiplier: 48,
+    hpMultiplier: 52,
     speedBonus: -16,
     reward: 60,
     waffleSquares: 16,
     description: "I-daen is a waffle golem boss that halts to summon off-lane reinforcements and can only appear on Outpost."
+  },
+  adapter: {
+    key: "adapter",
+    name: "Adapter",
+    color: "#b079ff",
+    shape: 2,
+    hpMultiplier: 34,
+    speedBonus: 26,
+    reward: 70,
+    armor: 8,
+    armored: true,
+    description: "Adapter is the attacker boss, a giant assault craft that launches raiders and adapts against explosive hits."
   }
 };
 const DIFFICULTIES = {
@@ -300,7 +334,16 @@ const MAPS = {
     portals: [{ x: 0, y: 4 }, { x: COLS - 1, y: 10 }],
     obstacles: [{ x: 8, y: 5 }, { x: 8, y: 9 }, { x: 12, y: 2 }, { x: 13, y: 12 }, { x: 17, y: 4 }, { x: 17, y: 10 }]
   },
-  fortification: {
+  factory: {
+    name: "Factory",
+    description: "Build a conveyor line through the plant. Five conveyors are free on wave 1, then one free conveyor arrives each wave, and enemies move slightly faster here.",
+    scenery: "factory",
+    goal: { x: COLS - 2, y: 8 },
+    portals: [{ x: 0, y: 8 }],
+    obstacles: [],
+    enemySpeed: 1.08
+  },
+  outpost: {
     name: "Outpost",
     description: "Four portals assault a broken 5x5 fort ring around the base. This map doubles enemies and halves cash gain.",
     scenery: "fortification",
@@ -315,15 +358,13 @@ const MAPS = {
     enemyCount: 2,
     reward: 0.5
   },
-  fotification: {
+  fortification: {
     name: "Fortification",
     description: "A larger fort corridor. Scroll left to find the portal beyond the wall while unique spike traps guard the lanes.",
     scenery: "fortification",
     goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
     portals: [{ x: 0, y: Math.floor(ROWS / 2) }],
-    obstacles: [],
-    extraCanvasWidth: 420,
-    initialScrollLeft: 260
+    obstacles: []
   },
   graveyard: {
     name: "Graveyard",
@@ -338,13 +379,14 @@ const MAPS = {
     ],
     hidePortals: true,
     hideRoutes: true,
-    buildZone: { x: 8, y: 4, width: 10, height: 7 },
+    buildZone: { x: 10, y: 6, width: 11, height: 7 },
     obstacles: [],
     enemyCount: 3,
     reward: 1 / 3
   }
 };
 const IDAEN_BOSS_WAVES = new Set([25, 50, 75, 100]);
+const ADAPTER_BOSS_WAVES = new Set([40, 80, 120]);
 
 const directions = [
   { dx: 1, dy: 0 },
@@ -430,7 +472,7 @@ let selectedTowerType = "tesla";
 let routes = [];
 let hoverCell = null;
 let hoverPoint = null;
-let activePiece = createRandomPiece();
+let activePiece = null;
 let selectedDifficulty = "standard";
 let selectedMap = "meadow";
 let activeMap = MAPS[selectedMap];
@@ -470,14 +512,128 @@ let infiniteMode = false;
 let cheatBuffer = [];
 let crossbowUnlocked = false;
 let outpostWalllessQuestFailed = false;
-let screenShakeTimer = 0;
-let screenShakeStrength = 0;
 let spawnPortalCursor = 0;
 let spawnPortalOrder = [];
 let autoWaveEnabled = false;
 let autoWaveTimer = 0;
+let sandboxWaveTarget = null;
+let armedAbility = null;
 const heldScrollKeys = new Set();
-const ALMANAC_TOWER_TYPES = ["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "dippy", "support", "crossbow"];
+let scrollVelocityX = 0;
+let scrollVelocityY = 0;
+let selectedGateRotation = 0;
+const introducedEnemyKeys = new Set();
+const shownWaveWarnings = new Set();
+const tutorialProgress = {
+  scrolled: false,
+  placedBlock: false,
+  placedTower: false,
+  upgradedTower: false
+};
+const shownTutorialPopups = new Set();
+let tutorialPopupQueue = [];
+let activeTutorialPopup = null;
+let tutorialResumeMode = null;
+let tutorialDismissed = false;
+let tutorialStepDelayTimer = 0;
+const ALMANAC_TOWER_TYPES = ["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "dippy", "support", "crossbow", "gate"];
+const MENU_STATE_STORAGE_KEY = "blockDefence.menuState";
+
+function normalizeMapKey(mapKey) {
+  if (mapKey === "fotification") {
+    return "fortification";
+  }
+  return mapKey;
+}
+
+function persistMenuState() {
+  try {
+    window.localStorage?.setItem(MENU_STATE_STORAGE_KEY, JSON.stringify({
+      difficulty: selectedDifficulty,
+      map: selectedMap
+    }));
+  } catch (error) {
+    // Ignore storage failures so menu interaction still works.
+  }
+}
+
+function restoreMenuState() {
+  try {
+    const raw = window.localStorage?.getItem(MENU_STATE_STORAGE_KEY);
+
+    if (!raw) {
+      return;
+    }
+
+    const parsed = JSON.parse(raw);
+    const nextDifficulty = typeof parsed?.difficulty === "string" ? parsed.difficulty : null;
+    const nextMap = typeof parsed?.map === "string" ? normalizeMapKey(parsed.map) : null;
+
+    if (["easy", "standard", "hard", "brutal", "sandbox"].includes(nextDifficulty)) {
+      selectedDifficulty = nextDifficulty;
+    }
+
+    if (nextMap && MAPS[nextMap]) {
+      selectedMap = nextMap;
+      activeMap = MAPS[selectedMap];
+    }
+  } catch (error) {
+    // Ignore malformed saved state and fall back to defaults.
+  }
+}
+
+restoreMenuState();
+document.body.dataset.appBootStage = "menu-state-restored";
+window.__blockDefenceMenuBridge = {
+  getState() {
+    return {
+      difficulty: selectedDifficulty,
+      map: selectedMap
+    };
+  },
+  setDifficulty(nextDifficulty) {
+    if (!["easy", "standard", "hard", "brutal", "sandbox"].includes(nextDifficulty)) {
+      return false;
+    }
+
+    selectedDifficulty = nextDifficulty;
+    persistMenuState();
+    if (typeof updateMenuSelectors === "function") {
+      updateMenuSelectors();
+    }
+    return true;
+  },
+  setMap(nextMap) {
+    const normalizedMap = normalizeMapKey(nextMap);
+    if (!MAPS[normalizedMap]) {
+      return false;
+    }
+
+    selectedMap = normalizedMap;
+    activeMap = MAPS[selectedMap];
+    persistMenuState();
+    if (typeof updateMenuSelectors === "function") {
+      updateMenuSelectors();
+    }
+    return true;
+  },
+  startFromMenu() {
+    persistMenuState();
+    return startGame();
+  },
+  openAlmanacFromMenu() {
+    persistMenuState();
+    return openAlmanac("menu");
+  },
+  refreshMenu() {
+    if (typeof updateMenuSelectors === "function") {
+      updateMenuSelectors();
+    }
+  }
+};
+window.__blockDefenceMenuMaps = MAPS;
+activePiece = createRandomPiece(selectedMap);
+document.body.dataset.appBootStage = "bridge-ready";
 
 const createGrid = () =>
   Array.from({ length: ROWS }, () =>
@@ -505,11 +661,53 @@ function baseCenter() {
 }
 
 function isOutpostMap() {
-  return selectedMap === "fortification";
+  return selectedMap === "outpost";
 }
 
 function isGraveyardMap() {
   return selectedMap === "graveyard";
+}
+
+function isFactoryMap() {
+  return selectedMap === "factory";
+}
+
+function isFactoryBuildTile(x, y) {
+  return y % 2 === 0 && x % 2 === 0;
+}
+
+function factoryTravelDirections() {
+  return [
+    { dx: 2, dy: 0, gapX: 1, gapY: 0 },
+    { dx: -2, dy: 0, gapX: -1, gapY: 0 },
+    { dx: 0, dy: 2, gapX: 0, gapY: 1 },
+    { dx: 0, dy: -2, gapX: 0, gapY: -1 }
+  ];
+}
+
+function supportWaveIncomeEntries() {
+  return towers
+    .filter((tower) => tower.type === "support")
+    .map((tower) => ({
+      tower,
+      amount: Math.max(0, Math.round(towerStats(tower).waveCash || 0))
+    }))
+    .filter((entry) => entry.amount > 0);
+}
+
+function addFloatingText(x, y, text, color = "#ffe27a", ttl = 1.05) {
+  effects.push({
+    id: nextEffectId,
+    kind: "floatingText",
+    x,
+    y,
+    text,
+    color,
+    maxTtl: ttl,
+    ttl,
+    vy: -38
+  });
+  nextEffectId += 1;
 }
 
 function mapBuildZone() {
@@ -575,6 +773,10 @@ function isIdaenWave(round = waveNumber) {
   return isOutpostMap() && IDAEN_BOSS_WAVES.has(round);
 }
 
+function isAdapterWave(round = waveNumber) {
+  return !isOutpostMap() && ADAPTER_BOSS_WAVES.has(round);
+}
+
 function enemyCountMultiplier() {
   return (DIFFICULTIES[selectedDifficulty].enemyCount || 1) * (activeMap.enemyCount || 1);
 }
@@ -616,7 +818,15 @@ function rotateOffset(offset, turns) {
   return next;
 }
 
-function createRandomPiece() {
+function createRandomPiece(mapKey = null) {
+  if (mapKey === "factory") {
+    return {
+      name: "Conveyor Belt",
+      color: "#6e7f89",
+      offsets: [{ x: 0, y: 0 }],
+      conveyor: true
+    };
+  }
   const shape = tetrominoes[Math.floor(Math.random() * tetrominoes.length)];
   const turns = Math.floor(Math.random() * 4);
 
@@ -630,6 +840,232 @@ function createRandomPiece() {
 function setMessage(text, duration = 1.6) {
   message = text;
   messageTimer = duration;
+}
+
+function reportUiError(context, error) {
+  const detail = error instanceof Error ? error.message : String(error);
+  const messageText = `${context} failed: ${detail}`;
+  setMessage(messageText, 6);
+  if (menuMapDescription && gameMode === "menu") {
+    menuMapDescription.textContent = messageText;
+  }
+  updateHud();
+  draw();
+}
+
+function withUiGuard(context, handler) {
+  return (event) => {
+    try {
+      return handler(event);
+    } catch (error) {
+      reportUiError(context, error);
+      return undefined;
+    }
+  };
+}
+
+function enemyIntroMessage(enemyKey) {
+  const enemy = ENEMY_TYPES[enemyKey];
+  if (!enemy) {
+    return null;
+  }
+  const advice = {
+    fast: "They rush early, so get basic damage up quickly.",
+    pentagon: "They are tougher, so sustained damage helps.",
+    diamond: "They resist energy and explosions, so keep steady bullet coverage too.",
+    attacker: "They stay hidden and fast, so detection upgrades matter soon.",
+    armored: "Bullets bounce off until lasers or explosions strip the shell.",
+    shield: "Break the shield source first or your damage will get absorbed.",
+    waffle16: "Waffles split into more waffles, so splash and lane control help.",
+    biscuit: "Biscuits are boss minions and sprint hard toward the base.",
+    idaen: "I-daen is the boss, and his summon phases flood the map.",
+    adapter: "Adapter is the attacker boss. It launches escorts, and every explosive hit makes it ignore the next explosive strike."
+  };
+  return `${enemy.name} spotted. ${enemy.description}${advice[enemyKey] ? ` ${advice[enemyKey]}` : ""}`;
+}
+
+function waveWarningMessage(round) {
+  const warnings = {
+    4: {
+      title: "Hidden Enemies Soon",
+      body: "Hidden enemies arrive on wave 6.\n\nGet detection before they show up. Tesla Path 2, Dippy Path 2, and Support detection upgrades can all help."
+    },
+    5: {
+      title: "Hidden Enemies Next Wave",
+      body: "The next wave includes hidden enemies.\n\nIf a tower cannot detect them, it will not fire."
+    },
+    7: {
+      title: "Armoured Enemies Soon",
+      body: "Armoured enemies arrive on wave 9.\n\nMissiles, lasers, and explosive damage strip armour cleanly."
+    },
+    8: {
+      title: "Armoured Enemies Next Wave",
+      body: "The next wave includes armoured enemies.\n\nKinetic damage struggles until the shell is broken."
+    },
+    16: {
+      title: "Shielded Enemies Soon",
+      body: "Shielded enemies arrive on wave 18.\n\nEnemies inside the shield do not take direct damage, so crack the shield source first with focused fire."
+    },
+    17: {
+      title: "Shielded Enemies Next Wave",
+      body: "The next wave includes shielded enemies.\n\nBurst damage and splash make it easier to break the shield source before the lane fills up."
+    }
+  };
+  return warnings[round] || null;
+}
+
+function maybeShowWaveWarning(round) {
+  const warning = waveWarningMessage(round);
+  if (!warning || shownWaveWarnings.has(round)) {
+    return false;
+  }
+  shownWaveWarnings.add(round);
+  queueTutorialPopup(`wave-warning-${round}`, warning.title, warning.body);
+  return true;
+}
+
+function queueTutorialPopup(key, title, body) {
+  if (key && shownTutorialPopups.has(key)) {
+    return false;
+  }
+  if (key) {
+    shownTutorialPopups.add(key);
+  }
+  tutorialPopupQueue.push({ title, body, kind: "warning" });
+  presentQueuedTutorialPopup();
+  return true;
+}
+
+function queueDelayedTutorialStep(key, title, body) {
+  if (tutorialDismissed || isSandboxMode() || (key && shownTutorialPopups.has(key))) {
+    return false;
+  }
+  if (key) {
+    shownTutorialPopups.add(key);
+  }
+  tutorialPopupQueue.push({ title, body, kind: "tutorial" });
+  tutorialStepDelayTimer = 2;
+  return true;
+}
+
+function renderTutorialPopup() {
+  if (!activeTutorialPopup || !tutorialOverlayTitle || !tutorialOverlayBody) {
+    return;
+  }
+
+  tutorialOverlayTitle.textContent = activeTutorialPopup.title;
+  tutorialOverlayBody.innerHTML = activeTutorialPopup.body
+    .split("\n\n")
+    .map((paragraph) => `<p>${paragraph}</p>`)
+    .join("");
+}
+
+function presentQueuedTutorialPopup() {
+  if (activeTutorialPopup || tutorialPopupQueue.length === 0 || gameMode === "menu" || gameMode === "gameover" || gameMode === "almanac") {
+    return;
+  }
+
+  if (tutorialPopupQueue[0]?.kind === "tutorial" && tutorialStepDelayTimer > 0) {
+    return;
+  }
+
+  activeTutorialPopup = tutorialPopupQueue.shift();
+  tutorialResumeMode = gameMode === "paused" ? "paused" : "playing";
+  gameMode = "paused";
+  openOverlay(null);
+  tutorialOverlay?.classList.add("active");
+  renderTutorialPopup();
+  updateHud();
+  draw();
+}
+
+function dismissTutorialPopup() {
+  if (!activeTutorialPopup) {
+    return;
+  }
+
+  activeTutorialPopup = null;
+  tutorialOverlay?.classList.remove("active");
+  if (gameMode !== "menu" && gameMode !== "gameover") {
+    gameMode = tutorialResumeMode === "paused" ? "paused" : "playing";
+    if (gameMode === "paused") {
+      openOverlay("pause");
+    } else {
+      openOverlay(null);
+    }
+  }
+  tutorialResumeMode = null;
+  presentQueuedTutorialPopup();
+  updateHud();
+  draw();
+}
+
+function dismissEntireTutorial() {
+  tutorialDismissed = true;
+  tutorialPopupQueue = tutorialPopupQueue.filter((entry) => entry.kind !== "tutorial");
+  tutorialStepDelayTimer = 0;
+  dismissTutorialPopup();
+}
+
+function queueNextTutorialStep() {
+  if (tutorialDismissed || isSandboxMode()) {
+    return;
+  }
+  if (!tutorialProgress.scrolled) {
+    queueDelayedTutorialStep("tutorial-scroll", "Move The Board", "Use the arrow keys to pan around the map.\n\nOnce you move the board, the next tutorial page will appear after a short pause.");
+    return;
+  }
+  if (!tutorialProgress.placedBlock) {
+    queueDelayedTutorialStep("tutorial-block", isFactoryMap() ? "Place A Conveyor" : "Place A Block", isFactoryMap()
+      ? "Use the Block tool to place a conveyor on a valid tile and extend the route.\n\nAfter you place one, the next tutorial page will appear after a short pause."
+      : "Use the Block tool, and press R if needed, to place a route block.\n\nAfter you place one, the next tutorial page will appear after a short pause.");
+    return;
+  }
+  if (!tutorialProgress.placedTower) {
+    queueDelayedTutorialStep("tutorial-tower", "Place A Tower", "Switch to the Tower tool, choose a tower, and place it on a valid build tile.\n\nAfter you place one, the next tutorial page will appear after a short pause.");
+    return;
+  }
+  if (!tutorialProgress.upgradedTower) {
+    queueDelayedTutorialStep("tutorial-upgrade", "Buy An Upgrade", "Use the Upgrade tool or the tower popup to buy an upgrade.\n\nAfter your first upgrade, the opening tutorial is complete.");
+  }
+}
+
+function renderTutorial() {
+  if (!tutorialList || !tutorialHint) {
+    return;
+  }
+
+  const steps = [
+    {
+      done: tutorialProgress.scrolled,
+      title: "Pan the board",
+      detail: "Use the arrow keys to move around the map smoothly."
+    },
+    {
+      done: tutorialProgress.placedBlock,
+      title: isFactoryMap() ? "Place conveyors" : "Place blocks",
+      detail: isFactoryMap() ? "Use the block tool to lay conveyors and shape the route." : "Use the block tool and R to rotate pieces into the lane."
+    },
+    {
+      done: tutorialProgress.placedTower,
+      title: "Place a tower",
+      detail: "Switch to Tower, pick one from the strip, and place it on a valid spot."
+    },
+    {
+      done: tutorialProgress.upgradedTower,
+      title: "Upgrade it",
+      detail: "Use the Upgrade tool or tower popup to buy stronger attacks, detection, or support utility."
+    }
+  ];
+
+  tutorialList.innerHTML = steps
+    .map((step) => `<div class="tutorial-step${step.done ? " done" : ""}"><strong>${step.done ? "Done" : "Next"}: ${step.title}</strong><span>${step.detail}</span></div>`)
+    .join("");
+
+  const nextStep = steps.find((step) => !step.done);
+  tutorialHint.textContent = nextStep
+    ? nextStep.detail
+    : "You know the basics now. Watch the warnings panel text for hidden, armoured, shielded, and boss mechanics.";
 }
 
 function isSandboxMode() {
@@ -694,6 +1130,10 @@ function enemySpecialAbilities(enemy) {
     specials.push("Boss summon phase");
     specials.push("Shielded while summon biscuits survive");
   }
+  if (enemy.key === "adapter") {
+    specials.push("Boss escort launches");
+    specials.push("After taking explosive damage, it ignores the next explosive hit");
+  }
   if (enemy.key === "biscuit") {
     specials.push("Extreme speed");
   }
@@ -721,10 +1161,35 @@ function enemySpecialAbilities(enemy) {
 
 function renderEnemyAlmanacCard(enemy) {
   const hp = Math.round((5 + Math.max(waveNumber, 1)) * enemy.hpMultiplier * DIFFICULTIES.standard.hp);
-  const speed = (30 + Math.max(waveNumber, 1) * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval;
+  const speed = ((30 + Math.max(waveNumber, 1) * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1);
   const specials = enemySpecialAbilities(enemy);
   const specialText = specials.length ? specials.join(", ") : "None";
-  return `<h3>${enemy.name}</h3><p>${enemy.description}</p><p>Health: ${formatNumber(hp)} | Base Damage: 1 | Speed: ${formatNumber(speed / CELL_SIZE)} cells/s</p><p>Special: ${specialText}</p><p>Reward: ${enemy.reward}</p>`;
+  const effects = [];
+  if (enemy.hidden) {
+    effects.push("Hidden");
+  }
+  if (enemy.armored || enemy.key === "armored") {
+    effects.push("Armoured");
+  }
+  if (enemy.key === "shield") {
+    effects.push("Shield Aura");
+  } else if (enemy.key === "idaen") {
+    effects.push("Shield Phase");
+  } else if (enemy.key === "adapter") {
+    effects.push("Adaptive Boss");
+  }
+  const effectText = effects.length > 0 ? effects.join(", ") : "None";
+  let tierText = "None";
+  if (enemy.key === "waffle16") {
+    tierText = "Tier 1 mini waffle, Tier 2 2x2 waffle, Tier 3 4x4 waffle.";
+  } else if (enemy.key === "shield") {
+    tierText = "Tier 1 normal shield, Tier 2 stronger/larger shield, Tier 3 massive shield with much more shield HP.";
+  } else if (enemy.key === "diamond") {
+    tierText = "Tier 1 normal, Tier 2 tougher/slower/larger, Tier 3 much tougher/slower/larger.";
+  } else if (enemySupportsTiers(enemy.key)) {
+    tierText = "Tier 1 normal, Tier 2 tougher/slower/larger, Tier 3 much tougher/slower/larger.";
+  }
+  return `<h3>${enemy.name}</h3><p>${enemy.description}</p><p>Health: ${formatNumber(hp)} | Base Damage: 1 | Speed: ${formatNumber(speed / CELL_SIZE)} cells/s</p><p>Effects: ${effectText}</p><p>Tiers: ${tierText}</p><p>Special: ${specialText}</p><p>Reward: ${enemy.reward}</p>`;
 }
 
 function diamondTierForWave(round = waveNumber) {
@@ -879,10 +1344,14 @@ function startGame() {
   gameMode = "playing";
   closeTowerPopup();
   openOverlay(null);
+  if (!isSandboxMode()) {
+    queueNextTutorialStep();
+    presentQueuedTutorialPopup();
+  }
 }
 
 function pauseGame() {
-  if (gameMode !== "playing") {
+  if (gameMode !== "playing" || activeTutorialPopup) {
     return;
   }
 
@@ -891,7 +1360,7 @@ function pauseGame() {
 }
 
 function resumeGame() {
-  if (gameMode === "gameover") {
+  if (gameMode === "gameover" || activeTutorialPopup) {
     return;
   }
   gameMode = "playing";
@@ -926,6 +1395,7 @@ function closeAlmanac() {
   if (almanacOrigin === "pause") {
     gameMode = "paused";
     openOverlay("pause");
+    presentQueuedTutorialPopup();
     return;
   }
 
@@ -944,6 +1414,11 @@ function setTool(nextTool) {
 }
 
 function updateMenuSelectors() {
+  if (!MAPS[selectedMap]) {
+    selectedMap = "meadow";
+  }
+  activeMap = MAPS[selectedMap];
+  persistMenuState();
   for (const button of difficultyOptions.querySelectorAll("[data-difficulty]")) {
     button.classList.toggle("active", button.dataset.difficulty === selectedDifficulty);
   }
@@ -959,7 +1434,7 @@ function populateSandboxEnemyOptions() {
   }
 
   sandboxEnemySelect.innerHTML = Object.values(ENEMY_TYPES)
-    .filter((enemy) => enemy.key !== "shield")
+    .filter((enemy) => enemy.key !== "shield" && enemy.key !== "megaWaffle")
     .map((enemy) => `<option value="${enemy.key}">${enemy.name}</option>`)
     .join("");
   updateSandboxTierOptions();
@@ -974,7 +1449,27 @@ function updateSandboxTierOptions() {
     return;
   }
 
-  const tiered = enemyUsesTiers(sandboxEnemySelect?.value || "");
+  const enemyKey = sandboxEnemySelect?.value || "";
+  if (enemyKey === "idaen") {
+    sandboxTierLabel.textContent = "Boss Wave";
+    sandboxTierSelect.innerHTML = `
+      <option value="25">Wave 25</option>
+      <option value="50">Wave 50</option>
+      <option value="75">Wave 75</option>
+      <option value="100">Wave 100</option>
+    `;
+    sandboxTierSelect.disabled = false;
+    sandboxTierSelect.parentElement?.classList.remove("disabled");
+    return;
+  }
+
+  sandboxTierLabel.textContent = "Tier";
+  sandboxTierSelect.innerHTML = `
+    <option value="1">Tier 1</option>
+    <option value="2">Tier 2</option>
+    <option value="3">Tier 3</option>
+  `;
+  const tiered = enemyUsesTiers(enemyKey);
   sandboxTierSelect.disabled = !tiered;
   sandboxTierSelect.parentElement?.classList.toggle("disabled", !tiered);
   if (!tiered) {
@@ -1000,6 +1495,7 @@ function updateSandboxControls() {
   }
 
   const active = isSandboxMode() && gameMode !== "menu";
+  document.body.dataset.sandboxLayout = active ? "true" : "false";
   sandboxControls.hidden = !active;
   if (!active) {
     return;
@@ -1009,6 +1505,21 @@ function updateSandboxControls() {
     sandboxWaveInput.value = String(Math.max(0, waveNumber));
   }
   updateSandboxPortalOptions();
+}
+
+function readyAirstrikeTowers() {
+  return [];
+}
+
+function preferredAirstrikeTower() {
+  return null;
+}
+
+function updateAirstrikeControls() {
+  armedAbility = armedAbility === "airstrike" ? null : armedAbility;
+  if (airstrikePanel) {
+    airstrikePanel.hidden = true;
+  }
 }
 
 function isFormFieldFocused() {
@@ -1021,65 +1532,67 @@ function isFormFieldFocused() {
 }
 
 function scrollBoardByArrowKey(key) {
-  if (!boardFrame || gameMode === "menu" || isFormFieldFocused()) {
+  if (!boardFrame || gameMode === "menu" || isFormFieldFocused() || !key.startsWith("Arrow")) {
     return false;
   }
-
-  const maxScrollLeft = Math.max(0, boardFrame.scrollWidth - boardFrame.clientWidth);
-  const maxScrollTop = Math.max(0, boardFrame.scrollHeight - boardFrame.clientHeight);
-  let deltaX = 0;
-  let deltaY = 0;
-
-  if (key === "ArrowLeft") {
-    deltaX = -120;
-  } else if (key === "ArrowRight") {
-    deltaX = 120;
-  } else if (key === "ArrowUp") {
-    deltaY = -90;
-  } else if (key === "ArrowDown") {
-    deltaY = 90;
-  } else {
-    return false;
-  }
-
-  if ((deltaX !== 0 && maxScrollLeft <= 0) || (deltaY !== 0 && maxScrollTop <= 0)) {
-    return false;
-  }
-
-  boardFrame.scrollLeft = Math.max(0, Math.min(maxScrollLeft, boardFrame.scrollLeft + deltaX));
-  boardFrame.scrollTop = Math.max(0, Math.min(maxScrollTop, boardFrame.scrollTop + deltaY));
   return true;
 }
 
 function updateSmoothBoardScroll(deltaTime) {
-  if (!boardFrame || gameMode === "menu" || isFormFieldFocused() || heldScrollKeys.size === 0) {
+  if (!boardFrame || gameMode === "menu" || isFormFieldFocused()) {
     return;
   }
 
   const maxScrollLeft = Math.max(0, boardFrame.scrollWidth - boardFrame.clientWidth);
   const maxScrollTop = Math.max(0, boardFrame.scrollHeight - boardFrame.clientHeight);
-  const speed = 540;
-  let deltaX = 0;
-  let deltaY = 0;
+  const acceleration = 2400;
+  const friction = Math.max(0, 1 - deltaTime * 8.5);
+  const maxSpeed = 900;
+  let inputX = 0;
+  let inputY = 0;
 
   if (heldScrollKeys.has("ArrowLeft")) {
-    deltaX -= speed * deltaTime;
+    inputX -= 1;
   }
   if (heldScrollKeys.has("ArrowRight")) {
-    deltaX += speed * deltaTime;
+    inputX += 1;
   }
   if (heldScrollKeys.has("ArrowUp")) {
-    deltaY -= speed * deltaTime;
+    inputY -= 1;
   }
   if (heldScrollKeys.has("ArrowDown")) {
-    deltaY += speed * deltaTime;
+    inputY += 1;
   }
 
-  if (deltaX !== 0 && maxScrollLeft > 0) {
-    boardFrame.scrollLeft = Math.max(0, Math.min(maxScrollLeft, boardFrame.scrollLeft + deltaX));
+  if (inputX !== 0 || inputY !== 0) {
+    tutorialProgress.scrolled = true;
+    renderTutorial();
+    queueNextTutorialStep();
   }
-  if (deltaY !== 0 && maxScrollTop > 0) {
-    boardFrame.scrollTop = Math.max(0, Math.min(maxScrollTop, boardFrame.scrollTop + deltaY));
+
+  if (maxScrollLeft <= 0 && maxScrollTop <= 0) {
+    scrollVelocityX = 0;
+    scrollVelocityY = 0;
+    return;
+  }
+
+  scrollVelocityX = (scrollVelocityX + inputX * acceleration * deltaTime) * friction;
+  scrollVelocityY = (scrollVelocityY + inputY * acceleration * deltaTime) * friction;
+  scrollVelocityX = Math.max(-maxSpeed, Math.min(maxSpeed, scrollVelocityX));
+  scrollVelocityY = Math.max(-maxSpeed, Math.min(maxSpeed, scrollVelocityY));
+
+  if (Math.abs(scrollVelocityX) < 8) {
+    scrollVelocityX = 0;
+  }
+  if (Math.abs(scrollVelocityY) < 8) {
+    scrollVelocityY = 0;
+  }
+
+  if (scrollVelocityX !== 0 && maxScrollLeft > 0) {
+    boardFrame.scrollLeft = Math.max(0, Math.min(maxScrollLeft, boardFrame.scrollLeft + scrollVelocityX * deltaTime));
+  }
+  if (scrollVelocityY !== 0 && maxScrollTop > 0) {
+    boardFrame.scrollTop = Math.max(0, Math.min(maxScrollTop, boardFrame.scrollTop + scrollVelocityY * deltaTime));
   }
 }
 
@@ -1171,9 +1684,15 @@ function maxTowerLevel(tower) {
 }
 
 function towerFootprint(type) {
-  return type === "dippy"
-    ? [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }]
-    : [{ x: 0, y: 0 }];
+  if (type === "dippy") {
+    return [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }];
+  }
+  if (type === "gate") {
+    return selectedGateRotation % 2 === 0
+      ? [{ x: -1, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 0 }]
+      : [{ x: 0, y: -1 }, { x: 0, y: 0 }, { x: 0, y: 1 }];
+  }
+  return [{ x: 0, y: 0 }];
 }
 
 function towerPlacementCells(type, originX, originY) {
@@ -1190,10 +1709,19 @@ function towerPlacementCenter(type, originX, originY) {
 }
 
 function activeBossEnemy() {
-  return enemies.find((enemy) => enemy.key === "idaen" && enemy.hp > 0) || null;
+  return enemies.find((enemy) => enemy.boss && enemy.hp > 0) || null;
 }
 
 function rotateActivePiece() {
+  if (currentTool === "tower" && selectedTowerType === "gate") {
+    selectedGateRotation = (selectedGateRotation + 1) % 2;
+    updateHud();
+    draw();
+    return;
+  }
+  if (isFactoryMap()) {
+    return;
+  }
   activePiece = {
     ...activePiece,
     offsets: activePiece.offsets.map((offset) => rotateOffset(offset, 1))
@@ -1209,12 +1737,15 @@ function placedCells(originX, originY, piece = activePiece) {
   }));
 }
 
-function findPathFrom(startPoint, extraBlocked = []) {
+function findPathFrom(startPoint, extraBlocked = [], extraOpen = []) {
   const extraBlockedSet = new Set(extraBlocked.map((cell) => `${cell.x},${cell.y}`));
+  const extraOpenSet = new Set(extraOpen.map((cell) => `${cell.x},${cell.y}`));
   const queue = [{ x: startPoint.x, y: startPoint.y }];
   const visited = new Set([`${startPoint.x},${startPoint.y}`]);
   const parents = new Map([[`${startPoint.x},${startPoint.y}`, null]]);
   let found = null;
+  let fallback = `${startPoint.x},${startPoint.y}`;
+  let fallbackDistance = Math.hypot(goalPortal().x - startPoint.x, goalPortal().y - startPoint.y);
 
   while (queue.length > 0) {
     const current = queue.shift();
@@ -1225,31 +1756,70 @@ function findPathFrom(startPoint, extraBlocked = []) {
       break;
     }
 
-    for (const direction of directions) {
-      const nextX = current.x + direction.dx;
-      const nextY = current.y + direction.dy;
-      const nextKey = `${nextX},${nextY}`;
+    if (isFactoryMap()) {
+      for (const direction of factoryTravelDirections()) {
+        const nextX = current.x + direction.dx;
+        const nextY = current.y + direction.dy;
+        const gapX = current.x + direction.gapX;
+        const gapY = current.y + direction.gapY;
+        const nextKey = `${nextX},${nextY}`;
 
-      if (!inBounds(nextX, nextY) || visited.has(nextKey)) {
-        continue;
-      }
-
-      if (!isEndpoint(nextX, nextY)) {
-          const occupied = grid[nextY][nextX].blockId !== null || obstacleAt(nextX, nextY) || extraBlockedSet.has(nextKey);
-
-        if (occupied) {
+        if (!inBounds(nextX, nextY) || visited.has(nextKey) || obstacleAt(gapX, gapY)) {
           continue;
         }
-      }
 
-      visited.add(nextKey);
-      parents.set(nextKey, currentKey);
-      queue.push({ x: nextX, y: nextY });
+        const traversable = isEndpoint(nextX, nextY)
+          || (
+            isFactoryBuildTile(nextX, nextY)
+            && grid[nextY][nextX].blockId !== null
+            && !extraBlockedSet.has(nextKey)
+            && !obstacleAt(nextX, nextY)
+          )
+          || extraOpenSet.has(nextKey);
+
+        if (!traversable) {
+          continue;
+        }
+
+        visited.add(nextKey);
+        parents.set(nextKey, currentKey);
+        const distanceToGoal = Math.hypot(goalPortal().x - nextX, goalPortal().y - nextY);
+        if (distanceToGoal <= fallbackDistance) {
+          fallback = nextKey;
+          fallbackDistance = distanceToGoal;
+        }
+        queue.push({ x: nextX, y: nextY });
+      }
+    } else {
+      for (const direction of directions) {
+        const nextX = current.x + direction.dx;
+        const nextY = current.y + direction.dy;
+        const nextKey = `${nextX},${nextY}`;
+
+        if (!inBounds(nextX, nextY) || visited.has(nextKey)) {
+          continue;
+        }
+
+        if (!isEndpoint(nextX, nextY)) {
+          const occupied = grid[nextY][nextX].blockId !== null || obstacleAt(nextX, nextY) || extraBlockedSet.has(nextKey);
+          if (occupied) {
+            continue;
+          }
+        }
+
+        visited.add(nextKey);
+        parents.set(nextKey, currentKey);
+        queue.push({ x: nextX, y: nextY });
+      }
     }
   }
 
   if (!found) {
-    return [];
+    if (isFactoryMap()) {
+      found = fallback;
+    } else {
+      return [];
+    }
   }
 
   const result = [];
@@ -1264,11 +1834,14 @@ function findPathFrom(startPoint, extraBlocked = []) {
   return result.reverse();
 }
 
-function computeRoutes(extraBlocked = []) {
-  return activePortals().map((portal) => findPathFrom(portal, extraBlocked));
+function computeRoutes(extraBlocked = [], extraOpen = []) {
+  return activePortals().map((portal) => findPathFrom(portal, extraBlocked, extraOpen));
 }
 
 function allRoutesOpen(nextRoutes) {
+  if (isFactoryMap()) {
+    return nextRoutes.every((path) => path.length > 0);
+  }
   return nextRoutes.every((path) => path.length > 0);
 }
 
@@ -1284,9 +1857,17 @@ function canPlacePiece(originX, originY) {
       return false;
     }
 
+    if (isFactoryMap() && !isFactoryBuildTile(cell.x, cell.y)) {
+      return false;
+    }
+
     if (grid[cell.y][cell.x].blockId !== null || obstacleAt(cell.x, cell.y)) {
       return false;
     }
+  }
+
+  if (isFactoryMap()) {
+    return true;
   }
 
   return allRoutesOpen(computeRoutes(cells));
@@ -1302,13 +1883,39 @@ function canPlaceTowerAt(x, y) {
     return false;
   }
 
+  if (selectedTowerType === "gate") {
+    if (isFactoryMap()) {
+      return false;
+    }
+
+    const [left, center, right] = cells;
+    if (![left, center, right].every((cell) => inBounds(cell.x, cell.y) && !isEndpoint(cell.x, cell.y))) {
+      return false;
+    }
+
+    const leftState = grid[left.y][left.x];
+    const centerState = grid[center.y][center.x];
+    const rightState = grid[right.y][right.x];
+    return leftState.blockId !== null
+      && rightState.blockId !== null
+      && centerState.blockId === null
+      && !obstacleAt(center.x, center.y)
+      && leftState.towerId === null
+      && centerState.towerId === null
+      && rightState.towerId === null;
+  }
+
   for (const cell of cells) {
     if (!inBounds(cell.x, cell.y) || isEndpoint(cell.x, cell.y)) {
       return false;
     }
 
     const state = grid[cell.y][cell.x];
-    if (state.blockId === null || state.towerId !== null) {
+    if (isFactoryMap()) {
+      if (state.blockId !== null || state.towerId !== null || obstacleAt(cell.x, cell.y)) {
+        return false;
+      }
+    } else if (state.blockId === null || state.towerId !== null) {
       return false;
     }
   }
@@ -1333,7 +1940,8 @@ function placePiece(originX, originY) {
     id: blockId,
     color: activePiece.color,
     name: activePiece.name,
-    cells
+    cells,
+    conveyor: Boolean(activePiece.conveyor)
   };
 
   for (const cell of cells) {
@@ -1348,10 +1956,13 @@ function placePiece(originX, originY) {
     money -= currentBlockCost;
     currentBlockCost *= 2;
   }
-  if (selectedMap === "fortification") {
+  if (selectedMap === "outpost") {
     outpostWalllessQuestFailed = true;
   }
-  activePiece = createRandomPiece();
+  activePiece = createRandomPiece(selectedMap);
+      tutorialProgress.placedBlock = true;
+      renderTutorial();
+      queueNextTutorialStep();
   return true;
 }
 
@@ -1408,7 +2019,7 @@ function addPresetTower(type, x, y, overrides = {}) {
   return tower;
 }
 
-function seedFortificationMap() {
+function seedOutpostMap() {
   const centerX = Math.floor(COLS / 2);
   const centerY = Math.floor(ROWS / 2);
   const layout = [
@@ -1440,41 +2051,65 @@ function seedFortificationMap() {
   addPresetTower("crossbow", centerX + 3, centerY + 3, { spent: 0, unique: true, level: 2 });
 }
 
-function seedFotificationMap() {
-  const wallCells = [];
+function seedFortificationMap() {
+  const localWallCells = [];
   for (let y = 2; y <= 12; y += 1) {
     if (y === 6 || y === 7 || y === 8) {
       continue;
     }
-    wallCells.push({ x: 4, y });
+    localWallCells.push({ x: 4, y });
   }
 
-  const corridorWalls = [
+  const localCorridorWalls = [
     { x: 8, y: 2 }, { x: 9, y: 2 }, { x: 10, y: 2 }, { x: 11, y: 2 }, { x: 12, y: 2 },
     { x: 8, y: 12 }, { x: 9, y: 12 }, { x: 10, y: 12 }, { x: 11, y: 12 }, { x: 12, y: 12 },
     { x: 11, y: 4 }, { x: 11, y: 5 }, { x: 11, y: 9 }, { x: 11, y: 10 },
     { x: 16, y: 4 }, { x: 16, y: 5 }, { x: 16, y: 9 }, { x: 16, y: 10 }
   ];
-  addPresetBlock(wallCells.concat(corridorWalls), "#6f7c86", "Fortification Wall", true);
-  addPresetTower("crossbow", 4, 4, { spent: 0, unique: true, level: 2, upgradeLocked: true });
-  addPresetTower("crossbow", 4, 10, { spent: 0, unique: true, level: 2, upgradeLocked: true });
-
-  const spikeCells = [
+  const localCrossbows = [
+    { x: 4, y: 4 },
+    { x: 4, y: 10 }
+  ];
+  const localSpikeCells = [
     { x: 7, y: 7 },
     { x: 10, y: 7 },
     { x: 13, y: 5 },
     { x: 13, y: 9 },
     { x: 18, y: 7 }
   ];
+  const allLocalCells = localWallCells.concat(localCorridorWalls, localCrossbows, localSpikeCells);
+  const minX = Math.min(...allLocalCells.map((cell) => cell.x));
+  const maxX = Math.max(...allLocalCells.map((cell) => cell.x));
+  const minY = Math.min(...allLocalCells.map((cell) => cell.y));
+  const maxY = Math.max(...allLocalCells.map((cell) => cell.y));
+  const layoutWidth = maxX - minX + 1;
+  const layoutHeight = maxY - minY + 1;
+  const offsetX = Math.floor((COLS - layoutWidth) / 2) - minX;
+  const offsetY = Math.floor((ROWS - layoutHeight) / 2) - minY;
+  const shiftCell = (cell) => ({ x: cell.x + offsetX, y: cell.y + offsetY });
+  const wallCells = [];
+  for (const cell of localWallCells) {
+    wallCells.push(shiftCell(cell));
+  }
+  for (const cell of localCorridorWalls) {
+    wallCells.push(shiftCell(cell));
+  }
 
-  for (const cell of spikeCells) {
-    const center = cellCenter(cell.x, cell.y);
+  addPresetBlock(wallCells, "#6f7c86", "Fortification Wall", true);
+  for (const cell of localCrossbows) {
+    const shifted = shiftCell(cell);
+    addPresetTower("crossbow", shifted.x, shifted.y, { spent: 0, unique: true, level: 2, upgradeLocked: true });
+  }
+
+  for (const cell of localSpikeCells) {
+    const shifted = shiftCell(cell);
+    const center = cellCenter(shifted.x, shifted.y);
     traps.push({
       id: nextTrapId,
       ownerTowerId: null,
       kind: "spike",
-      x: cell.x,
-      y: cell.y,
+      x: shifted.x,
+      y: shifted.y,
       centerX: center.x,
       centerY: center.y,
       damage: 1.9,
@@ -1489,25 +2124,24 @@ function seedFotificationMap() {
 }
 
 function applyMapViewport() {
-  const extraWidth = activeMap.extraCanvasWidth || 0;
-  canvas.width = BASE_CANVAS_WIDTH + extraWidth;
+  canvas.width = BASE_CANVAS_WIDTH;
   canvas.height = BASE_CANVAS_HEIGHT;
   if (boardFrame) {
-    boardFrame.scrollLeft = activeMap.initialScrollLeft || 0;
+    boardFrame.scrollLeft = 0;
     boardFrame.scrollTop = 0;
   }
 }
 
 function seedMapFeatures() {
-  if (selectedMap === "fortification") {
+  if (selectedMap === "outpost") {
+    seedOutpostMap();
+  } else if (selectedMap === "fortification") {
     seedFortificationMap();
-  } else if (selectedMap === "fotification") {
-    seedFotificationMap();
   }
 }
 
 function maybeUnlockCrossbowQuest() {
-  if (selectedMap === "fortification" && selectedDifficulty === "brutal" && !outpostWalllessQuestFailed && waveNumber >= 50 && !crossbowUnlocked) {
+  if (selectedMap === "outpost" && selectedDifficulty === "brutal" && !outpostWalllessQuestFailed && waveNumber >= 50 && !crossbowUnlocked) {
     crossbowUnlocked = true;
     setMessage("Secret unlocked: Crossbow tower can now be purchased in future runs.", 3.2);
     updateHud();
@@ -1515,9 +2149,7 @@ function maybeUnlockCrossbowQuest() {
 }
 
 function supportWaveIncomeBonus() {
-  return towers
-    .filter((tower) => tower.type === "support")
-    .reduce((total, tower) => total + (towerStats(tower).waveCash || 0), 0);
+  return supportWaveIncomeEntries().reduce((total, entry) => total + entry.amount, 0);
 }
 
 function towerCost(type) {
@@ -1669,18 +2301,18 @@ function freezerPathDescription(path, tier) {
 function dippyPathDescription(path, tier) {
   const descriptions = {
     1: {
-      1: "Path 1 T1: Bigger Eggs. More damage.",
-      2: "Path 1 T2: Boiled Eggs. More damage and leaves burn.",
-      3: "Path 1 T3: Animal Welfare Approved Eggs. Faster firing and burst of three.",
-      4: "Path 1 T4: Half-Dozen. Shoots a burst of six.",
-      5: "Path 1 T5: A Dozen Eggs. Shoots 12 before reloading."
+      1: "Path 1 T1: Bigger Eggs. Eggs hit for 8 and explode in a bigger radius.",
+      2: "Path 1 T2: Boiled Eggs. Eggs still hit for 8 and now leave lots of burn.",
+      3: "Path 1 T3: Animal Welfare Approved Eggs. Burst of three, each egg deals 8.",
+      4: "Path 1 T4: Half-Dozen. Burst of six, each egg deals 8.",
+      5: "Path 1 T5: A Dozen Eggs. Burst of twelve, each egg deals 8 before reloading."
     },
     2: {
       1: "Path 2 T1: Fresh Eggs. More explosion radius.",
-      2: "Path 2 T2: Harder Shells. Shells fly out like bullets.",
-      3: "Path 2 T3: Egg Pudding. High damage, bigger radius, slight screen shake, and hidden detection.",
-      4: "Path 2 T4: Mangoes. More damage, more shake, sticky mango syrup slows enemies.",
-      5: "Path 2 T5: Mango Pudding. More stickiness, bigger radius, more damage, two shockwaves."
+      2: "Path 2 T2: Harder Shells. Shells fly out like bullets for 10 damage each.",
+      3: "Path 2 T3: Egg Pudding. Eggs deal 16 with a bigger blast and hidden detection.",
+      4: "Path 2 T4: Mangoes. Eggs deal 20 and leave sticky syrup.",
+      5: "Path 2 T5: Mango Pudding. Eggs deal 105, crush shields, and leave stronger syrup that buffs tower attack speed."
     }
   };
 
@@ -1698,10 +2330,31 @@ function supportPathDescription(path, tier) {
     },
     2: {
       1: "Path 2 T1: Packed Crates. Support radius increases.",
-      2: "Path 2 T2: Better Shells. Support radius increases again.",
-      3: "Path 2 T3: Extra Munitions Supplier. Towers in range can hit armoured and their attacks become explosive.",
-      4: "Path 2 T4: Telescope. Towers in range can also see hidden enemies.",
-      5: "Path 2 T5: Siege Depot. Wider support field with stronger munitions coverage."
+      2: "Path 2 T2: Better Logistics. Nearby towers attack faster.",
+      3: "Path 2 T3: Rapid Distribution. Nearby towers attack even faster.",
+      4: "Path 2 T4: Telescope. Nearby towers attack faster and can also see hidden enemies.",
+      5: "Path 2 T5: Extra Munitions Supplier. Nearby towers gain explosive anti-armour attacks and the hub fires passive support missiles."
+    }
+  };
+
+  return descriptions[path][tier];
+}
+
+function gatePathDescription(path, tier) {
+  const descriptions = {
+    1: {
+      1: "Path 1 T1: Wider Troughs. Acid pools spread wider across the lane.",
+      2: "Path 1 T2: Corrosive Mix. Pool damage increases.",
+      3: "Path 1 T3: Overflow Gate. Pools refresh faster and cover more ground.",
+      4: "Path 1 T4: Sludge Channel. Acid lingers longer and keeps chewing through crowds.",
+      5: "Path 1 T5: Industrial Spill. Massive long-lived pools turn the gate into a lane-sized acid wash."
+    },
+    2: {
+      1: "Path 2 T1: Venom Feed. Poison damage lingers harder after enemies leave the pools.",
+      2: "Path 2 T2: Sticky Residue. Pools slow enemies more.",
+      3: "Path 2 T3: Hidden Fumes. Acid Gate gains more reach and catches hidden enemies more reliably.",
+      4: "Path 2 T4: Caustic Pressure. Faster pulses stack poison more aggressively.",
+      5: "Path 2 T5: Nerve Agent Gate. Extreme poison uptime with rapid lane denial."
     }
   };
 
@@ -1857,6 +2510,10 @@ function pathDescriptionForTower(tower, path, tier) {
     return supportPathDescription(path, tier);
   }
 
+  if (tower.type === "gate") {
+    return gatePathDescription(path, tier);
+  }
+
   return dronePathDescription(path, tier);
 }
 
@@ -1891,6 +2548,10 @@ function canUpgradeTowerPath(tower, path) {
 
   if (tower.type === "support") {
     return canUpgradeSupportPath(tower, path);
+  }
+
+  if (tower.type === "gate") {
+    return canUpgradeTeslaPath(tower, path);
   }
 
   return canUpgradeDronePath(tower, path);
@@ -1985,6 +2646,10 @@ function towerStatSummary(type, overrides = {}) {
     if (stats.sticky) {
       extras.push(`Sticky syrup ${formatNumber((1 - stats.stickySlow) * 100)}%`);
     }
+    if (stats.syrupDamage > 0) {
+      extras.push(`Mango syrup DPS ${formatNumber(stats.syrupDamage)}`);
+      extras.push(`Syrup attack speed x${formatNumber(stats.syrupTowerBuff)}`);
+    }
     if (stats.shockwaves > 1) {
       extras.push(`Shockwaves ${stats.shockwaves}`);
     }
@@ -1993,6 +2658,9 @@ function towerStatSummary(type, overrides = {}) {
   if (type === "support") {
     extras.push(`Wave cash ${formatNumber(stats.waveCash)}`);
     extras.push(`Aura radius ${formatRange(stats.auraRadius)}`);
+    if (stats.attackSpeedAura > 1) {
+      extras.push(`Attack speed x${formatNumber(stats.attackSpeedAura)}`);
+    }
     if (stats.munitions) {
       extras.push("Munitions aura");
       extras.push("Nearby towers deal explosive damage");
@@ -2002,6 +2670,20 @@ function towerStatSummary(type, overrides = {}) {
       extras.push("Telescope aura");
       extras.push("Nearby towers detect hidden");
     }
+    if (stats.helpMissile) {
+      extras.push(`Support missile every ${formatNumber(stats.helpMissileCooldown)}s`);
+    }
+  }
+  if (type === "gate") {
+    extras.push("Needs wall-path-wall placement");
+    extras.push("Rotate with R before placing");
+    extras.push(`Pool life ${formatNumber(stats.poolTtl)}s`);
+    extras.push(`Poison life ${formatNumber(stats.poisonTtl)}s`);
+    extras.push(`Acid DPS ${formatNumber(stats.dotDamage)}`);
+    extras.push(`Poison DPS ${formatNumber(stats.poisonDamage)}`);
+    extras.push(`Slow ${formatNumber((1 - stats.acidSlow) * 100)}%`);
+    extras.push("Hits hidden");
+    extras.push("Cannot hit armoured");
   }
   if (type === "laser" && stats.beamWidth) {
     extras.push(`Beam width ${formatNumber(stats.beamWidth)}`);
@@ -2052,7 +2734,11 @@ function armoredUnlockText(type) {
   }
 
   if (type === "support") {
-    return "Support tower does not attack. Path 2 T3 lets nearby towers hit armoured.";
+    return "Support tower does not attack. Path 2 T5 lets nearby towers hit armoured.";
+  }
+
+  if (type === "gate") {
+    return "Cannot damage armoured enemies, but its acid and poison still catch hidden enemies from level 1.";
   }
 
   return "Hits armoured at Path 2 T5 with Electrocannon.";
@@ -2089,6 +2775,16 @@ function linearUpgradeName(type, level) {
       2: "Twin Limbs",
       3: "Bodkin Rack",
       4: "Ballista Frame"
+    };
+    return names[level] || `Level ${level}`;
+  }
+
+  if (type === "gate") {
+    const names = {
+      2: "Charged Rails",
+      3: "Arcing Coil",
+      4: "Storm Span",
+      5: "Overload Gate"
     };
     return names[level] || `Level ${level}`;
   }
@@ -2155,6 +2851,12 @@ function normalizeTowerPriority(tower) {
 }
 
 function towerCapabilityText(tower) {
+  if (tower.type === "support") {
+    return "Passive support aura.";
+  }
+  if (tower.type === "gate") {
+    return "Passive acid gate. It floods its lane with stacking poison pools.";
+  }
   return towerCanDetectHidden(tower) ? "Can attack hiddens." : "Cannot attack hiddens.";
 }
 
@@ -2177,9 +2879,13 @@ function openTowerPopup(tower) {
   normalizeTowerPriority(tower);
 
   if (isPathTower(tower)) {
-    towerPopupSummary.textContent = `${TOWER_INFO[tower.type].name} Lv ${tower.level}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5. Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}. ${towerCapabilityText(tower)}`;
+    towerPopupSummary.textContent = tower.type === "support" || tower.type === "gate"
+      ? `${TOWER_INFO[tower.type].name} Lv ${tower.level}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5. ${towerCapabilityText(tower)}`
+      : `${TOWER_INFO[tower.type].name} Lv ${tower.level}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5. Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}. ${towerCapabilityText(tower)}`;
   } else {
-    towerPopupSummary.textContent = `${TOWER_INFO[tower.type].description} Level ${tower.level}/${maxTowerLevel(tower)}. Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}. ${towerCapabilityText(tower)}`;
+    towerPopupSummary.textContent = tower.type === "gate"
+      ? `${TOWER_INFO[tower.type].description} Level ${tower.level}/${maxTowerLevel(tower)}. ${towerCapabilityText(tower)}`
+      : `${TOWER_INFO[tower.type].description} Level ${tower.level}/${maxTowerLevel(tower)}. Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}. ${towerCapabilityText(tower)}`;
   }
 
   towerPopupActions.innerHTML = "";
@@ -2215,7 +2921,9 @@ function openTowerPopup(tower) {
       : "Path 2 maxed";
     button2.disabled = upgradesLocked || !canPath2;
     towerPopupActions.appendChild(button2);
-    appendPriorityButton(towerPopupActions, tower);
+    if (tower.type !== "support" && tower.type !== "gate") {
+      appendPriorityButton(towerPopupActions, tower);
+    }
     appendSellButton(towerPopupActions, tower);
     return;
   }
@@ -2231,13 +2939,21 @@ function openTowerPopup(tower) {
       : `${nextLinearName} (${upgradeCost(tower)})`;
   upgradeButton.disabled = upgradesLocked || tower.level >= maxTowerLevel(tower);
   towerPopupActions.appendChild(upgradeButton);
-  appendPriorityButton(towerPopupActions, tower);
+  if (tower.type !== "support" && tower.type !== "gate") {
+    appendPriorityButton(towerPopupActions, tower);
+  }
   appendSellButton(towerPopupActions, tower);
 }
 
 function placeTower(x, y) {
   if (!canPlaceTowerAt(x, y)) {
-    setMessage(selectedTowerType === "dippy" ? "Dippy needs a clear 2x2 block space." : "That block tile cannot take a tower.");
+    setMessage(
+      selectedTowerType === "dippy"
+        ? "Dippy needs a clear 2x2 block space."
+        : selectedTowerType === "gate"
+          ? "Acid Gate needs a wall, path, wall lane and can be rotated with R."
+          : "That block tile cannot take a tower."
+    );
     return false;
   }
 
@@ -2267,10 +2983,11 @@ function placeTower(x, y) {
     burstShotsRemaining: 0,
     burstTimer: 0,
     burstTargetId: null,
-    aimAngle: -Math.PI / 2,
+    aimAngle: selectedTowerType === "gate" ? selectedGateRotation * (Math.PI / 2) : -Math.PI / 2,
     fieldCooldown: 0,
     charge: 0,
-    stunnedTimer: 0
+    stunnedTimer: 0,
+    rotation: selectedTowerType === "gate" ? selectedGateRotation : 0
   };
 
   towers.push(tower);
@@ -2296,6 +3013,9 @@ function placeTower(x, y) {
   nextTowerId += 1;
   money -= cost;
   selectedTowerId = tower.id;
+      tutorialProgress.placedTower = true;
+      renderTutorial();
+      queueNextTutorialStep();
   return true;
 }
 
@@ -2337,6 +3057,10 @@ function upgradeTower(x, y, path = null) {
     money -= cost;
     tower.spent = (tower.spent || 0) + cost;
     selectedTowerId = tower.id;
+    tutorialProgress.upgradedTower = true;
+    renderTutorial();
+    queueNextTutorialStep();
+    queueNextTutorialStep();
     setMessage(`Crossbow upgraded to ${linearUpgradeName("crossbow", nextLevel)}.`, 1.2);
     openTowerPopup(tower);
     return true;
@@ -2373,6 +3097,8 @@ function upgradeTower(x, y, path = null) {
   money -= cost;
   tower.spent = (tower.spent || towerCost(tower.type)) + cost;
   selectedTowerId = tower.id;
+  tutorialProgress.upgradedTower = true;
+  renderTutorial();
   setMessage(`${TOWER_INFO[tower.type].name} upgraded to level ${tower.level}.`, 1.2);
   openTowerPopup(tower);
   return true;
@@ -2463,7 +3189,9 @@ function applyTool(x, y) {
     openTowerPopup(clickedTower);
   } else if (grid[y][x].blockId !== null) {
     const block = blocks.get(grid[y][x].blockId);
-    towerDescription.textContent = `${block.name} tetromino. Solid wall tile for tower placement.`;
+    towerDescription.textContent = isFactoryMap()
+      ? `${block.name}. Enemies follow connected conveyors through the factory.`
+      : `${block.name} tetromino. Solid wall tile for tower placement.`;
     closeTowerPopup();
   } else {
     closeTowerPopup();
@@ -2545,12 +3273,12 @@ function createEnemy(enemyType, options = {}) {
   const genericTier = !diamondTier && !shieldTier && enemyUsesTiers(resolvedEnemyType.key) ? genericTierConfig(tier) : null;
   const tierConfig = diamondTier || shieldTier || genericTier;
   const hp = options.hp ?? Math.round((5 + waveNumber) * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tierConfig?.hpMultiplier || 1));
-  const armored = options.armored ?? Boolean(resolvedEnemyType.armored) || resolvedEnemyType.key === "armored";
+  const armored = options.armored ?? (Boolean(resolvedEnemyType.armored) || resolvedEnemyType.key === "armored");
   const armorValue = options.armorHp ?? (armored ? resolvedEnemyType.armor + Math.floor((waveNumber - 9) / 4) : 0);
   const waffleRewardMultiplier = resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? 1 : tier === 2 ? 0.3 : 0.1) : 1;
   const waffleSpeedBonus = resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? -10 : tier === 2 ? -2 : 10) : 0;
   const reward = options.reward ?? Math.max(1, Math.round(resolvedEnemyType.reward * waffleRewardMultiplier * rewardMultiplier() * (tierConfig?.rewardMultiplier || 1)));
-  const speed = options.speed ?? ((30 + waveNumber * 2 + (resolvedEnemyType.speedBonus + waffleSpeedBonus)) / DIFFICULTIES[selectedDifficulty].interval) * (tierConfig?.speedMultiplier || 1);
+  const speed = options.speed ?? (((30 + waveNumber * 2 + (resolvedEnemyType.speedBonus + waffleSpeedBonus)) / DIFFICULTIES[selectedDifficulty].interval) * (tierConfig?.speedMultiplier || 1) * (activeMap.enemySpeed || 1));
   const shieldHp = shielded
     ? (options.shieldHp ?? Math.round((18 + waveNumber * 2.4) * (shieldTier?.shieldHpMultiplier || 1) * 3))
     : 0;
@@ -2591,11 +3319,22 @@ function createEnemy(enemyType, options = {}) {
     slowTimer: 0,
     burnTimer: 0,
     burnDamage: 0,
+    poisonTimer: 0,
+    poisonDamage: 0,
     whiteoutTimer: 0,
+    healthBarLagHp: hp,
+    healthBarFlashTimer: 0,
     facingAngle: 0,
+    summonWave: options.summonWave || waveNumber,
     bossOwnerId: options.bossOwnerId || null,
     bossShieldMinion: Boolean(options.bossShieldMinion),
-    summonStunRadius: options.summonStunRadius || 0
+    summonStunRadius: options.summonStunRadius || 0,
+    adapterGuards: {
+      energy: false,
+      chemical: false,
+      explosive: false,
+      kinetic: false
+    }
   };
 }
 
@@ -2604,16 +3343,23 @@ function pushEnemy(enemy) {
     return null;
   }
 
+  const firstEncounter = !introducedEnemyKeys.has(enemy.key);
   discoveredEnemies.add(enemy.key);
+  if (firstEncounter) {
+    introducedEnemyKeys.add(enemy.key);
+  }
   renderAlmanac();
   if ((enemy.shielded || isShieldEnemy(enemy)) && (enemy.shieldHp || 0) > 0) {
     addPulse(enemy.x, enemy.y, enemy.shieldRadius || 24, "rgba(176, 225, 255, 0.45)");
+  }
+  if (firstEncounter && gameMode === "playing" && !enemy.bossShieldMinion) {
+    queueTutorialPopup(`enemy-intro-${enemy.key}`, `${ENEMY_TYPES[enemy.key]?.name || enemy.type} Spotted`, enemyIntroMessage(enemy.key));
   }
   enemies.push(enemy);
   return enemy;
 }
 
-function spawnBossSummonCell(enemy, range = 3) {
+function spawnBossSummonCell(enemy, range = 3, reserved = new Set()) {
   const baseCell = {
     x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x / CELL_SIZE))),
     y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y / CELL_SIZE)))
@@ -2628,7 +3374,7 @@ function spawnBossSummonCell(enemy, range = 3) {
       const y = baseCell.y + backY * distance - backX * side;
       const key = `${x},${y}`;
 
-      if (!inBounds(x, y) || isEndpoint(x, y) || routeSet.has(key) || obstacleAt(x, y) || grid[y][x].blockId !== null) {
+      if (!inBounds(x, y) || isEndpoint(x, y) || routeSet.has(key) || obstacleAt(x, y) || grid[y][x].blockId !== null || reserved.has(key)) {
         continue;
       }
 
@@ -2652,62 +3398,52 @@ function stunTowersNear(x, y, radius, duration) {
 }
 
 function spawnIdaenSummons(enemy) {
-  const summonCount = waveNumber >= 50 ? 2 : 3;
+  const summonWave = enemy.summonWave || waveNumber;
+  const summonCount = 25;
   const waffleType = ENEMY_TYPES.waffle16;
+  const usedCells = new Set();
 
   for (let index = 0; index < summonCount; index += 1) {
-    const cell = spawnBossSummonCell(enemy, 4);
+    const cell = spawnBossSummonCell(enemy, 6, usedCells);
     if (!cell) {
       break;
     }
+    const key = `${cell.x},${cell.y}`;
+    usedCells.add(key);
 
     const waffle = createEnemy(waffleType, {
       startCell: { x: cell.x, y: cell.y },
       route: cell.route,
-      tier: waveNumber >= 50 ? 3 : 2,
-      hidden: waveNumber >= 100 ? true : waveNumber >= 75 ? Math.random() < 0.5 : false,
-      armored: waveNumber >= 100 ? true : waveNumber >= 75 ? Math.random() < 0.5 : false,
-      armorHp: waveNumber >= 75 ? 3 + Math.floor((waveNumber - 75) / 25) : 0,
+      tier: summonWave >= 50 ? 3 : 2,
+      hidden: summonWave >= 100 ? Math.random() < 0.55 : summonWave >= 75 ? Math.random() < 0.5 : false,
+      armored: summonWave >= 100 ? Math.random() < 0.55 : summonWave >= 75 ? Math.random() < 0.5 : false,
+      shielded: summonWave >= 100 ? Math.random() < 0.35 : false,
+      armorHp: summonWave >= 75 ? 3 + Math.floor((summonWave - 75) / 25) : 0,
       reward: Math.max(1, Math.round(waffleType.reward * rewardMultiplier()))
     });
     pushEnemy(waffle);
   }
 
-  if (waveNumber >= 75) {
-    const biscuitCount = waveNumber >= 100 ? 3 : 2;
+  if (summonWave >= 75) {
+    const biscuitCount = summonWave >= 100 ? 3 : 2;
     for (let index = 0; index < biscuitCount; index += 1) {
-      const cell = spawnBossSummonCell(enemy, 5);
+      const cell = spawnBossSummonCell(enemy, 5, usedCells);
       if (!cell) {
         break;
       }
+      usedCells.add(`${cell.x},${cell.y}`);
 
       const biscuit = createEnemy(ENEMY_TYPES.biscuit, {
         startCell: { x: cell.x, y: cell.y },
         route: cell.route,
-        hidden: waveNumber >= 100,
-        armored: waveNumber >= 100,
-        armorHp: waveNumber >= 100 ? 2 : 0,
+        hidden: summonWave >= 100,
+        armored: summonWave >= 100,
+        armorHp: summonWave >= 100 ? 2 : 0,
         bossOwnerId: enemy.id,
         bossShieldMinion: true,
         reward: Math.max(1, Math.round(ENEMY_TYPES.biscuit.reward * rewardMultiplier()))
       });
       pushEnemy(biscuit);
-    }
-  }
-
-  if (waveNumber >= 75 && Math.random() < (waveNumber >= 100 ? 0.65 : 0.35)) {
-    const cell = spawnBossSummonCell(enemy, 5);
-    if (cell) {
-      const mega = createEnemy(ENEMY_TYPES.megaWaffle, {
-        startCell: { x: cell.x, y: cell.y },
-        route: cell.route,
-        reward: Math.max(1, Math.round(ENEMY_TYPES.megaWaffle.reward * rewardMultiplier()))
-      });
-      if (mega) {
-        pushEnemy(mega);
-        addPulse(mega.x, mega.y, 48, "#c89553");
-        stunTowersNear(mega.x, mega.y, 78, 1.2);
-      }
     }
   }
 }
@@ -2716,17 +3452,58 @@ function spawnIdaenBoss() {
   const boss = createEnemy(ENEMY_TYPES.idaen, {
     portalIndex: Math.floor(Math.random() * activePortals().length),
     reward: Math.max(20, Math.round(ENEMY_TYPES.idaen.reward * rewardMultiplier())),
-    hp: Math.round((220 + waveNumber * 35) * DIFFICULTIES[selectedDifficulty].hp),
-    speed: Math.max(18, (24 + waveNumber * 0.45) / DIFFICULTIES[selectedDifficulty].interval)
+    hp: Math.round((220 + waveNumber * 35) * 10 * DIFFICULTIES[selectedDifficulty].hp),
+    speed: Math.max(12, (16 + waveNumber * 0.28) / DIFFICULTIES[selectedDifficulty].interval),
+    waffleSquares: 64,
+    summonWave: waveNumber
   });
 
   if (!boss) {
     return;
   }
 
-  boss.phaseCooldown = 4.5;
+  boss.phaseCooldown = 9;
   boss.phaseTimer = 0;
   boss.phaseColor = "#d94f3d";
+  boss.boss = true;
+  pushEnemy(boss);
+}
+
+function spawnAdapterEscorts(enemy) {
+  const escortCount = 4;
+  for (let index = 0; index < escortCount; index += 1) {
+    const escort = createEnemy(ENEMY_TYPES.attacker, {
+      portalIndex: enemy.portalIndex,
+      route: enemy.route,
+      progress: Math.max(0, enemy.progress - 1.2 - index * 0.24),
+      hidden: true,
+      armored: true,
+      armorHp: ENEMY_TYPES.attacker.armor + Math.max(1, Math.floor((waveNumber - 10) / 4)),
+      reward: Math.max(2, Math.round(ENEMY_TYPES.attacker.reward * rewardMultiplier()))
+    });
+    if (escort) {
+      escort.facingAngle = enemy.facingAngle || 0;
+      pushEnemy(escort);
+    }
+  }
+}
+
+function spawnAdapterBoss() {
+  const boss = createEnemy(ENEMY_TYPES.adapter, {
+    portalIndex: Math.floor(Math.random() * activePortals().length),
+    reward: Math.max(24, Math.round(ENEMY_TYPES.adapter.reward * rewardMultiplier())),
+    hp: Math.round((260 + waveNumber * 34) * 10.5 * DIFFICULTIES[selectedDifficulty].hp),
+    speed: Math.max(10, (20 + waveNumber * 0.24) / DIFFICULTIES[selectedDifficulty].interval),
+    armorHp: ENEMY_TYPES.adapter.armor + Math.max(0, Math.floor((waveNumber - 30) / 10)),
+    hidden: false
+  });
+
+  if (!boss) {
+    return;
+  }
+
+  boss.sizeScale = 3.1;
+  boss.spawnCooldown = 6.5;
   boss.boss = true;
   pushEnemy(boss);
 }
@@ -2780,30 +3557,34 @@ function spawnWave() {
     return;
   }
 
-  waveNumber += 1;
+  if (isSandboxMode() && sandboxWaveTarget !== null) {
+    waveNumber = sandboxWaveTarget;
+  } else {
+    waveNumber += 1;
+  }
+  waveNumber = Math.max(1, waveNumber);
   resetSpawnPortalOrder();
   wave = {
-    count: Math.round((5 + waveNumber * 2) * enemyCountMultiplier()),
+    count: Math.max(3, Math.round((1.6 + waveNumber * 1.05 + Math.floor(waveNumber / 4) * 0.4) * enemyCountMultiplier())),
     spawned: 0,
     timer: 0,
-    interval: Math.max(0.7 - waveNumber * 0.04, 0.28),
+    interval: Math.max(0.95 - waveNumber * 0.02, 0.38),
     complete: false
   };
   autoWaveTimer = 0;
   maybeUnlockCrossbowQuest();
   if (isIdaenWave()) {
     spawnIdaenBoss();
+  } else if (isAdapterWave()) {
+    spawnAdapterBoss();
   }
-  if (waveNumber === 4) {
-    setMessage("Scouts report hidden enemies could appear on wave 6. Detection towers are needed to hit them.", 2.6);
-  } else if (waveNumber === 5) {
-    setMessage("Hidden enemies expected on wave 6. Towers without detection will ignore them.", 2.6);
-  } else if (waveNumber === 7) {
-    setMessage("Armoured enemies are expected on wave 9. Bullets cannot break them; use lasers or explosions.", 2.8);
-  } else if (waveNumber === 8) {
-    setMessage("Armoured enemies next wave. Strip the white shell with lasers or explosives first.", 2.8);
+  if (maybeShowWaveWarning(waveNumber)) {
+    updateHud();
+    return;
   } else if (isIdaenWave()) {
     setMessage(`Wave ${waveNumber}: I-daen is approaching the Outpost.`, 2.8);
+  } else if (isAdapterWave()) {
+    setMessage(`Wave ${waveNumber}: Adapter is diving onto the lane.`, 2.8);
   } else {
     setMessage(`Wave ${waveNumber} started.`, 1.4);
   }
@@ -2815,11 +3596,16 @@ function setSandboxWave() {
     return;
   }
 
-  waveNumber = Math.max(0, Number(sandboxWaveInput?.value) || 0);
+  const requestedWave = Math.max(1, Math.floor(Number(sandboxWaveInput?.value) || 1));
+  sandboxWaveTarget = requestedWave;
+  waveNumber = requestedWave;
   wave = null;
   autoWaveTimer = 0;
-  setMessage(`Sandbox wave set to ${waveNumber}.`, 1.6);
+  setMessage(`Sandbox wave set to ${requestedWave}. Launching it now.`, 1.8);
   updateHud();
+  if (allRoutesOpen(routes)) {
+    spawnWave();
+  }
 }
 
 function spawnSandboxEnemyFromControls() {
@@ -2833,7 +3619,9 @@ function spawnSandboxEnemyFromControls() {
   }
 
   const count = Math.max(1, Math.floor(Number(sandboxSpawnCountInput?.value) || 1));
-  const tier = Math.max(1, Math.min(3, Number(sandboxTierSelect?.value) || 1));
+  const selectedTierValue = Number(sandboxTierSelect?.value) || 1;
+  const tier = enemyType.key === "idaen" ? 1 : Math.max(1, Math.min(3, selectedTierValue));
+  const summonWave = enemyType.key === "idaen" ? Math.max(25, selectedTierValue) : waveNumber;
   const hidden = Boolean(sandboxSpawnHidden?.checked);
   const armored = Boolean(sandboxSpawnArmored?.checked) || enemyType.key === "armored";
   const shielded = Boolean(sandboxSpawnShielded?.checked);
@@ -2841,9 +3629,22 @@ function spawnSandboxEnemyFromControls() {
 
   for (let index = 0; index < count; index += 1) {
     const portalIndex = portalValue === "auto" ? undefined : Number(portalValue);
-    const spawned = pushEnemy(createEnemy(enemyType, { portalIndex, hidden, armored, shielded, tier }));
+    const spawned = enemyType.key === "idaen"
+      ? pushEnemy(createEnemy(enemyType, {
+        portalIndex,
+        hidden,
+        armored,
+        shielded,
+        tier,
+        summonWave,
+        hp: Math.round((220 + summonWave * 35) * 10 * DIFFICULTIES[selectedDifficulty].hp),
+        speed: Math.max(12, (16 + summonWave * 0.28) / DIFFICULTIES[selectedDifficulty].interval),
+        waffleSquares: 64,
+        reward: Math.max(20, Math.round(enemyType.reward * rewardMultiplier()))
+      }))
+      : pushEnemy(createEnemy(enemyType, { portalIndex, hidden, armored, shielded, tier }));
     if (!spawned) {
-      continue;
+      return;
     }
   }
 
@@ -2919,9 +3720,18 @@ function updateWave(deltaTime) {
 
   if (wave.spawned === wave.count && enemies.length === 0) {
     wave.complete = true;
+    const supportIncome = supportWaveIncomeEntries();
+    const supportTotal = supportIncome.reduce((total, entry) => total + entry.amount, 0);
     money += Math.max(2, Math.round((5 + waveNumber) * rewardMultiplier()));
-    money += supportWaveIncomeBonus();
-    freeBlocks = 1;
+    money += supportTotal;
+    if (supportTotal > 0) {
+      for (const entry of supportIncome) {
+        addPulse(entry.tower.centerX, entry.tower.centerY, 18, "rgba(255, 228, 122, 0.48)");
+        addBurstParticles(entry.tower.centerX, entry.tower.centerY, 4, "rgba(255, 212, 115, 0.7)", 28, 78, 0.18, 0.46);
+        addFloatingText(entry.tower.centerX, entry.tower.centerY - 12, `+$${entry.amount}`, "#ffe27a", 1.15);
+      }
+    }
+    freeBlocks = isFactoryMap() ? freeBlocks + 1 : 1;
     currentBlockCost = BLOCK_COST;
     autoWaveTimer = autoWaveEnabled ? 0.9 : 0;
     setMessage(`Wave ${waveNumber} cleared.`, 1.6);
@@ -2952,11 +3762,30 @@ function updateEnemies(deltaTime) {
       enemy.whiteoutTimer = Math.max(0, enemy.whiteoutTimer - deltaTime);
     }
 
+    if ((enemy.healthBarFlashTimer || 0) > 0) {
+      enemy.healthBarFlashTimer = Math.max(0, enemy.healthBarFlashTimer - deltaTime);
+    } else if ((enemy.healthBarLagHp || enemy.hp) > enemy.hp) {
+      const catchup = Math.max((enemy.maxHp || 1) * 2.4 * deltaTime, ((enemy.healthBarLagHp || enemy.hp) - enemy.hp) * deltaTime * 8);
+      enemy.healthBarLagHp = Math.max(enemy.hp, (enemy.healthBarLagHp || enemy.hp) - catchup);
+    } else {
+      enemy.healthBarLagHp = enemy.hp;
+    }
+
     if (enemy.burnTimer > 0 && enemy.hp > 0) {
       enemy.burnTimer = Math.max(0, enemy.burnTimer - deltaTime);
       damageEnemy(enemy, enemy.burnDamage * deltaTime, "laser");
       if (enemy.burnTimer === 0) {
         enemy.burnDamage = 0;
+      }
+    }
+
+    if ((enemy.poisonTimer || 0) > 0 && enemy.hp > 0) {
+      enemy.poisonTimer = Math.max(0, enemy.poisonTimer - deltaTime);
+      if (!enemy.armored) {
+        damageEnemy(enemy, (enemy.poisonDamage || 0) * deltaTime, "chemical");
+      }
+      if (enemy.poisonTimer === 0) {
+        enemy.poisonDamage = 0;
       }
     }
 
@@ -2969,9 +3798,15 @@ function updateEnemies(deltaTime) {
 
       if (enemy.phaseTimer === 0 && enemy.phaseCooldown === 0) {
         enemy.phaseTimer = 3.2;
-        enemy.phaseCooldown = waveNumber >= 75 ? 6 : 7.5;
+        enemy.phaseCooldown = waveNumber >= 75 ? 12 : 15;
         enemy.phaseColor = "#8a5b2d";
         spawnIdaenSummons(enemy);
+      }
+    } else if (enemy.key === "adapter") {
+      enemy.spawnCooldown = Math.max(0, (enemy.spawnCooldown || 0) - deltaTime);
+      if (enemy.spawnCooldown === 0) {
+        enemy.spawnCooldown = 8.5;
+        spawnAdapterEscorts(enemy);
       }
     }
 
@@ -3044,14 +3879,14 @@ function towerStats(tower) {
     const wavelength = path2 >= 3;
     const lines = wavelength ? 18 : Math.max(bulletStorm ? 5 : 3, 3 + path2);
     return {
-      range: CELL_SIZE * (2.6 + path2 * 0.12),
+      range: CELL_SIZE * (2.95 + path2 * 0.14),
       cooldown: bulletStorm
-        ? Math.max(0.32 - path1 * 0.03 - path2 * 0.02, 0.08)
-        : Math.max(0.96 - path1 * 0.07 - path2 * 0.03, 0.3),
-      damage: 1.05 + path1 * 0.24 + path2 * 0.42 + (path2 >= 3 ? 0.95 : 0) + (path2 >= 5 ? 0.55 : 0),
+        ? Math.max(0.29 - path1 * 0.03 - path2 * 0.02, 0.07)
+        : Math.max(0.86 - path1 * 0.07 - path2 * 0.03, 0.26),
+      damage: 1.35 + path1 * 0.32 + path2 * 0.52 + (path2 >= 3 ? 1.2 : 0) + (path2 >= 5 ? 0.8 : 0),
       pellets: lines,
       spread: wavelength ? Math.PI : Math.max(0.55 - path2 * 0.045 - (bulletStorm ? 0.04 : 0), 0.18),
-      pelletSpeed: 270 + path2 * 12,
+      pelletSpeed: 300 + path2 * 14,
       pelletLife: 0.24 + path2 * 0.01,
       detectHidden: false,
       bulletStorm
@@ -3087,44 +3922,96 @@ function towerStats(tower) {
   if (tower.type === "dippy") {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
+    const dozenEggs = path1 >= 5;
+    const mangoPudding = path2 >= 5;
+    const biggerEggs = path1 >= 1;
+    const boiledEggs = path1 >= 2;
+    const eggPudding = path2 >= 3;
+    const mangoes = path2 >= 4;
+    const baseCooldown = Math.max(2.7 - path1 * 0.12, 1.7);
+    const reloadPenalty = (path1 >= 5 ? 0.95 : path1 >= 4 ? 0.28 : 0) + (path2 >= 4 ? 0.5 : 0) + (path2 >= 5 ? 0.32 : 0);
+    const damage = mangoPudding
+      ? 105
+      : mangoes
+        ? 20
+        : eggPudding
+          ? 16
+          : biggerEggs
+            ? 8
+            : 7;
     return {
-      range: CELL_SIZE * (10.4 + path2 * 0.16),
+      range: CELL_SIZE * (11.4 + path2 * 0.28),
       minRange: CELL_SIZE * 3.5,
-      cooldown: Math.max(2.3 - path1 * 0.16, 1.32),
-      damage: (14 + path1 * 3.2 + (path2 >= 3 ? 10 : 0) + (path2 >= 4 ? 7 : 0) + (path2 >= 5 ? 9 : 0)) * 0.5,
-      splash: Math.max(42, (34 - path1 * 2.5 + path2 * 10 + (path2 >= 3 ? 14 : 0) + (path2 >= 5 ? 8 : 0)) * 2),
+      cooldown: baseCooldown + reloadPenalty,
+      damage,
+      splash: Math.max(42, biggerEggs ? 82 + path2 * 14 + (eggPudding ? 16 : 0) + (mangoPudding ? 26 : 0) : (34 - path1 * 2.5 + path2 * 10 + (path2 >= 3 ? 14 : 0) + (path2 >= 5 ? 8 : 0)) * 2),
       burst: path1 >= 5 ? 12 : path1 >= 4 ? 6 : path1 >= 3 ? 3 : 1,
       burstDelay: path1 >= 5 ? 0.06 : path1 >= 4 ? 0.07 : path1 >= 3 ? 0.09 : 0,
       holdDelay: 1,
-      burnDamage: path1 >= 2 ? 4.4 + path1 * 1.2 : 0,
-      burnDuration: path1 >= 2 ? 3 : 0,
+      burnDamage: boiledEggs ? 9 + path1 * 2.1 : 0,
+      burnDuration: boiledEggs ? 4.8 : 0,
       detectHidden: path2 >= 3,
       shells: path2 >= 2,
-      shellDamage: 3.8 + path2 * 1.1,
+      shellDamage: path2 >= 2 ? 10 : 0,
       sticky: path2 >= 4,
       stickySlow: path2 >= 5 ? 0.35 : path2 >= 4 ? 0.48 : 1,
       stickyDuration: path2 >= 5 ? 3.4 : path2 >= 4 ? 2.3 : 0,
       shockwaves: path2 >= 5 ? 2 : 1,
-      screenShake: path2 >= 5 ? 1.8 : path2 >= 4 ? 0.85 : path2 >= 3 ? 0.48 : 0.2,
-      screenShakeDuration: path2 >= 5 ? 0.62 : path2 >= 4 ? 0.36 : path2 >= 3 ? 0.22 : 0.12,
+      screenShake: path2 >= 5 ? 0.18 : 0,
+      screenShakeDuration: path2 >= 5 ? 0.08 : 0,
       projectileSize: path2 >= 5 ? 18 : path2 >= 3 ? 14 : 10,
       whiteoutDuration: path2 >= 5 ? 0.9 : 0,
       yolkColor: path2 >= 5 ? "#ffd11a" : path2 >= 4 ? "#ffcf33" : path2 >= 3 ? "#ffcc4a" : "#ffce54",
-      inaccuracy: path1 >= 5 ? CELL_SIZE * 3 : path2 >= 5 ? CELL_SIZE * 1.5 : 0
+      shieldMultiplier: path2 >= 5 ? 10 : 1,
+      inaccuracy: path1 >= 5 ? CELL_SIZE * 3 : path2 >= 5 ? CELL_SIZE * 1.5 : 0,
+      syrupDamage: path2 >= 5 ? 4.5 : 0,
+      syrupRadius: path2 >= 5 ? CELL_SIZE * 2.1 : 0,
+      syrupTtl: path2 >= 5 ? 5.2 : 0,
+      syrupTowerBuff: path2 >= 5 ? 1.08 : 1
     };
   }
 
   if (tower.type === "support") {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
+    const invested = UPGRADE_COSTS.support.path1.slice(0, path1).reduce((total, cost) => total + cost, 0);
     return {
-      range: CELL_SIZE * (1.9 + path2 * 0.14),
+      range: CELL_SIZE * (1.9 + path2 * 0.18 + (path2 >= 5 ? 0.22 : 0)),
       cooldown: Infinity,
       damage: 0,
-      waveCash: 4 + path1 * 3 + (path1 >= 3 ? 3 : 0) + (path1 >= 5 ? 6 : 0),
-      munitions: path2 >= 3,
+      waveCash: invested / 10,
+      munitions: path2 >= 5,
       detectHiddenAura: path2 >= 4,
-      auraRadius: CELL_SIZE * (1.9 + path2 * 0.14)
+      attackSpeedAura: path2 >= 4 ? 1.24 : path2 >= 3 ? 1.16 : path2 >= 2 ? 1.08 : 1,
+      helpMissile: path2 >= 5,
+      helpMissileCooldown: 8.8,
+      speed: 142,
+      acceleration: 560,
+      damage: 8.5,
+      splash: 28,
+      homing: true,
+      shrapnel: false,
+      clusters: false,
+      rain: false,
+      auraRadius: CELL_SIZE * (1.9 + path2 * 0.18 + (path2 >= 5 ? 0.22 : 0))
+    };
+  }
+
+  if (tower.type === "gate") {
+    const path1 = tower.path1 || 0;
+    const path2 = tower.path2 || 0;
+    return {
+      range: CELL_SIZE * (0.75 + path2 * 0.05),
+      cooldown: Math.max(0.58 - path2 * 0.04 - (path2 >= 4 ? 0.04 : 0), 0.26),
+      damage: 0.42 + path1 * 0.18,
+      dotDamage: 0.7 + path1 * 0.42 + (path1 >= 3 ? 0.28 : 0) + (path1 >= 5 ? 0.6 : 0),
+      poisonDamage: 0.55 + path2 * 0.34 + (path2 >= 3 ? 0.22 : 0) + (path2 >= 5 ? 0.5 : 0),
+      stun: 0,
+      poolRadius: CELL_SIZE * (0.44 + path1 * 0.05 + (path1 >= 4 ? 0.08 : 0)),
+      poolTtl: 5 + path1 * 0.35,
+      poisonTtl: 2.1 + path2 * 0.34 + (path2 >= 4 ? 0.35 : 0),
+      acidSlow: Math.max(0.88 - path2 * 0.05 - (path2 >= 5 ? 0.05 : 0), 0.52),
+      detectHidden: true
     };
   }
 
@@ -3158,8 +4045,8 @@ function towerStats(tower) {
     const path2 = tower.path2 || 0;
     return {
       range: CELL_SIZE * (3.8 + path1 * 0.28),
-      cooldown: Math.max(1.4 - path1 * 0.04, 0.72),
-      damage: 3.6 + path2 * 1.35 + (path1 >= 3 ? 0.9 : 0),
+      cooldown: Math.max(1.22 - path1 * 0.05, 0.62),
+      damage: 4 + path2 * 1.45 + (path1 >= 3 ? 1.05 : 0),
       splash: 36 + path1 * 5 + (path1 >= 3 ? 8 : 0),
       speed: 120 + (path1 >= 3 ? 120 : 0),
       acceleration: 520 + (path1 >= 3 ? 220 : 0),
@@ -3236,13 +4123,15 @@ function canSeeEnemy(enemy, detectHidden = false) {
 }
 
 function canHitArmored(enemy, damageType) {
-  return !enemy.armored || enemy.armorHp <= 0 || damageType === "laser" || damageType === "explosion";
+  const damageClass = damageClassForType(damageType);
+  return !enemy.armored || enemy.armorHp <= 0 || damageClass === "energy" || damageClass === "explosive";
 }
 
 function supportBuffsForTower(tower) {
   const buffs = {
     munitions: false,
-    detectHidden: false
+    detectHidden: false,
+    attackSpeedMultiplier: 1
   };
 
   if (!tower) {
@@ -3261,6 +4150,17 @@ function supportBuffsForTower(tower) {
 
     buffs.munitions ||= Boolean(stats.munitions);
     buffs.detectHidden ||= Boolean(stats.detectHiddenAura);
+    buffs.attackSpeedMultiplier = Math.max(buffs.attackSpeedMultiplier, stats.attackSpeedAura || 1);
+  }
+
+  for (const effect of effects) {
+    if (effect.kind !== "puddle" || (effect.towerAttackSpeed || 1) <= 1) {
+      continue;
+    }
+
+    if (Math.hypot(tower.centerX - effect.x, tower.centerY - effect.y) <= effect.radius) {
+      buffs.attackSpeedMultiplier = Math.max(buffs.attackSpeedMultiplier, effect.towerAttackSpeed || 1);
+    }
   }
 
   return buffs;
@@ -3299,12 +4199,30 @@ function activeShieldSourceForEnemy(enemy) {
   return nearest;
 }
 
+function createShieldHitTracker() {
+  return { hitShield: false };
+}
+
+function damageClassForType(damageType) {
+  if (damageType === "laser" || damageType === "shock") {
+    return "energy";
+  }
+  if (damageType === "explosion") {
+    return "explosive";
+  }
+  if (damageType === "chemical" || damageType === "poison" || damageType === "acid" || damageType === "freeze") {
+    return "chemical";
+  }
+  return "kinetic";
+}
+
 function damageEnemy(enemy, amount, damageType, options = {}) {
   if (!enemy || amount <= 0) {
     return false;
   }
 
-  const bypassShield = Boolean(options.bypassShield);
+  const damageClass = damageClassForType(damageType);
+  const shieldMultiplier = options.shieldMultiplier || 1;
   let { stun = 0, slow = null, slowDuration = 0, burnDamage = 0, burnDuration = 0 } = options;
   const bossBiscuitsAlive = enemy.key === "idaen" && enemies.some((entry) => entry.bossShieldMinion && entry.bossOwnerId === enemy.id && entry.hp > 0);
 
@@ -3313,35 +4231,54 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
     return false;
   }
 
-  if (!bypassShield) {
-    const shieldSource = activeShieldSourceForEnemy(enemy);
-    if (shieldSource) {
-      const shieldDamage = damageType === "laser" || damageType === "shock"
-        ? amount * ((shieldSource.tier || 1) >= 3 ? 3 : 2.6)
-        : amount;
-      shieldSource.shieldHp = Math.max(0, (shieldSource.shieldHp || 0) - shieldDamage);
-      addPulse(shieldSource.x, shieldSource.y, shieldSource.shieldRadius || 18, "rgba(156, 209, 255, 0.38)");
+  const shieldSource = activeShieldSourceForEnemy(enemy);
+  if (shieldSource) {
+    if (options.shieldHitTracker?.hitShield) {
       return true;
+    }
+    if (options.shieldHitTracker) {
+      options.shieldHitTracker.hitShield = true;
+    }
+    const shieldDamage = damageClass === "energy"
+      ? amount * ((shieldSource.tier || 1) >= 3 ? 3 : 2.6)
+      : amount * shieldMultiplier;
+    shieldSource.shieldHp = Math.max(0, (shieldSource.shieldHp || 0) - shieldDamage);
+    addPulse(shieldSource.x, shieldSource.y, shieldSource.shieldRadius || 18, "rgba(156, 209, 255, 0.38)");
+    if (shieldSource.shieldHp === 0) {
+      shieldSource.shielded = false;
+      shieldSource.shieldRadius = 0;
+      addPulse(shieldSource.x, shieldSource.y, 24, "rgba(239, 247, 255, 0.6)");
+    }
+    return true;
+  }
+
+  if (enemy.key === "adapter") {
+    enemy.adapterGuards ||= { energy: false, chemical: false, explosive: false, kinetic: false };
+    if (enemy.adapterGuards[damageClass]) {
+      enemy.adapterGuards[damageClass] = false;
+      addPulse(enemy.x, enemy.y, 26, "rgba(255, 226, 164, 0.52)");
+      return false;
     }
   }
 
   if (isDiamondEnemy(enemy)) {
-    if (damageType === "laser" || damageType === "shock" || damageType === "freeze") {
+    if (damageClass === "energy") {
       amount *= 0.45;
       stun = 0;
       slow = null;
       slowDuration = 0;
       burnDamage = 0;
       burnDuration = 0;
-    } else if (damageType === "explosion") {
+    } else if (damageClass === "explosive") {
       amount *= 0.65;
       burnDamage = 0;
       burnDuration = 0;
     }
   }
 
+  const hpBefore = enemy.hp;
   if (enemy.armored && enemy.armorHp > 0) {
-    if (damageType === "laser" || damageType === "explosion") {
+    if (damageClass === "energy" || damageClass === "explosive") {
       enemy.armorHp = Math.max(0, enemy.armorHp - amount);
       if (enemy.armorHp === 0) {
         addPulse(enemy.x, enemy.y, 18, "#f3f7ff");
@@ -3351,6 +4288,15 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
     }
   } else {
     enemy.hp -= amount;
+  }
+
+  if (enemy.hp < hpBefore) {
+    enemy.healthBarLagHp = Math.max(enemy.healthBarLagHp || hpBefore, hpBefore);
+    enemy.healthBarFlashTimer = 0.18;
+  }
+
+  if (enemy.key === "adapter" && enemy.hp < hpBefore && enemy.adapterGuards && damageClass in enemy.adapterGuards) {
+    enemy.adapterGuards[damageClass] = true;
   }
 
   if (stun > 0) {
@@ -3383,6 +4329,10 @@ function canTowerDamageEnemy(tower, enemy, stats = towerStats(tower)) {
 
   if (tower.type === "crossbow") {
     return canHitArmored(enemy, effectiveType);
+  }
+
+  if (tower.type === "gate") {
+    return canSeeEnemy(enemy, true) && !enemy.armored;
   }
 
   if (tower.type === "shotgun") {
@@ -3464,10 +4414,17 @@ function selectEnemyByPriority(candidates, priority = "first") {
 
 function nearestEnemyInRange(tower, range, detectHidden = false) {
   const stats = towerStats(tower);
-  const candidates = enemiesInRange(tower.centerX, tower.centerY, range, detectHidden, true)
+  const candidates = enemiesInRange(tower.centerX, tower.centerY, range, detectHidden, tower.type !== "dippy")
     .filter((enemy) => Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY) >= (stats.minRange || 0))
     .filter((enemy) => canTowerDamageEnemy(tower, enemy, stats));
   return selectEnemyByPriority(candidates, tower.targetPriority || "first");
+}
+
+function towerHasLineOfSightToPoint(tower, x, y) {
+  if (!tower || tower.type === "dippy") {
+    return true;
+  }
+  return hasLineOfSight(tower.centerX, tower.centerY, x, y);
 }
 
 function hasLineOfSight(x1, y1, x2, y2) {
@@ -3517,6 +4474,24 @@ function addPulse(x, y, radius, color) {
   nextEffectId += 1;
 }
 
+function gateArcEndpoints(tower) {
+  const center = towerPlacementCenter("gate", tower.x, tower.y);
+  if ((tower.rotation || 0) % 2 === 0) {
+    return {
+      x1: center.x - CELL_SIZE,
+      y1: center.y,
+      x2: center.x + CELL_SIZE,
+      y2: center.y
+    };
+  }
+  return {
+    x1: center.x,
+    y1: center.y - CELL_SIZE,
+    x2: center.x,
+    y2: center.y + CELL_SIZE
+  };
+}
+
 function beamEndPoint(x, y, angle, reach = Math.max(canvas.width, canvas.height) * 2) {
   return {
     x: x + Math.cos(angle) * reach,
@@ -3536,6 +4511,7 @@ function fireLaserBeam(tower, target, stats) {
   const angle = Math.atan2(target.y - tower.centerY, target.x - tower.centerX);
   const end = beamEndPoint(tower.centerX, tower.centerY, angle);
   const maxDistance = Math.hypot(end.x - tower.centerX, end.y - tower.centerY);
+  const shieldHitTracker = createShieldHitTracker();
 
   for (const enemy of enemies) {
     if (!canSeeEnemy(enemy, stats.detectHidden)) {
@@ -3548,6 +4524,7 @@ function fireLaserBeam(tower, target, stats) {
     }
 
     damageEnemy(enemy, stats.damage, "laser", {
+      shieldHitTracker,
       burnDamage: stats.burnDamage,
       burnDuration: stats.burnDuration
     });
@@ -3582,13 +4559,22 @@ function spawnDippyEgg(tower, target, stats) {
     sticky: stats.sticky,
     stickySlow: stats.stickySlow,
     stickyDuration: stats.stickyDuration,
+    syrupDamage: stats.syrupDamage,
+    syrupRadius: stats.syrupRadius,
+    syrupTtl: stats.syrupTtl,
+    syrupTowerBuff: stats.syrupTowerBuff,
     shockwaves: stats.shockwaves,
     screenShake: stats.screenShake,
     screenShakeDuration: stats.screenShakeDuration,
     projectileSize: stats.projectileSize,
     whiteoutDuration: stats.whiteoutDuration,
     yolkColor: stats.yolkColor,
-    speed: 1400
+    shieldMultiplier: stats.shieldMultiplier,
+    speed: 1400,
+    arcDrift: (Math.random() - 0.5) * 26,
+    roll: (Math.random() - 0.5) * 0.3,
+    spin: 6 + Math.random() * 5,
+    trailTimer: 0
   });
   nextProjectileId += 1;
   tower.dippyAmmo = Math.max(0, (tower.dippyAmmo ?? stats.burst) - 1);
@@ -3617,11 +4603,6 @@ function applyFreezeEffect(enemy, damage, slow, slowDuration, freezeDuration = 0
   return dealtDamage;
 }
 
-function triggerScreenShake(strength, duration) {
-  screenShakeStrength = Math.max(screenShakeStrength, strength);
-  screenShakeTimer = Math.max(screenShakeTimer, duration);
-}
-
 function addBurstParticles(x, y, count, color, speedMin = 40, speedMax = 120, ttlMin = 0.18, ttlMax = 0.42) {
   for (let index = 0; index < count; index += 1) {
     const angle = (Math.PI * 2 * index) / Math.max(count, 1) + Math.random() * 0.4;
@@ -3642,7 +4623,7 @@ function addBurstParticles(x, y, count, color, speedMin = 40, speedMax = 120, tt
   }
 }
 
-function addStickyPuddle(x, y, radius, slow, ttl, color = "rgba(255, 215, 82, 0.55)") {
+function addStickyPuddle(x, y, radius, slow, ttl, color = "rgba(255, 215, 82, 0.55)", damage = 0, circular = false, poisonDamage = 0, poisonTtl = 0, towerAttackSpeed = 1) {
   effects.push({
     id: nextEffectId,
     kind: "puddle",
@@ -3650,11 +4631,47 @@ function addStickyPuddle(x, y, radius, slow, ttl, color = "rgba(255, 215, 82, 0.
     y,
     radius,
     slow,
+    damage,
+    poisonDamage,
+    poisonTtl,
+    towerAttackSpeed,
     maxTtl: ttl,
     ttl,
-    color
+    color,
+    circular
   });
   nextEffectId += 1;
+}
+
+function launchSupportAirstrike(tower, target, stats) {
+  const bombCount = stats.airstrikeBombs || 8;
+  for (let index = 0; index < bombCount; index += 1) {
+    const spreadX = (Math.random() - 0.5) * 140 + (index - (bombCount - 1) / 2) * 12;
+    const spreadY = (Math.random() - 0.5) * 92;
+    const startX = Math.max(24, Math.min(canvas.width - 24, target.x + spreadX));
+    const startY = -40 - Math.random() * 120;
+    const targetX = Math.max(20, Math.min(canvas.width - 20, target.x + spreadX * 0.45));
+    const targetY = Math.max(20, Math.min(canvas.height - 20, target.y + spreadY));
+    const angle = Math.atan2(targetY - startY, targetX - startX);
+    projectiles.push({
+      id: nextProjectileId,
+      kind: "mangoBomb",
+      x: startX,
+      y: startY,
+      targetX,
+      targetY,
+      angle,
+      speed: 390 + Math.random() * 150,
+      acceleration: 220,
+      damage: stats.airstrikeDamage,
+      splash: stats.airstrikeSplash,
+      impactDamage: stats.airstrikeDamage * 1.35,
+      screenShake: 0,
+      screenShakeDuration: 0,
+      ttl: 2.4
+    });
+    nextProjectileId += 1;
+  }
 }
 
 function wallCellsInRange(tower, range) {
@@ -3842,7 +4859,8 @@ function fireTower(tower, target) {
   if (tower.type === "tesla") {
     const damage = stats.damage + (stats.supercharge ? Math.min(tower.charge, 4.5) : 0);
     const teslaDamageType = stats.electrocannon ? "laser" : "shock";
-    damageEnemy(target, damage, teslaDamageType, { stun: stats.stun });
+    const chainShieldHitTracker = createShieldHitTracker();
+    damageEnemy(target, damage, teslaDamageType, { stun: stats.stun, shieldHitTracker: chainShieldHitTracker });
     addBeam(tower.centerX, tower.centerY, target.x, target.y, "#9bd8ff");
     tower.charge = 0;
 
@@ -3852,6 +4870,7 @@ function fireTower(tower, target) {
 
     for (const enemy of chained) {
       damageEnemy(enemy, damage * 0.5, teslaDamageType, {
+        shieldHitTracker: chainShieldHitTracker,
         stun: stats.stun * 0.72,
         slow: stats.chainSlow < 1 ? stats.chainSlow : null,
         slowDuration: stats.chainSlow < 1 ? 0.5 : 0
@@ -3865,7 +4884,7 @@ function fireTower(tower, target) {
         }
 
         if (Math.hypot(enemy.x - target.x, enemy.y - target.y) <= stats.splash) {
-          damageEnemy(enemy, damage * 0.2, teslaDamageType, { stun: stats.stun * 0.35 });
+          damageEnemy(enemy, damage * 0.2, teslaDamageType, { stun: stats.stun * 0.35, shieldHitTracker: chainShieldHitTracker });
         }
       }
       addPulse(target.x, target.y, stats.splash, "#b8ebff");
@@ -3909,6 +4928,14 @@ function fireTower(tower, target) {
   }
 
   if (tower.type === "support") {
+    if (stats.helpMissile && tower.cooldown === 0) {
+      const supportTarget = nearestEnemyInRange(tower, stats.auraRadius * 2.4, detectHidden);
+      if (supportTarget) {
+        tower.aimAngle = Math.atan2(supportTarget.y - tower.centerY, supportTarget.x - tower.centerX);
+        spawnMissileProjectile(tower, supportTarget, stats);
+        tower.cooldown = stats.helpMissileCooldown;
+      }
+    }
     return;
   }
 
@@ -3925,14 +4952,16 @@ function fireTower(tower, target) {
 function updateTowers(deltaTime) {
   for (const tower of towers) {
     const stats = towerStats(tower);
+    const supportBuffs = supportBuffsForTower(tower);
     const detectHidden = towerHasHiddenDetection(tower, stats);
+    const cooldownRate = supportBuffs.attackSpeedMultiplier || 1;
     if (tower.type === "dippy") {
       tower.dippyAmmo = tower.dippyAmmo ?? stats.burst;
       tower.dippyAmmo = Math.min(tower.dippyAmmo, stats.burst);
       tower.dippyReloadTimer = Math.max(0, tower.dippyReloadTimer || 0);
       if (tower.burstShotsRemaining === 0 && tower.cooldown > 0 && tower.dippyAmmo < stats.burst) {
-        tower.dippyReloadTimer -= deltaTime;
-        const reloadStep = stats.cooldown / Math.max(stats.burst, 1);
+        tower.dippyReloadTimer -= deltaTime * cooldownRate;
+        const reloadStep = (stats.cooldown / Math.max(stats.burst, 1)) * 1.12;
         if (tower.dippyReloadTimer <= 0) {
           tower.dippyAmmo += 1;
           tower.dippyReloadTimer = reloadStep;
@@ -3942,9 +4971,9 @@ function updateTowers(deltaTime) {
       }
     }
     tower.stunnedTimer = Math.max(0, (tower.stunnedTimer || 0) - deltaTime);
-    tower.cooldown = Math.max(0, tower.cooldown - deltaTime);
-    tower.burstTimer = Math.max(0, (tower.burstTimer || 0) - deltaTime);
-    tower.fieldCooldown = Math.max(0, (tower.fieldCooldown || 0) - deltaTime);
+    tower.cooldown = Math.max(0, tower.cooldown - deltaTime * cooldownRate);
+    tower.burstTimer = Math.max(0, (tower.burstTimer || 0) - deltaTime * cooldownRate);
+    tower.fieldCooldown = Math.max(0, (tower.fieldCooldown || 0) - deltaTime * cooldownRate);
 
     if (tower.stunnedTimer > 0) {
       continue;
@@ -3988,6 +5017,20 @@ function updateTowers(deltaTime) {
         addPulse(tower.centerX, tower.centerY, stats.auraRadius, "rgba(196, 243, 255, 0.7)");
       }
       tower.fieldCooldown = stats.auraTick;
+    }
+
+    if (tower.type === "gate" && tower.cooldown === 0) {
+      const center = cellCenter(tower.x, tower.y);
+      const arc = gateArcEndpoints(tower);
+      const poolOffsets = (tower.rotation || 0) % 2 === 0
+        ? [{ x: -9, y: 0 }, { x: 9, y: 0 }]
+        : [{ x: 0, y: -9 }, { x: 0, y: 9 }];
+      for (const offset of poolOffsets) {
+        addStickyPuddle(center.x + offset.x, center.y + offset.y, stats.poolRadius, stats.acidSlow, stats.poolTtl, "rgba(144, 234, 130, 0.32)", stats.dotDamage, true, stats.poisonDamage, stats.poisonTtl);
+      }
+      addBeam(arc.x1, arc.y1, arc.x2, arc.y2, "rgba(166, 244, 140, 0.7)", 3.5, 0.08);
+      addPulse(center.x, center.y, 12, "rgba(154, 235, 131, 0.3)");
+      tower.cooldown = stats.cooldown;
     }
 
     if (tower.type === "tesla" && stats.supercharge && tower.cooldown > 0) {
@@ -4360,9 +5403,13 @@ function spawnSecondaryProjectiles(originX, originY, count, kind, damage, splash
       angle,
       damage,
       splash,
+      impactDamage: kind === "cluster" && rain ? damage * 2.3 : kind === "mangoBomb" ? damage * 1.15 : 0,
+      hitIds: kind === "cluster" ? [] : null,
       shrapnel: false,
       clusters: false,
       rain,
+      screenShake: 0,
+      screenShakeDuration: 0,
       ttl: kind === "dippyShell" ? 0.06 + Math.random() * 0.11 : kind === "cluster" ? 0.32 : kind === "mangoBomb" ? 0.42 : 0.35,
       turnRate: kind === "dippyShell" ? (Math.random() - 0.5) * 32 : 0
     });
@@ -4371,13 +5418,14 @@ function spawnSecondaryProjectiles(originX, originY, count, kind, damage, splash
 }
 
 function explodeProjectile(projectile) {
+  const shieldHitTracker = createShieldHitTracker();
   addPulse(projectile.x, projectile.y, projectile.splash, "#ffc572");
 
   for (const enemy of enemies) {
     const distance = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
 
     if (distance <= projectile.splash) {
-      damageEnemy(enemy, projectile.damage * (1 - distance / Math.max(projectile.splash, 1) * 0.5), "explosion");
+      damageEnemy(enemy, projectile.damage * (1 - distance / Math.max(projectile.splash, 1) * 0.5), "explosion", { shieldHitTracker });
       if (projectile.kind === "mangoBomb" && !activeShieldSourceForEnemy(enemy)) {
         enemy.slowFactor = Math.min(enemy.slowFactor, 0.5);
         enemy.slowTimer = Math.max(enemy.slowTimer, 1.8);
@@ -4386,7 +5434,15 @@ function explodeProjectile(projectile) {
   }
 
   if (projectile.kind === "missile" && projectile.clusters) {
-    spawnSecondaryProjectiles(projectile.x, projectile.y, 10, "cluster", projectile.damage * 0.42, projectile.splash * 0.42, projectile.rain);
+    spawnSecondaryProjectiles(
+      projectile.x,
+      projectile.y,
+      10,
+      "cluster",
+      projectile.damage * 0.42,
+      projectile.rain ? projectile.splash * 0.9 : projectile.splash * 0.56,
+      projectile.rain
+    );
     return;
   }
 
@@ -4396,7 +5452,7 @@ function explodeProjectile(projectile) {
   }
 
   if (projectile.kind === "cluster" && projectile.rain) {
-    spawnSecondaryProjectiles(projectile.x, projectile.y, 4, "shard", projectile.damage * 0.45, 12);
+    spawnSecondaryProjectiles(projectile.x, projectile.y, 4, "shard", projectile.damage * 0.45, 22);
   }
 }
 
@@ -4419,18 +5475,19 @@ function firstEnemyTouchingProjectile(projectile) {
 
 function explodeDroneRocket(projectile) {
   addPulse(projectile.x, projectile.y, projectile.splash, "#ffbb73");
+  const shieldHitTracker = createShieldHitTracker();
   for (const enemy of enemies) {
     const distance = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
     if (distance <= projectile.splash) {
-      damageEnemy(enemy, projectile.damage * (1 - distance / Math.max(projectile.splash, 1) * 0.45), "explosion");
+      damageEnemy(enemy, projectile.damage * (1 - distance / Math.max(projectile.splash, 1) * 0.45), "explosion", { shieldHitTracker });
     }
   }
 }
 
 function explodeDippyEgg(projectile) {
-  triggerScreenShake(projectile.screenShake || 0, projectile.screenShakeDuration || 0);
   addPulse(projectile.x, projectile.y, projectile.splash, "#ffe8a3");
   addBurstParticles(projectile.x, projectile.y, projectile.whiteoutDuration > 0 ? 22 : 8, projectile.whiteoutDuration > 0 ? "#fff6c2" : "#ffe199", projectile.whiteoutDuration > 0 ? 80 : 35, projectile.whiteoutDuration > 0 ? 180 : 90);
+  const shieldHitTracker = createShieldHitTracker();
 
   for (const enemy of enemies) {
     const distance = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
@@ -4439,8 +5496,10 @@ function explodeDippyEgg(projectile) {
     }
 
     damageEnemy(enemy, projectile.damage * (1 - distance / Math.max(projectile.splash, 1) * 0.35), "explosion", {
+      shieldHitTracker,
       burnDamage: projectile.burnDamage,
-      burnDuration: projectile.burnDuration
+      burnDuration: projectile.burnDuration,
+      shieldMultiplier: projectile.shieldMultiplier
     });
 
     if (projectile.sticky && !activeShieldSourceForEnemy(enemy)) {
@@ -4453,7 +5512,19 @@ function explodeDippyEgg(projectile) {
   }
 
   if (projectile.sticky) {
-    addStickyPuddle(projectile.x, projectile.y, projectile.splash * 0.72, projectile.stickySlow, projectile.stickyDuration + 1.2);
+    addStickyPuddle(
+      projectile.x,
+      projectile.y,
+      projectile.syrupRadius || projectile.splash * 0.72,
+      projectile.stickySlow,
+      projectile.syrupTtl || projectile.stickyDuration + 1.2,
+      projectile.syrupDamage > 0 ? "rgba(255, 171, 51, 0.48)" : "rgba(255, 215, 82, 0.55)",
+      projectile.syrupDamage || 0,
+      Boolean(projectile.syrupDamage > 0),
+      0,
+      0,
+      projectile.syrupTowerBuff || 1
+    );
   }
 
   if (projectile.shells) {
@@ -4462,11 +5533,15 @@ function explodeDippyEgg(projectile) {
 
   if ((projectile.shockwaves || 1) > 1) {
     const secondRadius = projectile.splash * 1.45;
+    const secondShieldHitTracker = createShieldHitTracker();
     addPulse(projectile.x, projectile.y, secondRadius, "rgba(255, 224, 146, 0.8)");
     for (const enemy of enemies) {
       const distance = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
       if (distance <= secondRadius) {
-        damageEnemy(enemy, projectile.damage * 0.42 * (1 - distance / Math.max(secondRadius, 1) * 0.3), "explosion");
+        damageEnemy(enemy, projectile.damage * 0.42 * (1 - distance / Math.max(secondRadius, 1) * 0.3), "explosion", {
+          shieldHitTracker: secondShieldHitTracker,
+          shieldMultiplier: projectile.shieldMultiplier
+        });
         if (projectile.sticky && !activeShieldSourceForEnemy(enemy)) {
           enemy.slowFactor = Math.min(enemy.slowFactor, projectile.stickySlow);
           enemy.slowTimer = Math.max(enemy.slowTimer, projectile.stickyDuration);
@@ -4501,7 +5576,8 @@ function updateProjectiles(deltaTime) {
         }
 
         if (Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= 10) {
-          if (damageEnemy(enemy, projectile.damage, projectile.damageType || "bullet")) {
+          projectile.shieldHitTracker ||= createShieldHitTracker();
+          if (damageEnemy(enemy, projectile.damage, projectile.damageType || "bullet", { shieldHitTracker: projectile.shieldHitTracker })) {
             projectile.hitIds.push(enemy.id);
             projectile.pierce -= 1;
             if (projectile.pierce < 0) {
@@ -4529,7 +5605,8 @@ function updateProjectiles(deltaTime) {
         }
 
         if (Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= 11) {
-          if (damageEnemy(enemy, projectile.damage, projectile.damageType || "bullet")) {
+          projectile.shieldHitTracker ||= createShieldHitTracker();
+          if (damageEnemy(enemy, projectile.damage, projectile.damageType || "bullet", { shieldHitTracker: projectile.shieldHitTracker })) {
             projectile.hitIds.push(enemy.id);
             projectile.pierce -= 1;
             if (projectile.pierce < 0) {
@@ -4632,7 +5709,14 @@ function updateProjectiles(deltaTime) {
 
     if (projectile.kind === "dippyEgg") {
       if (!(projectile.risingComplete)) {
+        projectile.roll += projectile.spin * deltaTime;
+        projectile.x += projectile.arcDrift * deltaTime;
         projectile.y -= 2200 * deltaTime;
+        projectile.trailTimer = (projectile.trailTimer || 0) - deltaTime;
+        if (projectile.trailTimer <= 0) {
+          addBurstParticles(projectile.x, projectile.y + 10, 2, "rgba(255, 239, 182, 0.55)", 18, 36, 0.08, 0.16);
+          projectile.trailTimer = 0.04;
+        }
         if (projectile.y <= 0) {
           projectile.risingComplete = true;
           projectile.y = 0;
@@ -4654,13 +5738,21 @@ function updateProjectiles(deltaTime) {
         projectile.hiddenOffscreen = false;
         projectile.x = target ? target.x : projectile.targetX;
         projectile.y = -24;
+        projectile.arcDrift *= 0.45;
       }
       if (target) {
         projectile.x += (target.x - projectile.x) * Math.min(1, deltaTime * 4);
         projectile.targetY = target.y;
       }
 
+      projectile.roll += projectile.spin * deltaTime * 1.5;
+      projectile.x += projectile.arcDrift * deltaTime;
       projectile.y += projectile.speed * deltaTime;
+      projectile.trailTimer = (projectile.trailTimer || 0) - deltaTime;
+      if (projectile.trailTimer <= 0) {
+        addBurstParticles(projectile.x, projectile.y - 8, 3, "rgba(255, 211, 118, 0.55)", 22, 46, 0.08, 0.18);
+        projectile.trailTimer = 0.03;
+      }
       const impactEnemy = firstEnemyTouchingProjectile(projectile);
       if (impactEnemy || projectile.y >= projectile.targetY) {
         explodeDippyEgg(projectile);
@@ -4690,7 +5782,30 @@ function updateProjectiles(deltaTime) {
 
     const impactEnemy = firstEnemyTouchingProjectile(projectile);
 
-    if (impactEnemy || (target && Math.hypot(target.x - projectile.x, target.y - projectile.y) <= 12)) {
+    if (projectile.kind === "cluster" && impactEnemy) {
+      projectile.hitIds ||= [];
+      if (!projectile.hitIds.includes(impactEnemy.id)) {
+        damageEnemy(impactEnemy, projectile.impactDamage || projectile.damage, "explosion");
+        projectile.hitIds.push(impactEnemy.id);
+      }
+    }
+
+    if (projectile.kind === "cluster") {
+      if (projectile.x > -40 && projectile.x < canvas.width + 40 && projectile.y > -40 && projectile.y < canvas.height + 40) {
+        survivors.push(projectile);
+      }
+      continue;
+    }
+
+    const reachedTargetPoint = projectile.targetX !== undefined
+      && projectile.targetY !== undefined
+      && Math.hypot(projectile.targetX - projectile.x, projectile.targetY - projectile.y) <= Math.max(12, projectile.splash * 0.45);
+
+    if (impactEnemy || reachedTargetPoint || (target && Math.hypot(target.x - projectile.x, target.y - projectile.y) <= 12) || (projectile.kind === "mangoBomb" && projectile.targetY !== undefined && projectile.y >= projectile.targetY)) {
+      const directHitEnemy = impactEnemy || target;
+      if (directHitEnemy && projectile.impactDamage > 0) {
+        damageEnemy(directHitEnemy, projectile.impactDamage, projectile.kind === "mangoBomb" || projectile.kind === "cluster" ? "explosion" : (projectile.damageType || "bullet"));
+      }
       if (projectile.kind === "droneRocket") {
         explodeDroneRocket(projectile);
         continue;
@@ -4714,10 +5829,19 @@ function updateEffects(deltaTime) {
         if (Math.hypot(enemy.x - effect.x, enemy.y - effect.y) <= effect.radius && !activeShieldSourceForEnemy(enemy)) {
           enemy.slowFactor = Math.min(enemy.slowFactor, effect.slow);
           enemy.slowTimer = Math.max(enemy.slowTimer, 0.24);
+          if (!enemy.armored && effect.damage > 0) {
+            damageEnemy(enemy, effect.damage * deltaTime, "chemical");
+          }
+          if (!enemy.armored && effect.poisonDamage > 0) {
+            enemy.poisonDamage = Math.max(enemy.poisonDamage || 0, effect.poisonDamage);
+            enemy.poisonTimer = Math.max(enemy.poisonTimer || 0, effect.poisonTtl || 0);
+          }
         }
       }
     } else if (effect.kind === "spark") {
       effect.x += effect.vx * deltaTime;
+      effect.y += effect.vy * deltaTime;
+    } else if (effect.kind === "floatingText") {
       effect.y += effect.vy * deltaTime;
     }
   }
@@ -4728,6 +5852,11 @@ function updateEffects(deltaTime) {
 }
 
 function spawnWaffleChildren(enemy, type, count, hpDivisor) {
+  const nextTier = Math.max(1, (enemy.tier || 1) - 1);
+  if (nextTier === enemy.tier || nextTier < 1) {
+    return;
+  }
+
   discoveredEnemies.add(type.key);
   renderAlmanac();
 
@@ -4754,6 +5883,7 @@ function spawnWaffleChildren(enemy, type, count, hpDivisor) {
         portalIndex: enemy.portalIndex,
         startCell,
         route,
+        tier: nextTier,
         reward: Math.max(1, Math.round(type.reward * rewardMultiplier())),
         hp: Math.max(1, Math.round(enemy.maxHp / hpDivisor)),
         speed: Math.max(18, enemy.speed + type.speedBonus),
@@ -4764,6 +5894,7 @@ function spawnWaffleChildren(enemy, type, count, hpDivisor) {
       })
       : createEnemy(type, {
         portalIndex: enemy.portalIndex,
+        tier: nextTier,
         reward: Math.max(1, Math.round(type.reward * rewardMultiplier())),
         hp: Math.max(1, Math.round(enemy.maxHp / hpDivisor)),
         speed: Math.max(18, enemy.speed + type.speedBonus),
@@ -4966,19 +6097,23 @@ function purgeDefeatedEnemies() {
 }
 
 function updateHud() {
-  nextPieceText.textContent = `Next block: ${activePiece.name}`;
+  nextPieceText.textContent = isFactoryMap() ? `Next conveyor: ${activePiece.name}` : `Next block: ${activePiece.name}`;
   routeText.textContent = isGraveyardMap()
     ? "Routes: gravebound"
     : allRoutesOpen(routes) ? `Routes: ${routes.length} open` : "Routes: blocked";
   updateTowerButtons();
   if (blockToolButton) {
-    blockToolButton.textContent = freeBlocks > 0 ? "Block (Free)" : `Block (${currentBlockCost})`;
+    blockToolButton.textContent = isFactoryMap()
+      ? (freeBlocks > 0 ? "Conveyor (Free)" : `Conveyor (${currentBlockCost})`)
+      : (freeBlocks > 0 ? "Block (Free)" : `Block (${currentBlockCost})`);
   }
   if (moneyText) {
     moneyText.textContent = `Cash: ${money}`;
   }
   boardCashText.textContent = `Cash: ${money}`;
-  freeBlockText.textContent = freeBlocks > 0 ? `Block price after free: ${currentBlockCost}` : `Block price: ${currentBlockCost}`;
+  freeBlockText.textContent = isFactoryMap()
+    ? (freeBlocks > 0 ? `Conveyor price after free: ${currentBlockCost}` : `Conveyor price: ${currentBlockCost}`)
+    : (freeBlocks > 0 ? `Block price after free: ${currentBlockCost}` : `Block price: ${currentBlockCost}`);
   livesText.textContent = `Lives: ${lives}`;
   waveText.textContent = `Wave: ${waveNumber}`;
   enemyText.textContent = `Enemies: ${enemies.length}`;
@@ -4987,21 +6122,29 @@ function updateHud() {
   }
   waveButton.textContent = autoWaveEnabled ? "Start Wave Now" : "Start Wave";
   selectionText.textContent = `Selected: ${TOWER_INFO[selectedTowerType].name}`;
-  upgradeText.textContent = `Upgrade: ${currentTool === "upgrade" ? "click tower, max 5" : "max 5"}${selectedMap === "fortification" && !crossbowUnlocked ? " | Secret: Brutal Outpost wave 50 without placing walls" : ""}`;
+  upgradeText.textContent = `Upgrade: ${currentTool === "upgrade" ? "click tower, max 5" : "max 5"}${selectedMap === "outpost" && !crossbowUnlocked ? " | Secret: Brutal Outpost wave 50 without placing walls" : ""}`;
   updateSandboxControls();
+  updateAirstrikeControls();
+  renderTutorial();
 
   if (messageTimer > 0) {
     statusText.textContent = message;
   } else if (lives <= 0) {
     statusText.textContent = "Game over.";
   } else if (!allRoutesOpen(routes)) {
-    statusText.textContent = "The path is blocked. Erase a block to reopen the route.";
+    statusText.textContent = isFactoryMap()
+      ? "Factory line incomplete. Place conveyors to extend the route."
+      : "The path is blocked. Erase a block to reopen the route.";
   } else if (wave && !wave.complete) {
     statusText.textContent = `Wave ${waveNumber} in progress.`;
   } else if (autoWaveEnabled) {
-    statusText.textContent = `Auto wave armed. Next wave ${waveNumber + 1} will start on its own.`;
+    statusText.textContent = isSandboxMode() && sandboxWaveTarget !== null
+      ? `Auto wave armed. Sandbox wave ${sandboxWaveTarget} will repeat on its own.`
+      : `Auto wave armed. Next wave ${waveNumber + 1} will start on its own.`;
   } else {
-    statusText.textContent = `Path ready. Build and start wave ${waveNumber + 1}.`;
+    statusText.textContent = isSandboxMode() && sandboxWaveTarget !== null
+      ? `Path ready. Build and start sandbox wave ${sandboxWaveTarget}.`
+      : `Path ready. Build and start wave ${waveNumber + 1}.`;
   }
 }
 
@@ -5069,6 +6212,14 @@ function updateAmbientEffects(deltaTime) {
 }
 
 function drawGrid() {
+  if (activeMap.scenery === "factory") {
+    for (let y = 0; y < ROWS; y += 1) {
+      for (let x = 0; x < COLS; x += 1) {
+        ctx.fillStyle = isFactoryBuildTile(x, y) ? "rgba(110, 118, 128, 0.32)" : "rgba(198, 205, 214, 0.24)";
+        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      }
+    }
+  }
   ctx.strokeStyle = "rgba(217, 196, 164, 0.72)";
   ctx.lineWidth = 1;
 
@@ -5116,6 +6267,13 @@ function drawMapScenery() {
     gradient.addColorStop(1, "#ebb24f");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else if (activeMap.scenery === "factory") {
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, "#d7dce2");
+    gradient.addColorStop(0.5, "#c2c8d0");
+    gradient.addColorStop(1, "#aeb6c0");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
   } else if (activeMap.scenery === "graveyard") {
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
     gradient.addColorStop(0, "#2f3b33");
@@ -5143,7 +6301,7 @@ function drawMapScenery() {
         ctx.fillRect(x + 6, y + 6, 24, 24);
       }
     }
-    if (selectedMap === "fotification") {
+    if (selectedMap === "fortification") {
       ctx.fillStyle = "rgba(35, 47, 58, 0.18)";
       ctx.fillRect(0, 4 * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 2);
       ctx.fillRect(0, 9 * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 2);
@@ -5160,6 +6318,14 @@ function drawMapScenery() {
     ctx.beginPath();
     ctx.arc(canvas.width * 0.83, canvas.height * 0.22, 68, 0, Math.PI * 2);
     ctx.fill();
+  } else if (activeMap.scenery === "factory") {
+    ctx.fillStyle = "rgba(77, 87, 98, 0.1)";
+    for (let x = 0; x < canvas.width; x += CELL_SIZE * 2) {
+      ctx.fillRect(x + 6, 0, 6, canvas.height);
+    }
+    for (let y = 0; y < canvas.height; y += CELL_SIZE * 2) {
+      ctx.fillRect(0, y + 6, canvas.width, 6);
+    }
   } else if (activeMap.scenery === "graveyard") {
     ctx.fillStyle = "rgba(196, 214, 197, 0.06)";
     for (let x = 18; x < canvas.width; x += 86) {
@@ -5220,6 +6386,19 @@ function drawRoute() {
     return;
   }
 
+  const mainRouteCells = new Set(routes.flat().map((point) => `${point.x},${point.y}`));
+  const offTrackRoutes = new Map();
+  for (const enemy of enemies) {
+    if (!enemy.route || enemy.route.length < 2) {
+      continue;
+    }
+    if (!enemy.route.some((point) => !mainRouteCells.has(`${point.x},${point.y}`))) {
+      continue;
+    }
+    const key = enemy.route.map((point) => `${point.x},${point.y}`).join("|");
+    offTrackRoutes.set(key, enemy.route);
+  }
+
   for (const path of routes) {
     ctx.save();
     ctx.setLineDash([2, 13]);
@@ -5239,6 +6418,27 @@ function drawRoute() {
       }
     });
 
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  for (const route of offTrackRoutes.values()) {
+    ctx.save();
+    ctx.setLineDash([2, 10]);
+    ctx.lineDashOffset = -dashOffset * 0.8;
+    ctx.strokeStyle = "rgba(125, 176, 255, 0.45)";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    route.forEach((point, index) => {
+      const center = cellCenter(point.x, point.y);
+      if (index === 0) {
+        ctx.moveTo(center.x, center.y);
+      } else {
+        ctx.lineTo(center.x, center.y);
+      }
+    });
     ctx.stroke();
     ctx.restore();
   }
@@ -5281,6 +6481,30 @@ function drawBlock(block) {
 
     ctx.stroke();
   }
+
+  if (isFactoryMap() && block.conveyor) {
+    for (const cell of block.cells) {
+      const arrow = factoryArrowDirectionForCell(cell);
+      if (arrow === null) {
+        continue;
+      }
+      const center = cellCenter(cell.x, cell.y);
+      ctx.save();
+      ctx.translate(center.x, center.y);
+      ctx.rotate(arrow);
+      ctx.strokeStyle = "rgba(238, 244, 248, 0.92)";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-9, 0);
+      ctx.lineTo(7, 0);
+      ctx.moveTo(1, -6);
+      ctx.lineTo(7, 0);
+      ctx.lineTo(1, 6);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
 }
 
 function drawPreview() {
@@ -5307,6 +6531,35 @@ function drawPreview() {
   }
 }
 
+function drawArmedAbilityPreview() {
+  if (armedAbility !== "airstrike" || !hoverPoint) {
+    return;
+  }
+
+  const tower = preferredAirstrikeTower();
+  const stats = tower ? towerStats(tower) : null;
+  const blocked = tower ? !towerHasLineOfSightToPoint(tower, hoverPoint.x, hoverPoint.y) : true;
+  const radius = stats ? Math.max(stats.airstrikeSplash * 2.2, 42) : 42;
+
+  ctx.save();
+  ctx.strokeStyle = blocked ? "rgba(214, 55, 55, 0.92)" : "rgba(255, 192, 78, 0.95)";
+  ctx.fillStyle = blocked ? "rgba(214, 55, 55, 0.12)" : "rgba(255, 192, 78, 0.12)";
+  ctx.lineWidth = blocked ? 3 : 2;
+  ctx.beginPath();
+  ctx.arc(hoverPoint.x, hoverPoint.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  if (tower) {
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(tower.centerX, tower.centerY);
+    ctx.lineTo(hoverPoint.x, hoverPoint.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
 function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, ghost = false, invalid = false, tower = null) {
   const stats = tower ? towerStats(tower) : null;
   const path1 = tower?.path1 || 0;
@@ -5316,8 +6569,8 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
   ctx.rotate(aimAngle);
 
   if (type === "crossbow") {
-    ctx.strokeStyle = ghost ? (invalid ? "rgba(255, 225, 225, 0.95)" : "rgba(243, 247, 255, 0.6)") : "#f3f7ff";
-    ctx.fillStyle = ghost ? "rgba(165, 176, 187, 0.45)" : "#5e6a75";
+    ctx.strokeStyle = ghost ? (invalid ? "rgba(255, 225, 225, 0.95)" : "rgba(231, 209, 184, 0.72)") : "#f4dcc1";
+    ctx.fillStyle = ghost ? "rgba(161, 119, 82, 0.42)" : "#7b5636";
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.arc(0, 0, 7, 0, Math.PI * 2);
@@ -5328,7 +6581,7 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
     ctx.moveTo(-7, 7);
     ctx.lineTo(7, -7);
     ctx.stroke();
-    ctx.strokeStyle = ghost ? "rgba(255, 255, 255, 0.82)" : "#ffffff";
+    ctx.strokeStyle = ghost ? "rgba(246, 231, 214, 0.88)" : "#f7ead8";
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(12, 0);
@@ -5342,7 +6595,7 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
       ctx.stroke();
     }
     if (level >= 3) {
-      ctx.strokeStyle = ghost ? "rgba(255, 239, 190, 0.82)" : "#ffe4a8";
+      ctx.strokeStyle = ghost ? "rgba(255, 223, 176, 0.82)" : "#f2c793";
       ctx.beginPath();
       ctx.moveTo(-4, -10);
       ctx.lineTo(4, -10);
@@ -5351,10 +6604,45 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
       ctx.stroke();
     }
     if (level >= 4) {
-      ctx.strokeStyle = ghost ? "rgba(255, 255, 255, 0.88)" : "#ffffff";
+      ctx.strokeStyle = ghost ? "rgba(250, 236, 221, 0.9)" : "#f8ecde";
       ctx.beginPath();
       ctx.moveTo(2, 0);
       ctx.lineTo(15, 0);
+      ctx.stroke();
+    }
+  } else if (type === "gate") {
+    const postFill = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(133, 179, 102, 0.45)") : "#6e8e57";
+    const postStroke = ghost ? "rgba(223, 247, 205, 0.72)" : "#e7f8d5";
+    const coilStroke = ghost ? "rgba(192, 243, 148, 0.78)" : "#bdf46d";
+    ctx.fillStyle = postFill;
+    ctx.strokeStyle = postStroke;
+    ctx.lineWidth = 2.2;
+    for (const offset of [-CELL_SIZE, CELL_SIZE]) {
+      ctx.fillRect(offset - 8, -14, 16, 28);
+      ctx.strokeRect(offset - 8, -14, 16, 28);
+      ctx.fillStyle = ghost ? "rgba(165, 229, 114, 0.58)" : "#9be45d";
+      ctx.fillRect(offset - 5, -4, 10, 8);
+      ctx.fillStyle = postFill;
+    }
+    ctx.strokeStyle = coilStroke;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-CELL_SIZE + 8, -6);
+    ctx.bezierCurveTo(-10, -18, 10, 18, CELL_SIZE - 8, 6);
+    ctx.stroke();
+    if (level >= 3) {
+      ctx.beginPath();
+      ctx.moveTo(-CELL_SIZE + 8, 6);
+      ctx.bezierCurveTo(-10, 18, 10, -18, CELL_SIZE - 8, -6);
+      ctx.stroke();
+    }
+    if (level >= 5) {
+      ctx.strokeStyle = ghost ? "rgba(255, 240, 173, 0.72)" : "#ffe072";
+      ctx.beginPath();
+      ctx.moveTo(-8, -16);
+      ctx.lineTo(8, -16);
+      ctx.moveTo(-8, 16);
+      ctx.lineTo(8, 16);
       ctx.stroke();
     }
   } else if (type === "laser") {
@@ -5675,6 +6963,46 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
       ctx.lineTo(-6, -14);
       ctx.stroke();
     }
+  } else if (type === "support") {
+    ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(201, 182, 255, 0.5)") : "#c9b6ff";
+    ctx.beginPath();
+    ctx.moveTo(0, -12);
+    ctx.lineTo(10, -4);
+    ctx.lineTo(10, 8);
+    ctx.lineTo(0, 14);
+    ctx.lineTo(-10, 8);
+    ctx.lineTo(-10, -4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = ghost ? "rgba(248, 243, 255, 0.85)" : "#f5f0ff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = ghost ? "rgba(255, 242, 162, 0.8)" : "#ffe47f";
+    ctx.fillRect(-2, -8, 4, 16);
+    ctx.fillRect(-7, -2, 14, 4);
+    if (path1 >= 1) {
+      ctx.fillStyle = ghost ? "rgba(255, 219, 122, 0.85)" : "#ffd36a";
+      ctx.beginPath();
+      ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (path2 >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(255, 201, 143, 0.9)" : "#ffc58a";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 16, 0.45, Math.PI * 1.55);
+      ctx.stroke();
+    }
+    if (path2 >= 4) {
+      ctx.strokeStyle = ghost ? "rgba(206, 245, 255, 0.9)" : "#d7f6ff";
+      ctx.beginPath();
+      ctx.moveTo(0, -12);
+      ctx.lineTo(0, -20);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, -22, 3, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   ctx.restore();
@@ -5690,12 +7018,17 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
 
 function drawTowerGhost(x, y) {
   const center = towerPlacementCenter(selectedTowerType, x, y);
+  const previewTower = mockTower(selectedTowerType, { x, y, centerX: center.x, centerY: center.y });
   const valid = canPlaceTowerAt(x, y);
   const shake = !valid ? Math.sin(lastTimestamp / 18) * (invalidPlacementTimer > 0 ? 4 : 2) : 0;
   const footprint = towerPlacementCells(selectedTowerType, x, y);
 
   ctx.save();
   ctx.translate(shake, 0);
+  drawTowerRangeOverlay(previewTower, {
+    primaryStroke: valid ? "rgba(18,26,35,0.42)" : "rgba(204, 63, 92, 0.72)",
+    primaryFill: valid ? "rgba(18,26,35,0.1)" : "rgba(204, 63, 92, 0.1)"
+  });
   for (const cell of footprint) {
     if (!inBounds(cell.x, cell.y)) {
       continue;
@@ -5705,7 +7038,7 @@ function drawTowerGhost(x, y) {
   }
   ctx.shadowColor = valid ? "rgba(21, 30, 42, 0.22)" : "rgba(212, 73, 96, 0.48)";
   ctx.shadowBlur = 14;
-  drawTowerShape(selectedTowerType, 1, center.x, center.y, -Math.PI / 2, true, !valid);
+  drawTowerShape(selectedTowerType, 1, center.x, center.y, selectedTowerType === "gate" ? selectedGateRotation * (Math.PI / 2) : -Math.PI / 2, true, !valid);
   ctx.restore();
 }
 
@@ -5713,6 +7046,14 @@ function drawTower(tower) {
   const centerX = tower.centerX;
   const centerY = tower.centerY;
   const stats = towerStats(tower);
+
+  if (tower.type === "gate") {
+    ctx.save();
+    ctx.strokeStyle = "rgba(171, 236, 121, 0.32)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(centerX - CELL_SIZE * 0.44, centerY - CELL_SIZE * 0.5, CELL_SIZE * 0.88, CELL_SIZE);
+    ctx.restore();
+  }
 
   if (tower.type === "tesla" && stats.field) {
     ctx.save();
@@ -5731,6 +7072,24 @@ function drawTower(tower) {
     ctx.beginPath();
     ctx.arc(centerX, centerY, stats.auraRadius, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  if (tower.type === "support") {
+    ctx.save();
+    ctx.strokeStyle = stats.munitions ? "rgba(255, 205, 140, 0.32)" : "rgba(219, 201, 255, 0.28)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, stats.auraRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    if (stats.detectHiddenAura) {
+      ctx.strokeStyle = "rgba(209, 246, 255, 0.34)";
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, stats.auraRadius - 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     ctx.restore();
   }
 
@@ -5918,17 +7277,29 @@ function regularPolygon(x, y, radius, sides) {
 function drawEnemies() {
   for (const enemy of enemies) {
     drawEnemyShape(enemy);
+    drawDamageLagBar(enemy.x - 12, enemy.y - 18, 24, 4, Math.max(enemy.hp, 0) / enemy.maxHp, Math.max(enemy.healthBarLagHp || enemy.hp, 0) / enemy.maxHp, "#d94f3d");
+  }
+}
 
-    ctx.fillStyle = "rgba(38, 50, 56, 0.24)";
-    ctx.fillRect(enemy.x - 12, enemy.y - 18, 24, 4);
-    ctx.fillStyle = "#7ce38b";
-    ctx.fillRect(enemy.x - 12, enemy.y - 18, 24 * Math.max(enemy.hp, 0) / enemy.maxHp, 4);
+function drawDamageLagBar(x, y, width, height, ratio, lagRatio, fillColor = "#d94f3d") {
+  ctx.fillStyle = "rgba(38, 50, 56, 0.24)";
+  ctx.fillRect(x, y, width, height);
+  ctx.fillStyle = fillColor;
+  ctx.fillRect(x, y, width * Math.max(0, Math.min(1, ratio)), height);
+  if (lagRatio > ratio) {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+    ctx.fillRect(x + width * ratio, y, width * Math.max(0, Math.min(1, lagRatio - ratio)), height);
   }
 }
 
 function drawEnemyShape(enemy) {
   if (enemy.key === "idaen") {
     drawIdaenEnemy(enemy);
+    return;
+  }
+
+  if (enemy.key === "adapter") {
+    drawAdapterEnemy(enemy);
     return;
   }
 
@@ -6123,7 +7494,7 @@ function drawAttackerEnemy(enemy) {
 }
 
 function drawWaffleEnemy(enemy) {
-  const gridSize = enemy.waffleSquares === 25 ? 5 : enemy.waffleSquares === 16 ? 4 : enemy.waffleSquares === 4 ? 2 : 1;
+  const gridSize = Math.max(1, Math.round(Math.sqrt(enemy.waffleSquares || 1)));
   const cellSize = 6;
   const gap = 1.5;
   const totalSize = gridSize * cellSize + (gridSize - 1) * gap;
@@ -6212,31 +7583,61 @@ function drawIdaenEnemy(enemy) {
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
   ctx.rotate(enemy.facingAngle || 0);
+  const gridSize = 8;
+  const tile = 6;
+  const totalSize = gridSize * tile;
   ctx.fillStyle = enemy.phaseTimer > 0 ? "#8a5b2d" : "#8d5f2e";
   ctx.strokeStyle = "rgba(83, 49, 18, 0.75)";
   ctx.lineWidth = 2;
-  ctx.fillRect(-16, -14, 32, 28);
-  ctx.strokeRect(-16, -14, 32, 28);
+  ctx.fillRect(-totalSize / 2, -totalSize / 2, totalSize, totalSize);
+  ctx.strokeRect(-totalSize / 2, -totalSize / 2, totalSize, totalSize);
   ctx.fillStyle = "#ba8748";
-  for (let row = -10; row <= 6; row += 8) {
-    for (let col = -12; col <= 8; col += 8) {
-      ctx.fillRect(col, row, 6, 6);
+  for (let row = 0; row < gridSize; row += 1) {
+    for (let col = 0; col < gridSize; col += 1) {
+      ctx.fillRect(-totalSize / 2 + col * tile + 1, -totalSize / 2 + row * tile + 1, tile - 2, tile - 2);
     }
   }
   ctx.fillStyle = "#6b4120";
-  ctx.fillRect(-24, -4, 8, 8);
-  ctx.fillRect(16, -4, 8, 8);
-  ctx.fillRect(-8, 14, 6, 10);
-  ctx.fillRect(2, 14, 6, 10);
+  ctx.fillRect(-totalSize / 2 - 8, -5, 8, 10);
+  ctx.fillRect(totalSize / 2, -5, 8, 10);
   if (enemy.hidden) {
     ctx.strokeStyle = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(-20, -18, 40, 36);
+    ctx.strokeRect(-totalSize / 2 - 4, -totalSize / 2 - 4, totalSize + 8, totalSize + 8);
   }
   if (enemy.armored && enemy.armorHp > 0 && !enemy.suppressArmorVisual) {
     ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
     ctx.lineWidth = 4;
-    ctx.strokeRect(-22, -20, 44, 40);
+    ctx.strokeRect(-totalSize / 2 - 6, -totalSize / 2 - 6, totalSize + 12, totalSize + 12);
+  }
+  ctx.restore();
+}
+
+function drawAdapterEnemy(enemy) {
+  drawAttackerEnemy(enemy);
+  const bodyLength = 26 * (enemy.sizeScale || 1);
+  const wingSpread = bodyLength * 0.52;
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.rotate(enemy.facingAngle || 0);
+  ctx.strokeStyle = "rgba(248, 236, 255, 0.88)";
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(bodyLength * 0.2, -wingSpread * 0.45);
+  ctx.lineTo(bodyLength * 0.74, 0);
+  ctx.lineTo(bodyLength * 0.2, wingSpread * 0.45);
+  ctx.stroke();
+  const guardCount = Object.values(enemy.adapterGuards || {}).filter(Boolean).length;
+  ctx.fillStyle = guardCount > 0 ? "rgba(255, 225, 173, 0.7)" : "rgba(231, 216, 255, 0.72)";
+  ctx.beginPath();
+  ctx.arc(0, 0, 6.5, 0, Math.PI * 2);
+  ctx.fill();
+  if (guardCount > 0) {
+    ctx.strokeStyle = "rgba(255, 213, 124, 0.95)";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(0, 0, bodyLength * 0.72, 0, Math.PI * 2);
+    ctx.stroke();
   }
   ctx.restore();
 }
@@ -6250,14 +7651,12 @@ function drawBossBar() {
 
   const biscuitsAlive = enemies.some((enemy) => enemy.bossShieldMinion && enemy.bossOwnerId === boss.id && enemy.hp > 0);
   const ratio = Math.max(0, Math.min(1, boss.hp / Math.max(boss.maxHp, 1)));
+  const lagRatio = Math.max(0, Math.min(1, (boss.healthBarLagHp || boss.hp) / Math.max(boss.maxHp, 1)));
   const left = 140;
   const width = canvas.width - 280;
   const top = 12;
 
-  ctx.fillStyle = "rgba(18, 26, 35, 0.8)";
-  ctx.fillRect(left, top, width, 18);
-  ctx.fillStyle = boss.phaseTimer > 0 || biscuitsAlive ? "#8a5b2d" : "#d94f3d";
-  ctx.fillRect(left, top, width * ratio, 18);
+  drawDamageLagBar(left, top, width, 18, ratio, lagRatio, boss.phaseTimer > 0 || biscuitsAlive ? "#8a5b2d" : "#d94f3d");
   ctx.strokeStyle = "rgba(255, 249, 240, 0.95)";
   ctx.lineWidth = 2;
   ctx.strokeRect(left, top, width, 18);
@@ -6265,7 +7664,11 @@ function drawBossBar() {
   ctx.font = "bold 14px Georgia";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(`I-daen${boss.phaseTimer > 0 || biscuitsAlive ? " - Shielded" : ""}`, left + width / 2, top + 9);
+  const bossName = boss.key === "adapter" ? "Adapter" : "I-daen";
+  const bossState = boss.key === "adapter"
+    ? (Object.values(boss.adapterGuards || {}).some(Boolean) ? " - Adaptive Guard" : "")
+    : (boss.phaseTimer > 0 || biscuitsAlive ? " - Shielded" : "");
+  ctx.fillText(`${bossName}${bossState}`, left + width / 2, top + 9);
 }
 
 function drawProjectiles() {
@@ -6297,7 +7700,7 @@ function drawProjectiles() {
       ctx.save();
       ctx.translate(projectile.x, projectile.y);
       ctx.rotate(projectile.angle || 0);
-      ctx.strokeStyle = "#ffffff";
+      ctx.strokeStyle = "#c6935b";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(-7, 0);
@@ -6345,24 +7748,36 @@ function drawProjectiles() {
         continue;
       }
       const size = projectile.projectileSize || 10;
+      ctx.save();
+      ctx.translate(projectile.x, projectile.y);
+      ctx.rotate(projectile.roll || 0);
+      if (projectile.falling) {
+        ctx.strokeStyle = "rgba(255, 228, 153, 0.38)";
+        ctx.lineWidth = Math.max(2, size * 0.18);
+        ctx.beginPath();
+        ctx.moveTo(0, -size * 2.2);
+        ctx.lineTo(0, size * 0.2);
+        ctx.stroke();
+      }
       if ((projectile.projectileSize || 10) > 10) {
         ctx.fillStyle = "#fffdf7";
         ctx.beginPath();
-        ctx.ellipse(projectile.x, projectile.y, size, size * 0.76, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, size, size * 0.76, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = projectile.yolkColor || "#ffce54";
         ctx.beginPath();
-        ctx.arc(projectile.x + size * 0.12, projectile.y, size * 0.34, 0, Math.PI * 2);
+        ctx.arc(size * 0.12, 0, size * 0.34, 0, Math.PI * 2);
         ctx.fill();
       } else {
         ctx.fillStyle = "#fff0d1";
         ctx.beginPath();
-        ctx.ellipse(projectile.x, projectile.y, size * 0.82, size, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, size * 0.82, size, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = "#c9964b";
         ctx.lineWidth = 1.4;
         ctx.stroke();
       }
+      ctx.restore();
       continue;
     }
 
@@ -6390,10 +7805,29 @@ function drawProjectiles() {
     }
 
     if (projectile.kind === "mangoBomb") {
-      ctx.fillStyle = "#ffb347";
+      ctx.save();
+      const angle = projectile.angle || Math.PI / 2;
+      ctx.strokeStyle = "rgba(255, 190, 78, 0.9)";
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(projectile.x, projectile.y, 4.5, 0, Math.PI * 2);
+      ctx.moveTo(projectile.x, projectile.y);
+      ctx.lineTo(projectile.x - Math.cos(angle) * 18, projectile.y - Math.sin(angle) * 18);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(112, 112, 112, 0.45)";
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(projectile.x - Math.cos(angle) * 10, projectile.y - Math.sin(angle) * 10);
+      ctx.lineTo(projectile.x - Math.cos(angle) * 26, projectile.y - Math.sin(angle) * 26);
+      ctx.stroke();
+      ctx.fillStyle = "#ffd34d";
+      ctx.beginPath();
+      ctx.arc(projectile.x, projectile.y, 5.5, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = "#fff1a8";
+      ctx.beginPath();
+      ctx.arc(projectile.x - 1.5, projectile.y - 1.5, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
       continue;
     }
 
@@ -6406,7 +7840,7 @@ function drawProjectiles() {
 
 function drawEffects() {
   for (const effect of effects) {
-  if (effect.kind === "beam") {
+    if (effect.kind === "beam") {
       ctx.strokeStyle = effect.color;
       ctx.lineWidth = effect.width || 3;
       ctx.globalAlpha = effect.ttl / Math.max(effect.maxTtl || 0.12, 0.01);
@@ -6418,12 +7852,33 @@ function drawEffects() {
       continue;
     }
 
+    if (effect.kind === "floatingText") {
+      const alpha = effect.ttl / Math.max(effect.maxTtl || 1, 0.01);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = effect.color;
+      ctx.font = "bold 16px Georgia";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(effect.text, effect.x, effect.y);
+      ctx.globalAlpha = 1;
+      continue;
+    }
+
     if (effect.kind === "puddle") {
       ctx.fillStyle = effect.color;
       ctx.globalAlpha = Math.max(0.2, effect.ttl / Math.max(effect.maxTtl || 1, 1));
       ctx.beginPath();
-      ctx.ellipse(effect.x, effect.y, effect.radius, effect.radius * 0.66, 0, 0, Math.PI * 2);
+      if (effect.circular) {
+        ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+      } else {
+        ctx.ellipse(effect.x, effect.y, effect.radius, effect.radius * 0.66, 0, 0, Math.PI * 2);
+      }
       ctx.fill();
+      if (effect.damage > 0) {
+        ctx.strokeStyle = effect.poisonDamage > 0 ? "rgba(154, 233, 94, 0.78)" : "rgba(255, 129, 41, 0.72)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
       ctx.globalAlpha = 1;
       continue;
     }
@@ -6482,9 +7937,6 @@ function drawEndpoint(point, fill) {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
-  if (screenShakeTimer > 0 && screenShakeStrength > 0) {
-    ctx.translate((Math.random() - 0.5) * 10 * screenShakeStrength, (Math.random() - 0.5) * 10 * screenShakeStrength);
-  }
   drawMapScenery();
   drawGrid();
   drawRoute();
@@ -6496,6 +7948,7 @@ function draw() {
   drawTraps();
   drawSelectedTowerRange();
   drawPreview();
+  drawArmedAbilityPreview();
   drawTowers();
   drawDrones();
   drawProjectiles();
@@ -6511,6 +7964,33 @@ function draw() {
   ctx.restore();
 }
 
+function factoryArrowDirectionForCell(cell) {
+  for (const path of routes) {
+    const index = path.findIndex((entry) => entry.x === cell.x && entry.y === cell.y);
+    if (index === -1) {
+      continue;
+    }
+    const next = path[index + 1];
+    const previous = path[index - 1];
+    if (next) {
+      return Math.atan2(next.y - cell.y, next.x - cell.x);
+    }
+    if (previous) {
+      return Math.atan2(cell.y - previous.y, cell.x - previous.x);
+    }
+  }
+
+  for (const direction of factoryTravelDirections()) {
+    const nextX = cell.x + direction.dx;
+    const nextY = cell.y + direction.dy;
+    if (inBounds(nextX, nextY) && grid[nextY][nextX].blockId !== null) {
+      return Math.atan2(direction.dy, direction.dx);
+    }
+  }
+
+  return null;
+}
+
 function drawSelectedTowerRange() {
   const tower = towers.find((entry) => entry.id === selectedTowerId);
 
@@ -6518,10 +7998,14 @@ function drawSelectedTowerRange() {
     return;
   }
 
+  drawTowerRangeOverlay(tower);
+}
+
+function drawTowerRangeOverlay(tower, colors = {}) {
   const stats = towerStats(tower);
   ctx.save();
-  ctx.strokeStyle = "rgba(18,26,35,0.55)";
-  ctx.fillStyle = "rgba(18,26,35,0.14)";
+  ctx.strokeStyle = colors.primaryStroke || "rgba(18,26,35,0.55)";
+  ctx.fillStyle = colors.primaryFill || "rgba(18,26,35,0.14)";
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.arc(tower.centerX, tower.centerY, stats.range, 0, Math.PI * 2);
@@ -6544,6 +8028,28 @@ function drawSelectedTowerRange() {
     ctx.stroke();
     ctx.setLineDash([]);
   }
+  if (tower.type === "freezer" && stats.aura) {
+    ctx.strokeStyle = "rgba(196, 243, 255, 0.5)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(tower.centerX, tower.centerY, stats.auraRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  if (tower.type === "support") {
+    ctx.strokeStyle = stats.munitions ? "rgba(255, 205, 140, 0.5)" : "rgba(219, 201, 255, 0.48)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(tower.centerX, tower.centerY, stats.auraRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    if (stats.detectHiddenAura) {
+      ctx.strokeStyle = "rgba(209, 246, 255, 0.52)";
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      ctx.arc(tower.centerX, tower.centerY, stats.auraRadius - 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
   ctx.restore();
 }
 
@@ -6562,9 +8068,9 @@ function resetGame() {
   ambientTimer = 0;
   wave = null;
   hoverCell = null;
-  activePiece = createRandomPiece();
+  activePiece = createRandomPiece(selectedMap);
   money = startingMoney();
-  freeBlocks = 1;
+  freeBlocks = isFactoryMap() ? 5 : 1;
   currentBlockCost = BLOCK_COST;
   lives = DIFFICULTIES[selectedDifficulty].lives;
   waveNumber = 0;
@@ -6579,14 +8085,30 @@ function resetGame() {
   infiniteMode = selectedDifficulty === "sandbox";
   cheatBuffer = [];
   outpostWalllessQuestFailed = false;
-  screenShakeTimer = 0;
-  screenShakeStrength = 0;
   autoWaveTimer = 0;
+  armedAbility = null;
+  scrollVelocityX = 0;
+  scrollVelocityY = 0;
+  selectedGateRotation = 0;
+  introducedEnemyKeys.clear();
+  shownWaveWarnings.clear();
+  shownTutorialPopups.clear();
+  tutorialPopupQueue = [];
+  activeTutorialPopup = null;
+  tutorialResumeMode = null;
+  tutorialDismissed = false;
+  tutorialStepDelayTimer = 0;
+  tutorialOverlay?.classList.remove("active");
+  tutorialProgress.scrolled = false;
+  tutorialProgress.placedBlock = false;
+  tutorialProgress.placedTower = false;
+  tutorialProgress.upgradedTower = false;
   resetSpawnPortalOrder();
 seedMapFeatures();
 routes = computeRoutes();
 closeTowerPopup();
   setMessage("Board reset.", 1.0);
+  renderTutorial();
   updateHud();
   draw();
 }
@@ -6595,11 +8117,9 @@ function updateGame(deltaTime) {
   dashOffset = (dashOffset + deltaTime * 18) % DASH_PERIOD;
   messageTimer = Math.max(0, messageTimer - deltaTime);
   invalidPlacementTimer = Math.max(0, invalidPlacementTimer - deltaTime);
-  screenShakeTimer = Math.max(0, screenShakeTimer - deltaTime);
+  tutorialStepDelayTimer = Math.max(0, tutorialStepDelayTimer - deltaTime);
   updateSmoothBoardScroll(deltaTime);
-  if (screenShakeTimer === 0) {
-    screenShakeStrength = 0;
-  }
+  presentQueuedTutorialPopup();
 
   if (infiniteMode) {
     money = 999999;
@@ -6669,6 +8189,30 @@ function pointerToCanvas(event) {
   };
 }
 
+function useAirstrikeAt(point) {
+  const tower = preferredAirstrikeTower();
+  if (!tower) {
+    armedAbility = null;
+    setMessage("No mango airstrike is ready.", 1.4);
+    updateHud();
+    return false;
+  }
+
+  if (!towerHasLineOfSightToPoint(tower, point.x, point.y)) {
+    setMessage("Airstrike target blocked by terrain.", 1.4);
+    updateHud();
+    return false;
+  }
+
+  const stats = towerStats(tower);
+  launchSupportAirstrike(tower, point, stats);
+  tower.fieldCooldown = stats.airstrikeCooldown;
+  armedAbility = null;
+  setMessage("Mango airstrike called in.", 1.2);
+  updateHud();
+  return true;
+}
+
 function panelDockFor(panelName) {
   return panelName === "board" ? boardPanelDock : sidePanelDock;
 }
@@ -6710,12 +8254,23 @@ function showPanel(panelName) {
 }
 
 canvas.addEventListener("click", (event) => {
+  if (armedAbility === "airstrike") {
+    useAirstrikeAt(pointerToCanvas(event));
+    return;
+  }
   const cell = pointerToCell(event);
   applyTool(cell.x, cell.y);
 });
 
 canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
+  if (armedAbility) {
+    armedAbility = null;
+    setMessage("Ability targeting cancelled.", 0.9);
+    updateHud();
+    draw();
+    return;
+  }
   clearSelection(true);
   setMessage("Selection cleared.", 0.9);
   updateHud();
@@ -6845,23 +8400,23 @@ almanacGrid.addEventListener("click", (event) => {
   renderAlmanac();
 });
 
-difficultyOptions.addEventListener("click", (event) => {
+difficultyOptions.addEventListener("click", withUiGuard("Difficulty button", (event) => {
   const button = event.target.closest("[data-difficulty]");
   if (!button) {
     return;
   }
   selectedDifficulty = button.dataset.difficulty;
   updateMenuSelectors();
-});
+}));
 
-mapOptions.addEventListener("click", (event) => {
+mapOptions.addEventListener("click", withUiGuard("Map button", (event) => {
   const button = event.target.closest("[data-map]");
   if (!button) {
     return;
   }
   selectedMap = button.dataset.map;
   updateMenuSelectors();
-});
+}));
 
 rotateButton.addEventListener("click", rotateActivePiece);
 waveButton.addEventListener("click", spawnWave);
@@ -6872,26 +8427,45 @@ autoWaveToggle?.addEventListener("change", () => {
   updateHud();
 });
 pauseButton.addEventListener("click", pauseGame);
-startGameButton.addEventListener("click", startGame);
-openAlmanacButton.addEventListener("click", () => openAlmanac("menu"));
-resumeGameButton.addEventListener("click", resumeGame);
-pauseAlmanacButton.addEventListener("click", () => openAlmanac("pause"));
-quitToMenuButton.addEventListener("click", quitToMenu);
-closeAlmanacButton.addEventListener("click", closeAlmanac);
-closeTowerPopupButton.addEventListener("click", closeTowerPopup);
-sandboxSetWaveButton?.addEventListener("click", setSandboxWave);
-sandboxEnemySelect?.addEventListener("change", updateSandboxTierOptions);
-sandboxSpawnButton?.addEventListener("click", spawnSandboxEnemyFromControls);
-restartGameButton?.addEventListener("click", startGame);
-gameOverMenuButton?.addEventListener("click", quitToMenu);
+startGameButton.addEventListener("click", withUiGuard("Start Game", startGame));
+openAlmanacButton.addEventListener("click", withUiGuard("Open Almanac", () => openAlmanac("menu")));
+resumeGameButton.addEventListener("click", withUiGuard("Resume", resumeGame));
+pauseAlmanacButton.addEventListener("click", withUiGuard("Pause Almanac", () => openAlmanac("pause")));
+quitToMenuButton.addEventListener("click", withUiGuard("Quit To Menu", quitToMenu));
+tutorialOverlayButton?.addEventListener("click", withUiGuard("Tutorial Continue", dismissTutorialPopup));
+tutorialDismissButton?.addEventListener("click", withUiGuard("Dismiss Tutorial", dismissEntireTutorial));
+closeAlmanacButton.addEventListener("click", withUiGuard("Close Almanac", closeAlmanac));
+closeTowerPopupButton.addEventListener("click", withUiGuard("Close Tower Popup", closeTowerPopup));
+sandboxSetWaveButton?.addEventListener("click", withUiGuard("Sandbox Set Wave", setSandboxWave));
+sandboxEnemySelect?.addEventListener("change", withUiGuard("Sandbox Enemy Select", updateSandboxTierOptions));
+sandboxSpawnButton?.addEventListener("click", withUiGuard("Sandbox Spawn", spawnSandboxEnemyFromControls));
+airstrikeButton?.addEventListener("click", () => {
+  if (armedAbility === "airstrike") {
+    armedAbility = null;
+    updateHud();
+    draw();
+    return;
+  }
+  if (!preferredAirstrikeTower()) {
+    setMessage("No mango airstrike is ready.", 1.4);
+    updateHud();
+    return;
+  }
+  armedAbility = "airstrike";
+  setMessage("Click the board to target the mango airstrike.", 1.4);
+  updateHud();
+  draw();
+});
+restartGameButton?.addEventListener("click", withUiGuard("Restart Game", startGame));
+gameOverMenuButton?.addEventListener("click", withUiGuard("Game Over Menu", quitToMenu));
 
 window.addEventListener("keydown", (event) => {
   if (event.key.startsWith("Arrow")) {
     heldScrollKeys.add(event.key);
+    event.preventDefault();
   }
 
   if (scrollBoardByArrowKey(event.key)) {
-    event.preventDefault();
     return;
   }
 
@@ -6919,7 +8493,11 @@ window.addEventListener("keydown", (event) => {
   }
 
   if (event.key === "Escape") {
-    if (gameMode === "playing") {
+    if (armedAbility) {
+      armedAbility = null;
+      updateHud();
+      draw();
+    } else if (gameMode === "playing") {
       pauseGame();
     } else if (gameMode === "paused") {
       resumeGame();
