@@ -54,6 +54,18 @@ body {
   box-shadow: var(--shadow);
 }
 
+.tutorial-overlay-body {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.tutorial-overlay-body p {
+  margin: 0;
+  color: var(--text-strong);
+  line-height: 1.55;
+}
+
 .menu-card {
   width: min(1180px, calc(100vw - 40px));
   min-height: min(90vh, 920px);
@@ -540,6 +552,113 @@ button.secondary {
 
 .sandbox-controls {
   margin-top: 8px;
+}
+
+.tutorial-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.tutorial-step {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 249, 240, 0.76);
+  border: 1px solid rgba(127, 61, 29, 0.12);
+}
+
+.tutorial-step strong {
+  color: var(--ink);
+}
+
+.tutorial-step.done {
+  background: rgba(218, 244, 224, 0.78);
+  border-color: rgba(67, 125, 73, 0.24);
+}
+
+.board-ability {
+  position: absolute;
+  left: 14px;
+  bottom: 88px;
+  z-index: 5;
+}
+
+.airstrike-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 240px;
+  padding: 10px 14px;
+}
+
+.airstrike-copy {
+  display: grid;
+  text-align: left;
+  gap: 2px;
+}
+
+.airstrike-copy .hint {
+  color: rgba(255, 249, 241, 0.78);
+  font-size: 0.8rem;
+}
+
+.airstrike-icon {
+  position: relative;
+  width: 42px;
+  height: 28px;
+  flex: 0 0 42px;
+}
+
+.airstrike-icon .mango,
+.airstrike-icon .trail {
+  position: absolute;
+  display: block;
+}
+
+.airstrike-icon .mango {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #ffe089, #ffb638 68%, #d97706 100%);
+  box-shadow: 0 0 10px rgba(255, 186, 59, 0.45);
+}
+
+.airstrike-icon .mango-1 {
+  right: 3px;
+  top: 2px;
+}
+
+.airstrike-icon .mango-2 {
+  left: 17px;
+  top: 8px;
+}
+
+.airstrike-icon .mango-3 {
+  left: 5px;
+  top: 14px;
+}
+
+.airstrike-icon .trail {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(70, 70, 70, 0), rgba(255, 182, 65, 0.95) 55%, rgba(255, 235, 170, 1));
+  filter: blur(0.3px);
+  transform-origin: right center;
+}
+
+.airstrike-icon .trail-1 {
+  width: 22px;
+  right: 10px;
+  top: 5px;
+  transform: rotate(-24deg);
+}
+
+.airstrike-icon .trail-2 {
+  width: 28px;
+  left: 1px;
+  top: 13px;
+  transform: rotate(-18deg);
 }
 
 .sandbox-grid {
