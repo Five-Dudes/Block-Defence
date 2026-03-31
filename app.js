@@ -1,6 +1,6 @@
 document.body.dataset.appBootStage = "script-start";
 const canvas = document.getElementById("board");
-const ctx = canvas?.getContext("2d");
+let ctx = canvas?.getContext("2d");
 const statusText = document.getElementById("statusText");
 const routeText = document.getElementById("routeText");
 const moneyText = document.getElementById("moneyText");
@@ -105,6 +105,7 @@ const TOWER_BASE_COST = {
   shotgun: 22,
   freezer: 34,
   drone: 34,
+  fireball: 48,
   dippy: 100,
   support: 42,
   crossbow: 28,
@@ -139,6 +140,7 @@ const UPGRADE_COSTS = {
     path1: [8, 13, 22, 72, 216],
     path2: [8, 13, 22, 72, 216]
   },
+  fireball: [10, 16, 26, 86],
   dippy: {
     path1: [32, 48, 76, 420, 1260],
     path2: [30, 46, 74, 410, 1230]
@@ -159,6 +161,7 @@ const TOWER_INFO = {
   laser: { name: "Laser", color: "#ff7ca8", description: "Laser locks onto a target, then burns a piercing beam through the lane and beyond tower range." },
   shotgun: { name: "Shotgun", color: "#ffd34d", description: "Shotgun fires short yellow line blasts and can branch into Bullet Storm or Wavelength." },
   freezer: { name: "Freezer", color: "#b5ebff", description: "Freezer launches chilling shots that slow targets, then branches into Permafrost pulses or a constant slowing aura." },
+  fireball: { name: "Fireball", color: "#ff8b4d", description: "Torch tower. Needs a 2x2 space and throws fast bursts of burning fireballs." },
   drone: { name: "Drone", color: "#7de3d6", description: "Drone commands mobile gunships that chase targets inside tower coverage and can branch into support or assault roles." },
   dippy: { name: "Dippy", color: "#fff1b8", description: "Dippy is an egg. A very powerful egg." },
   support: { name: "Support", color: "#c9b6ff", description: "Support hub boosts nearby towers and can branch into income generation or an ammo supplier aura." },
@@ -584,6 +587,25 @@ const MAPS = {
       { x: 23, y: 15, width: 1, height: 1 }
     ]
   },
+  acidcaves: {
+    name: "Acid Caves",
+    description: "A glowing cave system with corrosive pools and narrow bends that break long lines of sight.",
+    scenery: "ruins",
+    goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
+    portals: [{ x: 1, y: 4 }, { x: 1, y: 13 }],
+    obstacles: uniqueCells([
+      ...cellsFromRects([{ x: 6, y: 2, width: 2, height: 4 }]),
+      ...cellsFromRects([{ x: 10, y: 10, width: 3, height: 3 }]),
+      ...cellsFromRects([{ x: 16, y: 4, width: 2, height: 5 }]),
+      ...cellsFromRects([{ x: 21, y: 11, width: 3, height: 3 }])
+    ]),
+    noBuildCells: uniqueCells([
+      ...cellsFromRects([{ x: 3, y: 7, width: 4, height: 2 }]),
+      ...cellsFromRects([{ x: 12, y: 5, width: 4, height: 2 }]),
+      ...cellsFromRects([{ x: 18, y: 8, width: 5, height: 2 }]),
+      ...cellsFromRects([{ x: 24, y: 4, width: 3, height: 2 }])
+    ])
+  },
   shoals: {
     name: "Shoals",
     description: "Build out from scattered islands in shallow water. Blocks must stay anchored to islands or already placed blocks.",
@@ -676,6 +698,21 @@ const MAPS = {
     obstacles: [],
     enemyCount: 3,
     reward: 1 / 3
+  },
+  freezingmountains: {
+    name: "Freezing Mountains",
+    description: "A bitter mountain pass where sudden cold snaps freeze one of your towers until the next round.",
+    scenery: "cliffs",
+    goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
+    portals: [{ x: 0, y: 4 }, { x: 0, y: 13 }],
+    obstacles: uniqueCells([
+      ...cellsFromRects([{ x: 7, y: 2, width: 2, height: 4 }]),
+      ...cellsFromRects([{ x: 13, y: 6, width: 3, height: 2 }]),
+      ...cellsFromRects([{ x: 18, y: 11, width: 2, height: 4 }]),
+      ...cellsFromRects([{ x: 23, y: 4, width: 2, height: 3 }])
+    ]),
+    freezeHazard: true,
+    freezeChance: 0.35
   }
 };
 const IDAEN_BOSS_WAVES = new Set([25, 50, 75, 100, 125]);
@@ -802,10 +839,13 @@ let almanacOrigin = "menu";
 let almanacTab = "enemies";
 let selectedAlmanacTower = "tesla";
 let selectedAlmanacEnemy = "fast:1";
+const enemyAlmanacArtCache = new Map();
 const discoveredEnemies = new Set();
 let infiniteMode = false;
 let cheatBuffer = [];
 let crossbowUnlocked = false;
+let dippyUnlocked = false;
+let fireballUnlocked = false;
 let outpostWalllessQuestFailed = false;
 let outpostQuestBlocksPlaced = 0;
 let spawnPortalCursor = 0;
@@ -833,10 +873,12 @@ let activeTutorialPopup = null;
 let tutorialResumeMode = null;
 let tutorialDismissed = false;
 let tutorialStepDelayTimer = 0;
+let introTutorialSeen = false;
 let screenShakeTimer = 0;
 let screenShakeAmount = 0;
-const ALMANAC_TOWER_TYPES = ["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "dippy", "support", "crossbow", "gate"];
+const ALMANAC_TOWER_TYPES = ["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "fireball", "dippy", "support", "crossbow", "gate"];
 const MENU_STATE_STORAGE_KEY = "blockDefence.menuState";
+const PROGRESSION_STORAGE_KEY = "blockDefence.progression";
 
 function normalizeMapKey(mapKey) {
   if (mapKey === "fotification") {
@@ -853,6 +895,37 @@ function persistMenuState() {
     }));
   } catch (error) {
     // Ignore storage failures so menu interaction still works.
+  }
+}
+
+function persistProgressionState() {
+  try {
+    window.localStorage?.setItem(PROGRESSION_STORAGE_KEY, JSON.stringify({
+      crossbowUnlocked,
+      dippyUnlocked,
+      fireballUnlocked,
+      tutorialDismissed,
+      introTutorialSeen
+    }));
+  } catch (error) {
+    // Ignore storage failures so the run can continue.
+  }
+}
+
+function restoreProgressionState() {
+  try {
+    const raw = window.localStorage?.getItem(PROGRESSION_STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+    const parsed = JSON.parse(raw);
+    crossbowUnlocked = Boolean(parsed?.crossbowUnlocked);
+    dippyUnlocked = Boolean(parsed?.dippyUnlocked);
+    fireballUnlocked = Boolean(parsed?.fireballUnlocked);
+    tutorialDismissed = Boolean(parsed?.tutorialDismissed);
+    introTutorialSeen = Boolean(parsed?.introTutorialSeen);
+  } catch (error) {
+    // Ignore malformed saves and fall back to defaults.
   }
 }
 
@@ -882,6 +955,7 @@ function restoreMenuState() {
 }
 
 restoreMenuState();
+restoreProgressionState();
 document.body.dataset.appBootStage = "menu-state-restored";
 window.__blockDefenceMenuBridge = {
   getState() {
@@ -994,6 +1068,14 @@ function isFactoryMap() {
 
 function isFurnaceMap() {
   return selectedMap === "furnace";
+}
+
+function isFreezingMountainsMap() {
+  return selectedMap === "freezingmountains";
+}
+
+function isStandardOrHarderDifficulty() {
+  return selectedDifficulty === "standard" || selectedDifficulty === "hard" || selectedDifficulty === "brutal";
 }
 
 function isCliffsMap() {
@@ -1564,11 +1646,38 @@ function dismissEntireTutorial() {
   tutorialDismissed = true;
   tutorialPopupQueue = tutorialPopupQueue.filter((entry) => entry.kind !== "tutorial");
   tutorialStepDelayTimer = 0;
+  introTutorialSeen = true;
+  persistProgressionState();
   dismissTutorialPopup();
 }
 
+function queueOpeningTutorial() {
+  if (tutorialDismissed || introTutorialSeen || isSandboxMode()) {
+    return;
+  }
+  introTutorialSeen = true;
+  tutorialPopupQueue.push(
+    {
+      kind: "tutorial",
+      title: "Welcome To Block Defence",
+      body: "Blocks shape the route.\n\nPlace tetromino walls to steer enemies, but never seal every path."
+    },
+    {
+      kind: "tutorial",
+      title: "Build On Blocks",
+      body: "Most towers sit directly on block tiles.\n\nSome towers need more room, so always check their footprint before placing them."
+    },
+    {
+      kind: "tutorial",
+      title: "Start, Then Upgrade",
+      body: "Use the Start Wave button once your route and defenses are ready.\n\nAfter that, build up damage, hidden detection, and anti-armour so later waves do not run over you."
+    }
+  );
+  persistProgressionState();
+}
+
 function queueNextTutorialStep() {
-  if (tutorialDismissed || isSandboxMode()) {
+  if (tutorialDismissed || isSandboxMode() || introTutorialSeen) {
     return;
   }
   if (!tutorialProgress.placedBlock) {
@@ -1989,174 +2098,125 @@ function almanacTierPattern(entry) {
   return `<path d="M -10 -8 H 10 M -10 0 H 10 M -10 8 H 10" stroke="rgba(255,255,255,0.35)" stroke-width="2.2" stroke-linecap="round"></path>`;
 }
 
-function renderEnemyAlmanacArt(entry) {
-  const enemy = enemyAlmanacPrimaryEnemy(entry);
-  if (!enemy) {
-    return "";
+function withTemporaryContext(tempCtx, callback) {
+  const previousCtx = ctx;
+  ctx = tempCtx;
+  try {
+    return callback();
+  } finally {
+    ctx = previousCtx;
   }
+}
+
+function previewTierConfigForEnemy(enemyKey, tier = 1) {
+  if (enemyKey === "diamond") {
+    return diamondTierConfig(tier);
+  }
+  if (enemyKey === "shield") {
+    return shieldTierConfig(tier);
+  }
+  return genericTierConfig(tier);
+}
+
+function buildEnemyAlmanacPreview(entry) {
   const tier = entry.tier || 1;
-  const stroke = "rgba(255,255,255,0.22)";
-  if (entry.key === "hydra") {
-    return `<svg viewBox="-40 -18 80 36" width="76" height="48" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <polygon points="-30,0 -18,-10 -18,10" fill="#ffd84f"></polygon>
-      <polygon points="-10,0 2,-10 2,10" fill="#56a8ff"></polygon>
-      <polygon points="10,0 22,-10 22,10" fill="#a56cff"></polygon>
-      <polygon points="30,0 42,-10 42,10" fill="#d34a4a"></polygon>
-    </svg>`;
-  }
-  if (entry.key === "health") {
-    const extras = tier >= 3
-      ? `<path d="M -16 -2 H -6 M 6 -2 H 16" stroke="#d64545" stroke-width="3" stroke-linecap="round"></path><path d="M -10 8 H 10" stroke="#d64545" stroke-width="2.6" stroke-linecap="round"></path>`
-      : tier === 2
-        ? `<path d="M -10 -1 H 10" stroke="#d64545" stroke-width="2.8" stroke-linecap="round"></path>`
-        : "";
-    return `<svg viewBox="-26 -26 52 52" width="72" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <path d="M -14 12 L 0 -14 L 14 12" fill="none" stroke="#d64545" stroke-width="${tier >= 3 ? 5 : tier === 2 ? 4.2 : 3.4}" stroke-linecap="round" stroke-linejoin="round"></path>
-      ${extras}
-    </svg>`;
-  }
-  if (entry.key === "life") {
-    const extras = tier >= 3
-      ? `<path d="M -16 -4 H 16" stroke="#f0c7d0" stroke-width="2.8" stroke-linecap="round"></path><path d="M -8 6 H 8" stroke="#f0c7d0" stroke-width="2.4" stroke-linecap="round"></path>`
-      : tier === 2
-        ? `<path d="M -10 -2 H 10" stroke="#f0c7d0" stroke-width="2.4" stroke-linecap="round"></path>`
-        : "";
-    return `<svg viewBox="-28 -28 56 56" width="72" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <path d="M -15 13 L 0 -15 L 15 13" fill="none" stroke="#bf2e46" stroke-width="${tier >= 3 ? 5.6 : tier === 2 ? 4.8 : 4.2}" stroke-linecap="round" stroke-linejoin="round"></path>
-      <path d="M -8 -8 L 8 -8" stroke="#f7dbe3" stroke-width="2.2" stroke-linecap="round"></path>
-      ${extras}
-    </svg>`;
-  }
-  if (entry.key === "heavy") {
-    const isT2 = tier === 2;
-    const isT3 = tier >= 3;
-    return `<svg viewBox="-28 -24 56 48" width="72" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <rect x="-16" y="-10" width="32" height="20" rx="3" fill="#8e9198"></rect>
-      ${isT3
-        ? `<path d="M -10 -10 L -5 -18 L 0 -10 M 0 -10 L 5 -18 L 10 -10" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>`
-        : isT2
-          ? `<path d="M -12 -8 L 12 8 M 12 -8 L -12 8" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round"></path>`
-          : `<path d="M -12 0 H 12" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round"></path>`}
-    </svg>`;
-  }
-  if (entry.key === "sentinel" && tier >= 2) {
-    if (tier >= 3) {
-      return `<svg viewBox="-38 -30 76 60" width="76" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-        <polygon points="18,0 -8,-18 -8,18" fill="#9f2323"></polygon>
-        <polygon points="2,0 -20,-16 -20,16" fill="#9f2323"></polygon>
-        <polygon points="-12,0 -30,-12 -30,12" fill="#9f2323"></polygon>
-        <rect x="8" y="-14" width="4.5" height="28" rx="2.25" fill="#ffffff"></rect>
-        <rect x="-4" y="-14" width="4.5" height="28" rx="2.25" fill="#ffffff"></rect>
-      </svg>`;
-    }
-    return `<svg viewBox="-32 -28 64 56" width="76" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <polygon points="10,0 -12,-16 -12,16" fill="#9f2323"></polygon>
-      <polygon points="0,0 -16,-11 -16,11" fill="#7f1616"></polygon>
-      <rect x="11" y="-12" width="5" height="24" rx="2.5" fill="#ffffff"></rect>
-    </svg>`;
-  }
-  if (entry.key === "sentinel") {
-    return `<svg viewBox="-24 -24 48 48" width="72" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <circle cx="0" cy="0" r="14" fill="#9f2323"></circle>
-      <rect x="9" y="-11" width="5" height="22" rx="2.5" fill="#ffffff"></rect>
-    </svg>`;
-  }
-  if (entry.key === "splitter") {
-    const radius = Math.min(9 + tier * 1.8, 24);
-    return `<svg viewBox="-28 -28 56 56" width="72" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <defs><filter id="splitGlow${tier}"><feGaussianBlur stdDeviation="4"></feGaussianBlur></filter></defs>
-      <circle cx="0" cy="0" r="${radius}" fill="#ffd84f" opacity="0.42" filter="url(#splitGlow${tier})"></circle>
-      <circle cx="0" cy="0" r="${radius - 4}" fill="#ffd84f"></circle>
-    </svg>`;
-  }
-  if (entry.key === "biscuit") {
-    return `<svg viewBox="-28 -20 56 40" width="72" height="48" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <rect x="-20" y="-10" width="40" height="20" rx="8" fill="#f2dfba"></rect>
-    </svg>`;
-  }
-  if (entry.key === "popcorn") {
-    return `<svg viewBox="-28 -24 56 48" width="72" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <circle cx="0" cy="0" r="15" fill="#73b8ff"></circle>
-      <circle cx="-3" cy="-3" r="9" fill="#9dd2ff"></circle>
-    </svg>`;
-  }
-  if (entry.key === "kernel") {
-    return `<svg viewBox="-20 -20 40 40" width="66" height="50" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <circle cx="0" cy="0" r="7" fill="#7abfff"></circle>
-      <circle cx="1" cy="-1.5" r="2.2" fill="#d8f1ff"></circle>
-    </svg>`;
-  }
-  if (entry.key === "darkKernel") {
-    return `<svg viewBox="-20 -20 40 40" width="66" height="50" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <circle cx="0" cy="0" r="7" fill="#3f78d1"></circle>
-      <circle cx="1" cy="-1.5" r="2.2" fill="rgba(255,255,255,0.18)"></circle>
-    </svg>`;
-  }
-  if (entry.key === "lightKernel") {
-    return `<svg viewBox="-20 -20 40 40" width="66" height="50" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <circle cx="0" cy="0" r="7" fill="#b8e1ff"></circle>
-      <circle cx="1" cy="-1.5" r="2.2" fill="#eef9ff"></circle>
-    </svg>`;
-  }
-  if (entry.key === "idine") {
-    return `<svg viewBox="-34 -28 68 56" width="76" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <polygon points="-14,0 14,-15 14,15" fill="#3d1e74"></polygon>
-      <polygon points="8,-12 26,-8 26,0 8,-3" fill="#ff7ed8"></polygon>
-      <polygon points="8,3 26,0 26,8 8,12" fill="#ff7ed8"></polygon>
-    </svg>`;
-  }
-  if (entry.key === "celun" || entry.key === "celris" || entry.key === "cel" || entry.key === "lun" || entry.key === "ris") {
-    const fill = entry.key === "celun" ? "#6a2bbf" : entry.key === "celris" ? "#ff74cf" : entry.key === "cel" ? "#274fbe" : entry.key === "lun" ? "#c54444" : "#f6f8ff";
-    const core = entry.key === "ris" ? "#dfe4ff" : "rgba(255,255,255,0.28)";
-    return `<svg viewBox="-22 -22 44 44" width="66" height="50" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <circle cx="0" cy="0" r="10" fill="${fill}"></circle>
-      <circle cx="-2" cy="-2" r="4" fill="${core}"></circle>
-    </svg>`;
-  }
-  if (entry.key === "diamond") {
-    const size = tier >= 3 ? 18 : tier === 2 ? 14 : 10;
-    const fill = tier >= 3 ? "#55d8ff" : tier === 2 ? "#8aebff" : "#c9f7ff";
-    return `<svg viewBox="-26 -26 52 52" width="72" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <polygon points="0,-${size} ${size},0 0,${size} -${size},0" fill="${fill}" stroke="${stroke}" stroke-width="1.4"></polygon>
-      ${almanacTierPattern(entry)}
-    </svg>`;
-  }
-  if (entry.key === "waffle16") {
-    const size = tier >= 3 ? 22 : tier === 2 ? 16 : 11;
-    return `<svg viewBox="-28 -28 56 56" width="72" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <rect x="-${size}" y="-${size}" width="${size * 2}" height="${size * 2}" fill="#b57b34"></rect>
-      <path d="M -${size / 3} -${size} V ${size} M ${size / 3} -${size} V ${size} M -${size} -${size / 3} H ${size} M -${size} ${size / 3} H ${size}" stroke="#8f5f23" stroke-width="2"></path>
-    </svg>`;
-  }
-  if (entry.key === "idaen") {
-    return `<svg viewBox="-28 -28 56 56" width="74" height="54" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <rect x="-20" y="-20" width="40" height="40" fill="#c48a3c"></rect>
-      <path d="M -10 -20 V 20 M 0 -20 V 20 M 10 -20 V 20 M -20 -10 H 20 M -20 0 H 20 M -20 10 H 20" stroke="#8c5e26" stroke-width="2"></path>
-    </svg>`;
-  }
-  if (entry.key === "adapter") {
-    return `<svg viewBox="-30 -24 60 48" width="74" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <polygon points="16,0 0,-16 -16,0 0,16" fill="#8d6bff"></polygon>
-      <circle cx="0" cy="0" r="8" fill="#1f1f2d"></circle>
-    </svg>`;
+  const baseKey = entry.key === "darkKernel" || entry.key === "lightKernel" ? "kernel" : entry.key;
+  const enemyType = ENEMY_TYPES[baseKey];
+  const tierConfig = previewTierConfigForEnemy(baseKey, tier);
+  if (!enemyType) {
+    return null;
   }
 
-  const sides = enemy.shape === 6 ? 6 : enemy.shape === 5 ? 5 : enemy.shape === 4 ? 4 : enemy.shape === 3 ? 3 : 32;
-  const radius = tier >= 3 ? 18 : tier === 2 ? 15 : 12;
-  if (sides >= 30) {
-    return `<svg viewBox="-26 -26 52 52" width="72" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-      <circle cx="0" cy="0" r="${radius}" fill="${enemy.color}"></circle>
-      ${almanacTierPattern(entry)}
-    </svg>`;
+  const preview = {
+    key: baseKey,
+    tier,
+    x: 60,
+    y: 46,
+    color: tierConfig?.color || enemyType.color,
+    shapeSides: enemyType.shape,
+    facingAngle: 0,
+    hidden: false,
+    shielded: false,
+    shieldHp: 0,
+    maxShieldHp: 0,
+    shellHp: 0,
+    maxShellHp: 0,
+    armored: false,
+    armorHp: 0,
+    suppressArmorVisual: false,
+    sizeScale: baseKey === "sentinel" ? (tier >= 3 ? 1.62 : tier >= 2 ? 1.34 : 1.08) : (tierConfig?.radiusMultiplier || 1),
+    coreColor: tierConfig?.coreColor || null,
+    shieldRadius: 0,
+    waffleSquares: baseKey === "waffle16" ? (tier >= 3 ? 16 : tier === 2 ? 4 : 1) : (enemyType.waffleSquares || 0)
+  };
+
+  if (entry.key === "darkKernel") {
+    preview.kernelVariant = "dark";
+    preview.color = "#3f78d1";
+  } else if (entry.key === "lightKernel") {
+    preview.kernelVariant = "light";
+    preview.color = "#b8e1ff";
+  } else if (baseKey === "kernel") {
+    preview.kernelVariant = "normal";
   }
-  const points = Array.from({ length: sides }, (_, index) => {
-    const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / sides;
-    return `${Math.cos(angle) * radius},${Math.sin(angle) * radius}`;
-  }).join(" ");
-  return `<svg viewBox="-26 -26 52 52" width="72" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
-    <polygon points="${points}" fill="${enemy.color}" stroke="${stroke}" stroke-width="1.2"></polygon>
-    ${almanacTierPattern(entry)}
-  </svg>`;
+
+  if (baseKey === "ris") {
+    preview.armored = true;
+    preview.armorHp = ENEMY_TYPES.ris.armor;
+  }
+  if (baseKey === "idine") {
+    preview.armored = true;
+    preview.armorHp = ENEMY_TYPES.idine.armor;
+  }
+
+  if (baseKey === "adapter" || baseKey === "idaen") {
+    preview.sizeScale = 1;
+  }
+
+  return preview;
+}
+
+function enemyAlmanacArtDataUrl(entry) {
+  const cacheKey = entry.id || `${entry.key}:${entry.tier || 1}`;
+  if (enemyAlmanacArtCache.has(cacheKey)) {
+    return enemyAlmanacArtCache.get(cacheKey);
+  }
+
+  const preview = buildEnemyAlmanacPreview(entry);
+  if (!preview) {
+    return "";
+  }
+
+  const previewCanvas = document.createElement("canvas");
+  previewCanvas.width = 120;
+  previewCanvas.height = 92;
+  const previewCtx = previewCanvas.getContext("2d");
+  if (!previewCtx) {
+    return "";
+  }
+
+  withTemporaryContext(previewCtx, () => {
+    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    drawEnemyShape(preview);
+  });
+
+  const dataUrl = previewCanvas.toDataURL("image/png");
+  enemyAlmanacArtCache.set(cacheKey, dataUrl);
+  return dataUrl;
+}
+
+function renderEnemyAlmanacArt(entry) {
+  const imageWidth = entry.key === "adapter" || entry.key === "idaen" || entry.key === "hydra"
+    ? 76
+    : entry.key.includes("Kernel") || entry.key === "kernel"
+      ? 66
+      : 72;
+  const imageHeight = entry.key === "biscuit" || entry.key === "hydra"
+    ? 48
+    : entry.key === "idaen"
+      ? 54
+      : 52;
+  return `<img src="${enemyAlmanacArtDataUrl(entry)}" width="${imageWidth}" height="${imageHeight}" alt="${enemyAlmanacDisplayName(entry)}">`;
 }
 
 function kernelVariantAlmanacStats(variant, round = Math.max(waveNumber, 1)) {
@@ -2411,7 +2471,7 @@ function startGame() {
   closeTowerPopup();
   openOverlay(null);
   if (!isSandboxMode()) {
-    queueNextTutorialStep();
+    queueOpeningTutorial();
     presentQueuedTutorialPopup();
   }
 }
@@ -2532,6 +2592,9 @@ function sandboxFamilyTierForEnemy(enemyKey) {
 }
 
 function sandboxEnemyOptionLabel(enemyKey) {
+  if (enemyKey === "popcorn" || enemyKey === "idine") {
+    return ENEMY_TYPES[enemyKey].name;
+  }
   const tier = sandboxFamilyTierForEnemy(enemyKey);
   return tier ? `${ENEMY_TYPES[enemyKey].name} (T${tier})` : ENEMY_TYPES[enemyKey].name;
 }
@@ -2913,6 +2976,14 @@ function setTowerType(nextType) {
     setMessage("Crossbow is locked. Beat Hard wave 50 or Brutal wave 25 on Outpost without placing any blocks to unlock it.", 2.4);
     return;
   }
+  if (nextType === "dippy" && !dippyUnlocked) {
+    setMessage("Dippy is locked. Beat Wave 50 on Dippy Castle in Standard or harder to unlock it.", 2.4);
+    return;
+  }
+  if (nextType === "fireball" && !fireballUnlocked) {
+    setMessage("Fireball is locked. Beat Wave 50 on Furnace in Standard or harder to unlock it.", 2.4);
+    return;
+  }
 
   selectedTowerType = nextType;
   currentTool = "tower";
@@ -2935,18 +3006,20 @@ function updateTowerButtons() {
   for (const button of towerGrid.querySelectorAll("button[data-tower-type]")) {
     const type = button.dataset.towerType;
     const lockedCrossbow = type === "crossbow" && !crossbowUnlocked;
-    button.hidden = lockedCrossbow;
+    const lockedDippy = type === "dippy" && !dippyUnlocked;
+    const lockedFireball = type === "fireball" && !fireballUnlocked;
+    button.hidden = lockedCrossbow || lockedDippy || lockedFireball;
     button.disabled = false;
     button.textContent = `${TOWER_INFO[type].name} (${towerCost(type)})`;
   }
 }
 
 function maxTowerLevel(tower) {
-  return tower.type === "crossbow" ? 4 : 5;
+  return tower.type === "crossbow" ? 4 : tower.type === "fireball" ? 5 : 5;
 }
 
 function towerFootprint(type) {
-  if (type === "dippy") {
+  if (type === "dippy" || type === "fireball") {
     return [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }];
   }
   return [{ x: 0, y: 0 }];
@@ -3188,6 +3261,12 @@ function canPlacePiece(originX, originY) {
 
 function canPlaceTowerAt(x, y) {
   if (selectedTowerType === "crossbow" && !crossbowUnlocked) {
+    return false;
+  }
+  if (selectedTowerType === "dippy" && !dippyUnlocked) {
+    return false;
+  }
+  if (selectedTowerType === "fireball" && !fireballUnlocked) {
     return false;
   }
 
@@ -3506,8 +3585,55 @@ function maybeUnlockCrossbowQuest() {
     );
   if (unlockedByQuest && !crossbowUnlocked) {
     crossbowUnlocked = true;
+    persistProgressionState();
     setMessage("Secret unlocked: Crossbows now cost 14 cash in future runs.", 3.2);
     updateHud();
+  }
+}
+
+function maybeUnlockMapRewards() {
+  if (waveNumber < 50 || !isStandardOrHarderDifficulty()) {
+    return;
+  }
+
+  if (selectedMap === "furnace" && !fireballUnlocked) {
+    fireballUnlocked = true;
+    persistProgressionState();
+    setMessage("Unlocked: Fireball tower is now available.", 3);
+    updateTowerButtons();
+    renderAlmanac();
+    return;
+  }
+
+  if (selectedMap === "dippycastle" && !dippyUnlocked) {
+    dippyUnlocked = true;
+    persistProgressionState();
+    setMessage("Unlocked: Dippy is now available.", 3);
+    updateTowerButtons();
+    renderAlmanac();
+  }
+}
+
+function freezeRandomMountainTower() {
+  if (!isFreezingMountainsMap() || towers.length === 0) {
+    return;
+  }
+  const freezeChance = activeMap.freezeChance || 0.35;
+  if (Math.random() > freezeChance) {
+    return;
+  }
+  const candidates = towers.filter((tower) => !tower.mapFrozen);
+  if (candidates.length === 0) {
+    return;
+  }
+  const tower = candidates[Math.floor(Math.random() * candidates.length)];
+  tower.mapFrozen = true;
+  tower.frozenUntilWave = waveNumber;
+  tower.stunnedTimer = 0;
+  addPulse(tower.centerX, tower.centerY, 26, "rgba(196, 240, 255, 0.82)");
+  setMessage(`${towerDisplayName(tower)} froze solid. You can defrost it next round.`, 2.4);
+  if (selectedTowerId === tower.id) {
+    openTowerPopup(tower);
   }
 }
 
@@ -3998,6 +4124,12 @@ function towerStatSummary(type, overrides = {}) {
       extras.push(`Aura damage ${formatNumber(stats.auraDamage)}/tick`);
     }
   }
+  if (type === "fireball") {
+    extras.push(`Burst ${stats.burst}`);
+    extras.push(`Splash ${formatNumber(stats.splash)}`);
+    extras.push(`Burn ${formatNumber(stats.burnDamage)}/s for ${formatNumber(stats.burnDuration)}s`);
+    extras.push("Needs 2x2 space");
+  }
   if (type === "drone" && stats.supportCount) {
     extras.push(`Support drones ${stats.supportCount}`);
     extras.push(`Mini drone damage ${formatNumber(stats.supportDamage)}`);
@@ -4135,6 +4267,10 @@ function armoredUnlockText(type) {
     return "Cannot damage armoured enemies until their shell is broken.";
   }
 
+  if (type === "fireball") {
+    return "Hits armoured from level 1 with explosive fireballs.";
+  }
+
   if (type === "dippy") {
     return "Hits armoured from level 1.";
   }
@@ -4268,6 +4404,11 @@ function normalizeTowerPriority(tower) {
 }
 
 function towerCapabilityText(tower) {
+  if (tower.mapFrozen) {
+    return tower.frozenUntilWave && waveNumber > tower.frozenUntilWave
+      ? "Frozen. Can be defrosted now."
+      : "Frozen until next round.";
+  }
   if (tower.type === "support") {
     return "Passive support aura.";
   }
@@ -4307,6 +4448,7 @@ function openTowerPopup(tower) {
 
   towerPopupActions.innerHTML = "";
   const upgradesLocked = Boolean(tower.upgradeLocked);
+  const canDefrost = tower.mapFrozen && waveNumber > (tower.frozenUntilWave || 0);
 
   if (isPathTower(tower)) {
     const nextPath1 = tower.path1 + 1;
@@ -4341,6 +4483,13 @@ function openTowerPopup(tower) {
     if (tower.type !== "support") {
       appendPriorityButton(towerPopupActions, tower);
     }
+    if (canDefrost) {
+      const defrostButton = document.createElement("button");
+      defrostButton.className = "tower-upgrade secondary";
+      defrostButton.dataset.defrostTowerId = tower.id;
+      defrostButton.textContent = "Defrost";
+      towerPopupActions.appendChild(defrostButton);
+    }
     appendSellButton(towerPopupActions, tower);
     return;
   }
@@ -4359,7 +4508,30 @@ function openTowerPopup(tower) {
   if (tower.type !== "support") {
     appendPriorityButton(towerPopupActions, tower);
   }
+  if (canDefrost) {
+    const defrostButton = document.createElement("button");
+    defrostButton.className = "tower-upgrade secondary";
+    defrostButton.dataset.defrostTowerId = tower.id;
+    defrostButton.textContent = "Defrost";
+    towerPopupActions.appendChild(defrostButton);
+  }
   appendSellButton(towerPopupActions, tower);
+}
+
+function defrostTower(tower) {
+  if (!tower?.mapFrozen) {
+    return false;
+  }
+  if (waveNumber <= (tower.frozenUntilWave || 0)) {
+    setMessage("That tower cannot be defrosted until next round.", 1.4);
+    return false;
+  }
+  tower.mapFrozen = false;
+  tower.frozenUntilWave = 0;
+  tower.stunnedTimer = 0;
+  setMessage(`${towerDisplayName(tower)} defrosted.`, 1.4);
+  openTowerPopup(tower);
+  return true;
 }
 
 function placeTower(x, y) {
@@ -4367,8 +4539,8 @@ function placeTower(x, y) {
     setMessage(
       isFurnaceMap() && towerNearFurnaceHeat(towerPlacementCells(selectedTowerType, x, y))
         ? "That spot is too hot. Towers cannot be placed near the furnace core."
-        : selectedTowerType === "dippy"
-        ? "Dippy needs a clear 2x2 block space."
+        : selectedTowerType === "dippy" || selectedTowerType === "fireball"
+        ? `${TOWER_INFO[selectedTowerType].name} needs a clear 2x2 block space.`
         : selectedTowerType === "gate"
           ? "Acid needs a free block tile."
           : "That block tile cannot take a tower."
@@ -5105,6 +5277,7 @@ function spawnWave() {
   } else {
     setMessage(`Wave ${waveNumber} started.`, 1.4);
   }
+  freezeRandomMountainTower();
   updateHud();
 }
 
@@ -5357,6 +5530,7 @@ function updateWave(deltaTime) {
     if (isFactoryMap()) {
       advanceFactoryQuarter();
     }
+    maybeUnlockMapRewards();
     autoWaveTimer = autoWaveEnabled ? 0.9 : 0;
     setMessage(isFactoryMap() ? `Wave ${waveNumber} cleared. A factory quarter slides into the gap.` : `Wave ${waveNumber} cleared.`, 1.8);
   }
@@ -5637,6 +5811,22 @@ function towerStats(tower) {
       auraSlow: aura ? Math.max(0.62 - (path2 - 3) * 0.08 - (path2 >= 4 ? 0.08 : 0) - (path2 >= 5 ? 0.1 : 0), 0.16) : 1,
       auraTick: aura ? (path2 >= 5 ? 0.12 : path2 >= 4 ? 0.16 : 0.22) : 0,
       boltSpeed: 250
+    });
+  }
+
+  if (tower.type === "fireball") {
+    const level = tower.level || 1;
+    return finalizeStats({
+      range: CELL_SIZE * 4.35,
+      cooldown: [0.86, 0.78, 0.68, 0.58, 0.48][level - 1] || 0.48,
+      damage: [2.2, 3.1, 4.2, 5.6, 7.4][level - 1] || 7.4,
+      burst: level >= 5 ? 5 : level >= 3 ? 4 : 3,
+      burstDelay: level >= 5 ? 0.055 : level >= 3 ? 0.07 : 0.085,
+      projectileSpeed: 330 + level * 18,
+      splash: 22 + level * 6,
+      burnDamage: 1.4 + level * 0.7,
+      burnDuration: 1.6 + level * 0.34,
+      detectHidden: false
     });
   }
 
@@ -6103,7 +6293,15 @@ function canTowerDamageEnemy(tower, enemy, stats = towerStats(tower)) {
   if (enemy?.key === "hydra") {
     return true;
   }
-  const effectiveType = effectiveTowerDamageType(tower, tower.type === "freezer" ? "freeze" : tower.type === "trapper" ? (stats.mine ? "explosion" : "trap") : tower.type === "drone" ? (stats.rocket ? "explosion" : "bullet") : "bullet", stats);
+  const effectiveType = effectiveTowerDamageType(tower, tower.type === "freezer"
+    ? "freeze"
+    : tower.type === "trapper"
+    ? (stats.mine ? "explosion" : "trap")
+    : tower.type === "drone"
+    ? (stats.rocket ? "explosion" : "bullet")
+    : tower.type === "fireball"
+    ? "explosion"
+    : "bullet", stats);
   const effectiveClass = damageClassForType(effectiveType);
   if (enemy?.allowedDamageClasses && !enemy.allowedDamageClasses.includes(effectiveClass)) {
     return false;
@@ -6146,6 +6344,10 @@ function canTowerDamageEnemy(tower, enemy, stats = towerStats(tower)) {
 
   if (tower.type === "dippy") {
     return true;
+  }
+
+  if (tower.type === "fireball") {
+    return canHitArmored(enemy, "explosion");
   }
 
   if (tower.type === "drone") {
@@ -6473,6 +6675,24 @@ function spawnDippyEgg(tower, target, stats) {
   } else {
     tower.dippyAmmo = Math.max(0, (tower.dippyAmmo ?? stats.burst) - 1);
   }
+}
+
+function spawnFireballProjectile(tower, target, stats) {
+  projectiles.push({
+    id: nextProjectileId,
+    kind: "fireball",
+    x: tower.centerX,
+    y: tower.centerY,
+    angle: Math.atan2(target.y - tower.centerY, target.x - tower.centerX),
+    speed: stats.projectileSpeed,
+    damage: stats.damage,
+    splash: stats.splash,
+    burnDamage: stats.burnDamage,
+    burnDuration: stats.burnDuration,
+    damageType: "explosion",
+    ttl: 1.1
+  });
+  nextProjectileId += 1;
 }
 
 function applyFreezeEffect(enemy, damage, slow, slowDuration, freezeDuration = 0) {
@@ -6827,6 +7047,14 @@ function fireTower(tower, target) {
     return;
   }
 
+  if (tower.type === "fireball") {
+    spawnFireballProjectile(tower, target, stats);
+    tower.burstTargetId = null;
+    tower.burstShotsRemaining = Math.max(0, stats.burst - 1);
+    tower.burstTimer = tower.burstShotsRemaining > 0 ? stats.burstDelay : 0;
+    return;
+  }
+
   if (tower.type === "dippy") {
     spawnDippyEgg(tower, target, stats);
     tower.burstTargetId = null;
@@ -6921,6 +7149,10 @@ function updateTowers(deltaTime) {
     tower.burstTimer = Math.max(0, (tower.burstTimer || 0) - deltaTime * cooldownRate);
     tower.fieldCooldown = Math.max(0, (tower.fieldCooldown || 0) - deltaTime * cooldownRate);
 
+    if (tower.mapFrozen) {
+      continue;
+    }
+
     if (tower.stunnedTimer > 0) {
       continue;
     }
@@ -7001,7 +7233,7 @@ function updateTowers(deltaTime) {
       }
     }
 
-    if (tower.type === "missile" && tower.burstShotsRemaining > 0) {
+    if ((tower.type === "missile" || tower.type === "fireball") && tower.burstShotsRemaining > 0) {
       if (tower.burstTimer > 0) {
         continue;
       }
@@ -7011,7 +7243,11 @@ function updateTowers(deltaTime) {
       if (burstTarget) {
         tower.currentTargetId = burstTarget.id;
         tower.aimAngle = Math.atan2(burstTarget.y - tower.centerY, burstTarget.x - tower.centerX);
-        spawnMissileProjectile(tower, burstTarget, stats);
+        if (tower.type === "fireball") {
+          spawnFireballProjectile(tower, burstTarget, stats);
+        } else {
+          spawnMissileProjectile(tower, burstTarget, stats);
+        }
       }
 
       tower.burstShotsRemaining -= 1;
@@ -7088,7 +7324,7 @@ function updateTowers(deltaTime) {
       continue;
     }
     fireTower(tower, target);
-    if ((tower.type !== "missile" && tower.type !== "dippy") || tower.burstShotsRemaining === 0) {
+    if ((tower.type !== "missile" && tower.type !== "dippy" && tower.type !== "fireball") || tower.burstShotsRemaining === 0) {
       tower.cooldown = stats.cooldown;
     }
   }
@@ -7594,6 +7830,23 @@ function explodeDippyEgg(projectile) {
   }
 }
 
+function explodeFireball(projectile) {
+  addPulse(projectile.x, projectile.y, projectile.splash, "rgba(255, 146, 82, 0.75)");
+  addBurstParticles(projectile.x, projectile.y, 10, "#ffb066", 30, 140, 0.1, 0.26);
+  const shieldHitTracker = createShieldHitTracker();
+  for (const enemy of enemies) {
+    const distance = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
+    if (distance > projectile.splash) {
+      continue;
+    }
+    damageEnemy(enemy, projectile.damage * (1 - distance / Math.max(projectile.splash, 1) * 0.4), projectile.damageType || "explosion", {
+      shieldHitTracker,
+      burnDamage: projectile.burnDamage,
+      burnDuration: projectile.burnDuration
+    });
+  }
+}
+
 function updateProjectiles(deltaTime) {
   const survivors = [];
 
@@ -7720,6 +7973,19 @@ function updateProjectiles(deltaTime) {
       }
 
       if (!removed && projectile.x > -20 && projectile.x < canvas.width + 20 && projectile.y > -20 && projectile.y < canvas.height + 20) {
+        survivors.push(projectile);
+      }
+      continue;
+    }
+
+    if (projectile.kind === "fireball") {
+      projectile.x += Math.cos(projectile.angle) * projectile.speed * deltaTime;
+      projectile.y += Math.sin(projectile.angle) * projectile.speed * deltaTime;
+      projectile.ttl -= deltaTime;
+      const impactEnemy = firstEnemyTouchingProjectile(projectile);
+      if (impactEnemy) {
+        explodeFireball(projectile);
+      } else if (projectile.ttl > 0 && projectile.x > -20 && projectile.x < canvas.width + 20 && projectile.y > -20 && projectile.y < canvas.height + 20) {
         survivors.push(projectile);
       }
       continue;
@@ -9546,6 +9812,37 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
       ctx.arc(0, 0, 17, 0.3, Math.PI * 1.7);
       ctx.stroke();
     }
+  } else if (type === "fireball") {
+    ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(116, 70, 41, 0.72)") : "#6f4425";
+    ctx.beginPath();
+    ctx.roundRect(-12, -12, 24, 24, 5);
+    ctx.fill();
+    ctx.strokeStyle = ghost ? "rgba(255, 232, 190, 0.8)" : "#f6d1a0";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = ghost ? "rgba(255, 168, 108, 0.78)" : "#ff8b4d";
+    ctx.beginPath();
+    ctx.moveTo(0, -16);
+    ctx.lineTo(9, -2);
+    ctx.lineTo(2, 11);
+    ctx.lineTo(-3, 4);
+    ctx.lineTo(-9, 10);
+    ctx.lineTo(-7, -2);
+    ctx.closePath();
+    ctx.fill();
+    if (level >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(255, 228, 158, 0.82)" : "#ffd287";
+      ctx.beginPath();
+      ctx.moveTo(-14, 0);
+      ctx.lineTo(14, 0);
+      ctx.stroke();
+    }
+    if (level >= 5) {
+      ctx.strokeStyle = ghost ? "rgba(255, 245, 210, 0.86)" : "#fff1c7";
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   } else if (type === "dippy") {
     const dippyStats = stats || towerStats(tower || mockTower("dippy"));
     const ammoCount = path1 >= 3 ? dippyStats.burst : 0;
@@ -9940,6 +10237,20 @@ function drawTower(tower) {
   }
 
   drawTowerShape(tower.type, tower.level, centerX, centerY, tower.aimAngle || 0, false, false, tower);
+
+  if (tower.mapFrozen) {
+    ctx.strokeStyle = "rgba(198, 240, 255, 0.95)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 18, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX - 10, centerY);
+    ctx.lineTo(centerX + 10, centerY);
+    ctx.moveTo(centerX, centerY - 10);
+    ctx.lineTo(centerX, centerY + 10);
+    ctx.stroke();
+  }
 
   if (selectedTowerId === tower.id) {
     drawBlockedSightOverlay(tower);
@@ -10427,12 +10738,14 @@ function drawHeavyEnemy(enemy) {
   ctx.lineWidth = 3 * scale;
   if ((enemy.tier || 1) >= 3) {
     ctx.beginPath();
-    ctx.moveTo(-8 * scale, -height / 2);
-    ctx.lineTo(-4 * scale, -height / 2 - 6 * scale);
-    ctx.lineTo(0, -height / 2);
-    ctx.moveTo(0, -height / 2);
-    ctx.lineTo(4 * scale, -height / 2 - 6 * scale);
-    ctx.lineTo(8 * scale, -height / 2);
+    ctx.moveTo(-10 * scale, -6 * scale);
+    ctx.lineTo(10 * scale, 6 * scale);
+    ctx.moveTo(10 * scale, -6 * scale);
+    ctx.lineTo(-10 * scale, 6 * scale);
+    ctx.moveTo(-10 * scale, -3.5 * scale);
+    ctx.lineTo(10 * scale, -3.5 * scale);
+    ctx.moveTo(-10 * scale, 3.5 * scale);
+    ctx.lineTo(10 * scale, 3.5 * scale);
     ctx.stroke();
   } else if ((enemy.tier || 1) === 2) {
     ctx.beginPath();
@@ -10481,10 +10794,6 @@ function drawPopcornEnemy(enemy) {
   ctx.beginPath();
   ctx.arc(0, 0, 11 * scale, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = "#9dd2ff";
-  ctx.beginPath();
-  ctx.arc(-2 * scale, -2 * scale, 6 * scale, 0, Math.PI * 2);
-  ctx.fill();
 
   ctx.restore();
 }
@@ -10506,10 +10815,6 @@ function drawKernelEnemy(enemy) {
   ctx.beginPath();
   ctx.arc(0, 0, 4.2 * scale, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = enemy.kernelVariant === "dark" ? "rgba(255,255,255,0.18)" : enemy.kernelVariant === "light" ? "#eef9ff" : "#d8f1ff";
-  ctx.beginPath();
-  ctx.arc(0.8 * scale, -0.8 * scale, 1.3 * scale, 0, Math.PI * 2);
-  ctx.fill();
   ctx.restore();
 }
 
@@ -10522,23 +10827,15 @@ function drawIdineFamilyEnemy(enemy) {
     if (enemy.key === "idine") {
       const scale = enemy.sizeScale || 1.2;
       ctx.beginPath();
-      ctx.moveTo(-14 * scale, 0);
-      ctx.lineTo(14 * scale, -15 * scale);
-      ctx.lineTo(14 * scale, 15 * scale);
+      ctx.moveTo(-18 * scale, 0);
+      ctx.lineTo(8 * scale, -16 * scale);
+      ctx.lineTo(8 * scale, 16 * scale);
       ctx.closePath();
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(8 * scale, -12 * scale);
-      ctx.lineTo(24 * scale, -8 * scale);
-      ctx.lineTo(24 * scale, 0);
-      ctx.lineTo(8 * scale, -3 * scale);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(8 * scale, 3 * scale);
-      ctx.lineTo(24 * scale, 0);
-      ctx.lineTo(24 * scale, 8 * scale);
-      ctx.lineTo(8 * scale, 12 * scale);
+      ctx.moveTo(-12 * scale, 0);
+      ctx.lineTo(16 * scale, -15 * scale);
+      ctx.lineTo(16 * scale, 15 * scale);
       ctx.closePath();
       ctx.fill();
     } else {
@@ -10551,36 +10848,28 @@ function drawIdineFamilyEnemy(enemy) {
   }
   if (enemy.key === "idine") {
     const scale = enemy.sizeScale || 1.2;
+    ctx.save();
+    ctx.shadowColor = "rgba(255, 96, 208, 0.95)";
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = "#ff6dd6";
+    ctx.beginPath();
+    ctx.moveTo(-18 * scale, 0);
+    ctx.lineTo(8 * scale, -16 * scale);
+    ctx.lineTo(8 * scale, 16 * scale);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
     ctx.fillStyle = "#3d1e74";
     ctx.beginPath();
-    ctx.moveTo(-14 * scale, 0);
-    ctx.lineTo(14 * scale, -15 * scale);
-    ctx.lineTo(14 * scale, 15 * scale);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#ff7ed8";
-    ctx.beginPath();
-    ctx.moveTo(8 * scale, -12 * scale);
-    ctx.lineTo(24 * scale, -8 * scale);
-    ctx.lineTo(24 * scale, 0);
-    ctx.lineTo(8 * scale, -3 * scale);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(8 * scale, 3 * scale);
-    ctx.lineTo(24 * scale, 0);
-    ctx.lineTo(24 * scale, 8 * scale);
-    ctx.lineTo(8 * scale, 12 * scale);
+    ctx.moveTo(-12 * scale, 0);
+    ctx.lineTo(16 * scale, -15 * scale);
+    ctx.lineTo(16 * scale, 15 * scale);
     ctx.closePath();
     ctx.fill();
   } else {
     ctx.fillStyle = enemy.color;
     ctx.beginPath();
     ctx.arc(0, 0, 8.4 * (enemy.sizeScale || 1), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = enemy.key === "ris" ? "rgba(218, 224, 255, 0.92)" : "rgba(255,255,255,0.2)";
-    ctx.beginPath();
-    ctx.arc(-1.8 * (enemy.sizeScale || 1), -1.8 * (enemy.sizeScale || 1), 3.1 * (enemy.sizeScale || 1), 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
@@ -11260,21 +11549,12 @@ function drawProjectiles() {
       ctx.save();
       ctx.translate(projectile.x, projectile.y);
       ctx.rotate(projectile.angle || 0);
-      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.moveTo(9, 0);
-      ctx.lineTo(-3, -2.8);
-      ctx.lineTo(-8, 0);
-      ctx.lineTo(-3, 2.8);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = "rgba(227, 238, 255, 0.9)";
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(-1, -1.4);
-      ctx.lineTo(-6, -1.4);
-      ctx.moveTo(-1, 1.4);
-      ctx.lineTo(-6, 1.4);
+      ctx.moveTo(-8, 0);
+      ctx.lineTo(8, 0);
       ctx.stroke();
       ctx.restore();
       continue;
@@ -11334,6 +11614,32 @@ function drawProjectiles() {
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 1.2;
       ctx.stroke();
+      continue;
+    }
+
+    if (projectile.kind === "fireball") {
+      ctx.save();
+      ctx.translate(projectile.x, projectile.y);
+      ctx.rotate(projectile.angle || 0);
+      ctx.fillStyle = "#ff8b4d";
+      ctx.beginPath();
+      ctx.moveTo(8, 0);
+      ctx.lineTo(1, -5);
+      ctx.lineTo(-5, -3);
+      ctx.lineTo(-2, 0);
+      ctx.lineTo(-5, 3);
+      ctx.lineTo(1, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#ffd36a";
+      ctx.beginPath();
+      ctx.moveTo(4, 0);
+      ctx.lineTo(-1, -3);
+      ctx.lineTo(-2, 0);
+      ctx.lineTo(-1, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
       continue;
     }
 
@@ -11698,7 +12004,6 @@ function resetGame() {
   tutorialPopupQueue = [];
   activeTutorialPopup = null;
   tutorialResumeMode = null;
-  tutorialDismissed = false;
   tutorialStepDelayTimer = 0;
   screenShakeTimer = 0;
   screenShakeAmount = 0;
@@ -11975,6 +12280,20 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const popupDefrost = event.target.closest("[data-defrost-tower-id]");
+
+  if (popupDefrost) {
+    const tower = towers.find((entry) => entry.id === Number(popupDefrost.dataset.defrostTowerId));
+    if (!tower) {
+      clearSelection(false);
+      return;
+    }
+    defrostTower(tower);
+    updateHud();
+    draw();
+    return;
+  }
+
   const popupSell = event.target.closest("[data-sell-tower-id]");
 
   if (popupSell) {
@@ -12127,6 +12446,7 @@ window.addEventListener("keydown", (event) => {
     if (cheatBuffer.join(",") === "5,1,2") {
       if (gameMode === "menu") {
         crossbowUnlocked = true;
+        persistProgressionState();
         for (const enemy of Object.values(ENEMY_TYPES)) {
           discoveredEnemies.add(enemy.key);
         }
