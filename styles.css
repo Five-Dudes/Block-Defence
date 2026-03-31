@@ -206,6 +206,24 @@ body {
   gap: 14px;
 }
 
+.almanac-body.enemy-layout {
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+}
+
+.almanac-body.enemy-layout .almanac-grid {
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  max-height: 58vh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.almanac-body.enemy-layout .almanac-detail {
+  margin-top: 0;
+  max-height: 58vh;
+  overflow-y: auto;
+}
+
 .almanac-body.tower-layout {
   grid-template-columns: 260px minmax(0, 1fr);
   align-items: start;
@@ -236,6 +254,14 @@ body {
   background: rgba(255, 255, 255, 0.68);
 }
 
+.almanac-body.enemy-layout .almanac-entry {
+  padding: 10px;
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .almanac-entry.locked {
   opacity: 0.55;
 }
@@ -262,6 +288,58 @@ body {
 
 .almanac-detail p {
   margin-bottom: 8px;
+}
+
+.enemy-almanac-tile {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.enemy-almanac-image-wrap {
+  width: 74px;
+  height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 2px solid rgba(37, 51, 66, 0.14);
+  background: linear-gradient(180deg, rgba(18, 26, 35, 0.07), rgba(18, 26, 35, 0.15));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.enemy-almanac-image,
+.enemy-almanac-image-wrap svg {
+  width: 68px;
+  height: 68px;
+  display: block;
+}
+
+.enemy-almanac-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.enemy-almanac-detail-image-wrap {
+  width: 92px;
+  height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  border: 2px solid rgba(37, 51, 66, 0.14);
+  background: linear-gradient(180deg, rgba(18, 26, 35, 0.07), rgba(18, 26, 35, 0.15));
+}
+
+.enemy-almanac-detail-image,
+.enemy-almanac-detail-image-wrap svg {
+  width: 84px;
+  height: 84px;
+  display: block;
 }
 
 .app-shell {
