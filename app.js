@@ -15,6 +15,7 @@ const nextPieceText = document.getElementById("nextPieceText");
 const towerDescription = document.getElementById("towerDescription");
 const waveButton = document.getElementById("waveButton");
 const autoWaveToggle = document.getElementById("autoWaveToggle");
+const speedControls = document.getElementById("speedControls");
 const rotateButton = document.getElementById("rotateButton");
 const pauseButton = document.getElementById("pauseButton");
 const toolGrid = document.getElementById("toolGrid");
@@ -72,7 +73,7 @@ const tutorialDismissButton = document.getElementById("tutorialDismissButton");
 const closeTowerPopupButton = document.getElementById("closeTowerPopupButton");
 const tutorialList = document.getElementById("tutorialList");
 const tutorialHint = document.getElementById("tutorialHint");
-const TARGET_PRIORITIES = ["first", "last", "strong", "weak", "hidden", "random"];
+const TARGET_PRIORITIES = ["first", "last", "strong", "weak", "hidden", "random", "cursor"];
 const PATH_TOWER_TYPES = new Set(["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "dippy", "support", "gate"]);
 const TARGET_LABELS = {
   first: "First",
@@ -80,7 +81,8 @@ const TARGET_LABELS = {
   strong: "Strong",
   weak: "Weak",
   hidden: "Hidden",
-  random: "Random"
+  random: "Random",
+  cursor: "Cursor"
 };
 
 document.body.dataset.appBootStage = "constants";
@@ -91,13 +93,13 @@ const CELL_SIZE = 28;
 const BASE_CANVAS_WIDTH = COLS * CELL_SIZE;
 const BASE_CANVAS_HEIGHT = ROWS * CELL_SIZE;
 const START_MONEY = 50;
-const START_LIVES = 20;
+const START_LIVES = 100;
 const DASH_PERIOD = 16;
 const BLOCK_COST = 5;
 const TOWER_BASE_COST = {
   tesla: 30,
   missile: 38,
-  trapper: 24,
+  trapper: 28,
   laser: 60,
   shotgun: 22,
   freezer: 34,
@@ -151,7 +153,7 @@ const UPGRADE_COSTS = {
 };
 const TOWER_INFO = {
   tesla: { name: "Tesla", color: "#92d5ff", description: "Tesla chains lightning between nearby enemies and briefly stuns what it hits." },
-  missile: { name: "Missile", color: "#ffae57", description: "Missile fires heavier explosive shots that deal strong splash damage in an area." },
+  missile: { name: "Cannon", color: "#ffae57", description: "Cannon fires heavier explosive shots that deal strong splash damage in an area." },
   trapper: { name: "Trap Setter", color: "#89d37a", description: "Trap Setter seeds temporary traps, mines, or wall turrets depending on its upgrade path." },
   laser: { name: "Laser", color: "#ff7ca8", description: "Laser locks onto a target, then burns a piercing beam through the lane and beyond tower range." },
   shotgun: { name: "Shotgun", color: "#ffd34d", description: "Shotgun fires short yellow line blasts and can branch into Bullet Storm or Wavelength." },
@@ -160,7 +162,7 @@ const TOWER_INFO = {
   dippy: { name: "Dippy", color: "#fff1b8", description: "Dippy is an egg. A very powerful egg." },
   support: { name: "Support", color: "#c9b6ff", description: "Support hub boosts nearby towers and can branch into income generation or an ammo supplier aura." },
   crossbow: { name: "Crossbow", color: "#8b5d33", description: "Outpost crossbow tower. Fires slower bolts and can be upgraded into a heavier fort-defense platform." },
-  gate: { name: "Sprayer", color: "#91e59d", description: "Sprayer coats enemies in acid. Acidified targets take periodic chemical damage, and its upgrade paths either amplify allied damage or accelerate the spray." }
+  gate: { name: "Acid", color: "#91e59d", description: "Acid coats enemies in corrosive spray. Direct hits are light, but the damage over time and acid weakening build up fast." }
 };
 const ENEMY_TYPES = {
   fast: {
@@ -211,11 +213,8 @@ const ENEMY_TYPES = {
     hpMultiplier: 2.7,
     speedBonus: 42,
     reward: 6,
-    armor: 5,
     hidden: true,
-    armored: true,
-    suppressArmorVisual: true,
-    description: "Attackers are fast purple raiders with good health, hidden movement, and a concealed armoured frame."
+    description: "Attackers are fast purple raiders that stay hidden until your detection and burst damage are ready for them."
   },
   shield: {
     key: "shield",
@@ -251,13 +250,43 @@ const ENEMY_TYPES = {
   },
   biscuit: {
     key: "biscuit",
-    name: "Biscuit",
-    color: "#e6b26e",
-    shape: 3,
+    name: "Shortbread",
+    color: "#f2dfba",
+    shape: 4,
     hpMultiplier: 0.65,
-    speedBonus: 42,
+    speedBonus: 56,
     reward: 4,
-    description: "Biscuits are sharp triangular runners that sprint for the exit with very high speed."
+    description: "Shortbread are thin rectangular rushers that sprint even faster than attackers and crack the base hard if they slip through."
+  },
+  sentinel: {
+    key: "sentinel",
+    name: "Sentinel",
+    color: "#d34a4a",
+    shape: 6,
+    hpMultiplier: 9.6,
+    speedBonus: -10,
+    reward: 8,
+    description: "Sentinels are late-game red monitors. Their Overwatch form is faster, tougher, and bursts into far-flung Sentinels when it falls."
+  },
+  hydra: {
+    key: "hydra",
+    name: "Hydra",
+    color: "#ffd84f",
+    shape: 3,
+    hpMultiplier: 4.2,
+    speedBonus: 18,
+    reward: 12,
+    description: "Hydra is a chained four-segment serpent. Each larger spaced head can only be destroyed by its matching damage class after the previous head is removed."
+  },
+  splitter: {
+    key: "splitter",
+    name: "Splitter",
+    color: "#ffd84f",
+    shape: 6,
+    hpMultiplier: 1.05,
+    speedBonus: 16,
+    reward: 5,
+    description: "Splitters are glowing yellow orbs that burst into lower-tier copies when destroyed, so they keep lane pressure going even after the first pop."
   },
   megaWaffle: {
     key: "megaWaffle",
@@ -295,53 +324,158 @@ const ENEMY_TYPES = {
   }
 };
 const DIFFICULTIES = {
-  easy: { name: "Easy", money: 60, lives: 28, hp: 0.85, reward: 1.15, interval: 1.08, enemyCount: 1 },
-  standard: { name: "Standard", money: 50, lives: 20, hp: 1, reward: 1, interval: 1 },
-  hard: { name: "Hard", money: 40, lives: 10, hp: 1.28, reward: 0.9, interval: 0.88, enemyCount: 1 },
-  brutal: { name: "Brutal", money: 50, lives: 5, hp: 1.28, reward: 0.5, interval: 0.88, enemyCount: 2 },
+  easy: { name: "Easy", money: 60, lives: 140, hp: 0.85, reward: 1.15, interval: 1.08, enemyCount: 1 },
+  standard: { name: "Standard", money: 50, lives: 100, hp: 1, reward: 1, interval: 1 },
+  hard: { name: "Hard", money: 40, lives: 50, hp: 1.28, reward: 0.9, interval: 0.88, enemyCount: 1 },
+  brutal: { name: "Brutal", money: 50, lives: 25, hp: 1.28, reward: 0.5, interval: 0.88, enemyCount: 2 },
   sandbox: { name: "Sandbox", money: 999999, lives: 999999, hp: 1, reward: 1, interval: 1, enemyCount: 1 }
 };
+
+function cellsFromRects(rects = []) {
+  const cells = [];
+  for (const rect of rects) {
+    for (let y = rect.y; y < rect.y + rect.height; y += 1) {
+      for (let x = rect.x; x < rect.x + rect.width; x += 1) {
+        cells.push({ x, y });
+      }
+    }
+  }
+  return cells;
+}
+
+function uniqueCells(cells = []) {
+  const seen = new Set();
+  const result = [];
+  for (const cell of cells) {
+    const key = `${cell.x},${cell.y}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(cell);
+  }
+  return result;
+}
+
+function cellsFromPoints(points = []) {
+  return points.map(([x, y]) => ({ x, y }));
+}
+
 const MAPS = {
   meadow: {
     name: "Classic",
-    description: "Single portal, open grassland, a couple of sight-blocking stones.",
+    description: "Single portal and open grassland with no rocks or sight blockers.",
     scenery: "meadow",
     goal: { x: COLS - 1, y: Math.floor(ROWS / 2) },
     portals: [{ x: 0, y: Math.floor(ROWS / 2) }],
-    obstacles: [{ x: 9, y: 4 }, { x: 9, y: 5 }, { x: 16, y: 9 }]
+    obstacles: []
   },
   canyon: {
     name: "Canyon Fork",
     description: "Two portals split the lane while canyon pillars block long tower lines.",
     scenery: "canyon",
     goal: { x: COLS - 1, y: Math.floor(ROWS / 2) },
-    portals: [{ x: 0, y: 4 }, { x: 0, y: 10 }],
+    portals: [{ x: 0, y: 5 }, { x: 0, y: 13 }],
     obstacles: [{ x: 8, y: 6 }, { x: 8, y: 7 }, { x: 14, y: 3 }, { x: 14, y: 11 }, { x: 19, y: 7 }]
   },
   ruins: {
     name: "Sunken Ruins",
-    description: "Three portals and broken pillars create heavy sight denial.",
+    description: "Three portals breach a flooded ruin field. Islands break sight lines, and blocks must extend outward from islands or existing walls.",
     scenery: "ruins",
     goal: { x: COLS - 1, y: Math.floor(ROWS / 2) },
-    portals: [{ x: 0, y: 3 }, { x: 0, y: 7 }, { x: 0, y: 11 }],
-    obstacles: [{ x: 6, y: 5 }, { x: 6, y: 9 }, { x: 12, y: 2 }, { x: 12, y: 12 }, { x: 18, y: 6 }, { x: 18, y: 8 }]
+    portals: [{ x: 0, y: 5 }, { x: 0, y: 9 }, { x: 0, y: 13 }],
+    obstacles: [{ x: 6, y: 5 }, { x: 6, y: 9 }, { x: 12, y: 2 }, { x: 12, y: 12 }, { x: 18, y: 6 }, { x: 18, y: 8 }],
+    islandPlacement: true,
+    towerSurfaces: "obstacles"
   },
   mango: {
     name: "Mango Pass",
-    description: "Two portals attack from opposite edges while the base sits in the middle beneath mango haze.",
+    description: "Two portals attack from opposite edges while the base sits in the middle beneath mango haze and deep yellow ditches cut through the fields.",
     scenery: "mango",
     goal: { x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2) },
     portals: [{ x: 0, y: 4 }, { x: COLS - 1, y: 10 }],
-    obstacles: [{ x: 8, y: 5 }, { x: 8, y: 9 }, { x: 12, y: 2 }, { x: 13, y: 12 }, { x: 17, y: 4 }, { x: 17, y: 10 }]
+    obstacles: [{ x: 8, y: 5 }, { x: 8, y: 9 }, { x: 12, y: 2 }, { x: 13, y: 12 }, { x: 17, y: 4 }, { x: 17, y: 10 }],
+    noBuildCells: uniqueCells([
+      ...cellsFromRects([{ x: 2, y: 2, width: 4, height: 2 }]),
+      ...cellsFromPoints([[6, 3], [7, 3], [8, 4], [9, 4], [10, 5]]),
+      ...cellsFromRects([{ x: 6, y: 7, width: 5, height: 2 }]),
+      ...cellsFromPoints([[11, 6], [12, 6], [13, 7]]),
+      ...cellsFromRects([{ x: 2, y: 12, width: 5, height: 2 }]),
+      ...cellsFromPoints([[7, 11], [8, 11], [9, 12], [10, 12]]),
+      ...cellsFromRects([{ x: 15, y: 2, width: 4, height: 2 }]),
+      ...cellsFromPoints([[19, 3], [20, 4], [21, 4], [22, 5]]),
+      ...cellsFromRects([{ x: 18, y: 8, width: 5, height: 2 }]),
+      ...cellsFromPoints([[23, 7], [24, 7], [25, 8], [26, 8]]),
+      ...cellsFromRects([{ x: 14, y: 13, width: 5, height: 2 }]),
+      ...cellsFromPoints([[19, 12], [20, 12], [21, 13], [22, 13], [23, 14]])
+    ])
   },
   factory: {
     name: "Factory",
-    description: "Build a conveyor line through the plant. Five conveyors are free on wave 1, then one free conveyor arrives each wave, and enemies move slightly faster here.",
+    description: "The plant is split into four shifting quarters. One quarter is always a dead gap, and after each wave a full quarter slides into it and leaves a new opening behind.",
     scenery: "factory",
-    goal: { x: COLS - 2, y: 8 },
-    portals: [{ x: 0, y: 8 }],
+    goal: { x: COLS - 3, y: 4 },
+    portals: [{ x: 2, y: 4 }],
     obstacles: [],
     enemySpeed: 1.08
+  },
+  furnace: {
+    name: "Furnace",
+    description: "A soot-black foundry full of coal, brimstone, lava vents, pipes, and gears. The furnace core radiates heat, and towers cannot be placed near it.",
+    scenery: "furnace",
+    goal: { x: COLS - 1, y: Math.floor(ROWS / 2) },
+    portals: [{ x: 0, y: Math.floor(ROWS / 2) }],
+    obstacles: [
+      { x: 13, y: 6 }, { x: 14, y: 6 }, { x: 15, y: 6 }, { x: 16, y: 6 },
+      { x: 13, y: 7 }, { x: 14, y: 7 }, { x: 15, y: 7 }, { x: 16, y: 7 },
+      { x: 13, y: 8 }, { x: 14, y: 8 }, { x: 15, y: 8 }, { x: 16, y: 8 },
+      { x: 13, y: 9 }, { x: 14, y: 9 }, { x: 15, y: 9 }, { x: 16, y: 9 }
+    ],
+    furnaceCore: [
+      { x: 13, y: 6 }, { x: 14, y: 6 }, { x: 15, y: 6 }, { x: 16, y: 6 },
+      { x: 13, y: 7 }, { x: 14, y: 7 }, { x: 15, y: 7 }, { x: 16, y: 7 },
+      { x: 13, y: 8 }, { x: 14, y: 8 }, { x: 15, y: 8 }, { x: 16, y: 8 },
+      { x: 13, y: 9 }, { x: 14, y: 9 }, { x: 15, y: 9 }, { x: 16, y: 9 }
+    ],
+    heatRadius: 2.35,
+    lavaGrates: [
+      { x: 3, y: 2, width: 1, height: 1 },
+      { x: 7, y: 2, width: 1, height: 1 },
+      { x: 11, y: 2, width: 1, height: 1 },
+      { x: 19, y: 2, width: 1, height: 1 },
+      { x: 23, y: 2, width: 1, height: 1 },
+      { x: 3, y: 6, width: 1, height: 1 },
+      { x: 7, y: 6, width: 1, height: 1 },
+      { x: 11, y: 6, width: 1, height: 1 },
+      { x: 19, y: 6, width: 1, height: 1 },
+      { x: 23, y: 6, width: 1, height: 1 },
+      { x: 3, y: 11, width: 1, height: 1 },
+      { x: 7, y: 11, width: 1, height: 1 },
+      { x: 11, y: 11, width: 1, height: 1 },
+      { x: 19, y: 11, width: 1, height: 1 },
+      { x: 23, y: 11, width: 1, height: 1 },
+      { x: 3, y: 15, width: 1, height: 1 },
+      { x: 7, y: 15, width: 1, height: 1 },
+      { x: 11, y: 15, width: 1, height: 1 },
+      { x: 19, y: 15, width: 1, height: 1 },
+      { x: 23, y: 15, width: 1, height: 1 }
+    ]
+  },
+  shoals: {
+    name: "Shoals",
+    description: "Build out from scattered islands in shallow water. Blocks must stay anchored to islands or already placed blocks.",
+    scenery: "shoals",
+    goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
+    portals: [{ x: 1, y: 3 }, { x: 1, y: 12 }],
+    obstacles: [
+      { x: 4, y: 3 }, { x: 5, y: 3 }, { x: 4, y: 4 }, { x: 5, y: 4 },
+      { x: 10, y: 8 }, { x: 11, y: 8 }, { x: 10, y: 9 }, { x: 11, y: 9 },
+      { x: 17, y: 4 }, { x: 18, y: 4 }, { x: 17, y: 5 }, { x: 18, y: 5 },
+      { x: 20, y: 12 }, { x: 21, y: 12 }, { x: 20, y: 13 }, { x: 21, y: 13 },
+      { x: 25, y: 7 }, { x: 26, y: 7 }, { x: 25, y: 8 }, { x: 26, y: 8 }
+    ],
+    islandPlacement: true,
+    towerSurfaces: "obstacles"
   },
   outpost: {
     name: "Outpost",
@@ -360,11 +494,47 @@ const MAPS = {
   },
   fortification: {
     name: "Fortification",
-    description: "A larger fort corridor. Scroll left to find the portal beyond the wall while unique spike traps guard the lanes.",
+    description: "A mirrored fort corridor with a centered approach, symmetrical walls, and a lighter spread of spike traps.",
     scenery: "fortification",
     goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
     portals: [{ x: 0, y: Math.floor(ROWS / 2) }],
     obstacles: []
+  },
+  dippycastle: {
+    name: "Dippy Castle",
+    description: "Twin eggy 3x3 castle towers guard three middle entrances while three portals press in from the left through bright cream ramparts.",
+    scenery: "fortification",
+    goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
+    portals: [{ x: 0, y: 4 }, { x: 0, y: 9 }, { x: 0, y: 14 }],
+    obstacles: [
+      { x: 18, y: 3 }, { x: 19, y: 3 }, { x: 20, y: 3 },
+      { x: 18, y: 4 }, { x: 19, y: 4 }, { x: 20, y: 4 },
+      { x: 18, y: 5 }, { x: 19, y: 5 }, { x: 20, y: 5 },
+      { x: 18, y: 11 }, { x: 19, y: 11 }, { x: 20, y: 11 },
+      { x: 18, y: 12 }, { x: 19, y: 12 }, { x: 20, y: 12 },
+      { x: 18, y: 13 }, { x: 19, y: 13 }, { x: 20, y: 13 }
+    ],
+    towerSurfaces: "obstacles"
+  },
+  cliffs: {
+    name: "Cliffs",
+    description: "An organic cliff splits the map down the center. The right side is higher ground, the left side is lower, and each side has its own base at the bottom.",
+    scenery: "cliffs",
+    goal: { x: 11, y: ROWS - 2 },
+    goals: [{ x: 11, y: ROWS - 2 }, { x: 18, y: ROWS - 2 }],
+    portals: [{ x: 4, y: 1 }, { x: 24, y: 1 }],
+    obstacles: [
+      { x: 1, y: 3 }, { x: 2, y: 3 }, { x: 3, y: 3 }, { x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 5 },
+      { x: 5, y: 6 }, { x: 6, y: 7 }, { x: 7, y: 7 }, { x: 8, y: 8 }, { x: 9, y: 9 },
+      { x: 4, y: 11 }, { x: 5, y: 12 }, { x: 6, y: 12 }, { x: 7, y: 13 }, { x: 8, y: 14 }, { x: 10, y: 15 },
+      { x: 26, y: 3 }, { x: 27, y: 3 }, { x: 25, y: 4 }, { x: 26, y: 4 }, { x: 24, y: 5 }, { x: 25, y: 5 },
+      { x: 23, y: 7 }, { x: 22, y: 8 }, { x: 21, y: 8 }, { x: 20, y: 9 }, { x: 19, y: 10 },
+      { x: 24, y: 12 }, { x: 23, y: 13 }, { x: 22, y: 14 }, { x: 21, y: 14 }, { x: 20, y: 15 }, { x: 18, y: 16 }
+    ],
+    noBuildCells: cellsFromPoints([
+      [14, 0], [14, 1], [15, 2], [15, 3], [14, 4], [14, 5], [13, 6], [13, 7], [14, 8],
+      [15, 9], [15, 10], [16, 11], [16, 12], [15, 13], [15, 14], [14, 15], [14, 16], [14, 17]
+    ])
   },
   graveyard: {
     name: "Graveyard",
@@ -385,7 +555,7 @@ const MAPS = {
     reward: 1 / 3
   }
 };
-const IDAEN_BOSS_WAVES = new Set([25, 50, 75, 100]);
+const IDAEN_BOSS_WAVES = new Set([25, 50, 75, 100, 125]);
 const ADAPTER_BOSS_WAVES = new Set([40, 80, 120]);
 
 const directions = [
@@ -497,6 +667,7 @@ let blocks = new Map();
 let wave = null;
 let dashOffset = 0;
 let lastTimestamp = 0;
+let gameSpeedMultiplier = 1;
 let message = "Ready to build.";
 let messageTimer = 0;
 let selectedTowerId = null;
@@ -512,12 +683,14 @@ let infiniteMode = false;
 let cheatBuffer = [];
 let crossbowUnlocked = false;
 let outpostWalllessQuestFailed = false;
+let outpostQuestBlocksPlaced = 0;
 let spawnPortalCursor = 0;
 let spawnPortalOrder = [];
 let autoWaveEnabled = false;
 let autoWaveTimer = 0;
 let sandboxWaveTarget = null;
 let armedAbility = null;
+let factoryState = null;
 const heldScrollKeys = new Set();
 let scrollVelocityX = 0;
 let scrollVelocityY = 0;
@@ -536,6 +709,8 @@ let activeTutorialPopup = null;
 let tutorialResumeMode = null;
 let tutorialDismissed = false;
 let tutorialStepDelayTimer = 0;
+let screenShakeTimer = 0;
+let screenShakeAmount = 0;
 const ALMANAC_TOWER_TYPES = ["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "dippy", "support", "crossbow", "gate"];
 const MENU_STATE_STORAGE_KEY = "blockDefence.menuState";
 
@@ -646,17 +821,38 @@ const createGrid = () =>
 let grid = createGrid();
 
 function activePortals() {
+  if (isFactoryMap() && factoryState?.portals?.length) {
+    return factoryState.portals;
+  }
   if (isGraveyardMap()) {
     return graveyardEdgePortals();
   }
   return activeMap.portals;
 }
 
-function goalPortal() {
-  return activeMap.goal;
+function activeGoals() {
+  if (isFactoryMap() && factoryState?.goal) {
+    return [factoryState.goal];
+  }
+  return activeMap.goals || [activeMap.goal];
 }
 
-function baseCenter() {
+function goalPortal() {
+  if (isFactoryMap() && factoryState?.goal) {
+    return factoryState.goal;
+  }
+  return activeGoals()[0];
+}
+
+function baseCenter(referencePoint = null) {
+  const goals = activeGoals();
+  if (referencePoint && goals.length > 1) {
+    const nearest = goals.reduce((best, goal) => {
+      const distance = Math.hypot(goal.x - referencePoint.x, goal.y - referencePoint.y);
+      return !best || distance < best.distance ? { goal, distance } : best;
+    }, null);
+    return cellCenter(nearest.goal.x, nearest.goal.y);
+  }
   return cellCenter(goalPortal().x, goalPortal().y);
 }
 
@@ -672,87 +868,143 @@ function isFactoryMap() {
   return selectedMap === "factory";
 }
 
-function isFactoryBuildTile(x, y) {
-  return y % 2 === 0 && x % 2 === 0;
+function isFurnaceMap() {
+  return selectedMap === "furnace";
 }
 
-function factoryTravelDirections() {
-  return [
-    { dx: 2, dy: 0, gapX: 1, gapY: 0 },
-    { dx: -2, dy: 0, gapX: -1, gapY: 0 },
-    { dx: 0, dy: 2, gapX: 0, gapY: 1 },
-    { dx: 0, dy: -2, gapX: 0, gapY: -1 }
-  ];
+function isCliffsMap() {
+  return selectedMap === "cliffs";
 }
 
-function latestFactoryConveyorBlock() {
-  let latest = null;
-  for (const block of blocks.values()) {
-    if (!block.conveyor) {
-      continue;
-    }
-    if (!latest || block.id > latest.id) {
-      latest = block;
-    }
+function factoryQuarterCycle() {
+  return [0, 1, 3, 2];
+}
+
+function factoryQuarterBounds(index) {
+  const left = index % 2 === 0 ? 0 : COLS / 2;
+  const top = index < 2 ? 0 : ROWS / 2;
+  return {
+    x: left,
+    y: top,
+    width: COLS / 2,
+    height: ROWS / 2
+  };
+}
+
+function factoryQuarterIndexForCell(x, y) {
+  return (y >= ROWS / 2 ? 2 : 0) + (x >= COLS / 2 ? 1 : 0);
+}
+
+function factoryCellInHole(x, y) {
+  if (!isFactoryMap() || !factoryState) {
+    return false;
   }
-  return latest;
+  return factoryQuarterIndexForCell(x, y) === factoryState.holeIndex;
 }
 
-function factoryPlacementConnectsToLatest(cells) {
-  if (!isFactoryMap()) {
+function cellsShareFactoryQuarter(cells) {
+  if (!cells.length) {
     return true;
   }
-
-  const latest = latestFactoryConveyorBlock();
-  if (!latest) {
-    return cells.some((cell) => factoryTravelDirections().some((direction) => {
-      const sourceX = cell.x - direction.dx;
-      const sourceY = cell.y - direction.dy;
-      return activePortals().some((portal) => portal.x === sourceX && portal.y === sourceY);
-    }));
-  }
-
-  return cells.some((cell) => latest.cells.some((latestCell) =>
-    factoryTravelDirections().some((direction) =>
-      latestCell.x + direction.dx === cell.x && latestCell.y + direction.dy === cell.y
-    )
-  ));
+  const quarterIndex = factoryQuarterIndexForCell(cells[0].x, cells[0].y);
+  return cells.every((cell) => factoryQuarterIndexForCell(cell.x, cell.y) === quarterIndex && !factoryCellInHole(cell.x, cell.y));
 }
 
-function factoryRouteDirectionAtCell(cell) {
-  for (const path of routes) {
-    const index = path.findIndex((entry) => entry.x === cell.x && entry.y === cell.y);
-    if (index === -1) {
-      continue;
+function shiftPointIfFactoryQuarter(point, sourceQuarter, dx, dy) {
+  if (!point) {
+    return point;
+  }
+  if (factoryQuarterIndexForCell(point.x, point.y) !== sourceQuarter) {
+    return point;
+  }
+  return { x: point.x + dx, y: point.y + dy };
+}
+
+function rebuildGridOccupancy() {
+  grid = createGrid();
+  for (const block of blocks.values()) {
+    for (const cell of block.cells) {
+      if (inBounds(cell.x, cell.y)) {
+        grid[cell.y][cell.x].blockId = block.id;
+      }
     }
-    const next = path[index + 1];
-    const previous = path[index - 1];
-    if (next) {
-      return {
-        dx: next.x - cell.x,
-        dy: next.y - cell.y
-      };
+  }
+  for (const tower of towers) {
+    for (const cell of tower.footprintCells) {
+      if (inBounds(cell.x, cell.y)) {
+        grid[cell.y][cell.x].towerId = tower.id;
+      }
     }
-    if (previous) {
-      return {
-        dx: cell.x - previous.x,
-        dy: cell.y - previous.y
-      };
+  }
+}
+
+function initializeFactoryState() {
+  factoryState = {
+    holeIndex: 3,
+    portals: [{ x: 2, y: 4 }],
+    goal: { x: COLS - 3, y: 4 }
+  };
+}
+
+function advanceFactoryQuarter() {
+  if (!isFactoryMap() || !factoryState) {
+    return;
+  }
+
+  const cycle = factoryQuarterCycle();
+  const holeCycleIndex = cycle.indexOf(factoryState.holeIndex);
+  const sourceQuarter = cycle[(holeCycleIndex - 1 + cycle.length) % cycle.length];
+  const holeBounds = factoryQuarterBounds(factoryState.holeIndex);
+  const sourceBounds = factoryQuarterBounds(sourceQuarter);
+  const dx = holeBounds.x - sourceBounds.x;
+  const dy = holeBounds.y - sourceBounds.y;
+
+  for (const block of blocks.values()) {
+    if (block.cells.length > 0 && block.cells.every((cell) => factoryQuarterIndexForCell(cell.x, cell.y) === sourceQuarter)) {
+      block.cells = block.cells.map((cell) => ({ x: cell.x + dx, y: cell.y + dy }));
+      block.renderOffsetX = -(dx * CELL_SIZE);
+      block.renderOffsetY = -(dy * CELL_SIZE);
     }
   }
 
-  for (const direction of factoryTravelDirections()) {
-    const nextX = cell.x + direction.dx;
-    const nextY = cell.y + direction.dy;
-    if (inBounds(nextX, nextY) && grid[nextY][nextX].blockId !== null) {
-      return {
-        dx: direction.dx,
-        dy: direction.dy
-      };
+  for (const tower of towers) {
+    if (tower.footprintCells.length > 0 && tower.footprintCells.every((cell) => factoryQuarterIndexForCell(cell.x, cell.y) === sourceQuarter)) {
+      const previousCenterX = tower.centerX;
+      const previousCenterY = tower.centerY;
+      tower.x += dx;
+      tower.y += dy;
+      tower.footprintCells = tower.footprintCells.map((cell) => ({ x: cell.x + dx, y: cell.y + dy }));
+      tower.centerX += dx * CELL_SIZE;
+      tower.centerY += dy * CELL_SIZE;
+      tower.renderOffsetX = -(dx * CELL_SIZE);
+      tower.renderOffsetY = -(dy * CELL_SIZE);
+      for (const drone of drones) {
+        if (drone.towerId === tower.id) {
+          drone.x += tower.centerX - previousCenterX;
+          drone.y += tower.centerY - previousCenterY;
+          drone.renderOffsetX = -(dx * CELL_SIZE);
+          drone.renderOffsetY = -(dy * CELL_SIZE);
+        }
+      }
     }
   }
 
-  return null;
+  for (const trap of traps) {
+    if (factoryQuarterIndexForCell(trap.x, trap.y) === sourceQuarter) {
+      trap.x += dx;
+      trap.y += dy;
+      trap.centerX += dx * CELL_SIZE;
+      trap.centerY += dy * CELL_SIZE;
+      trap.renderOffsetX = -(dx * CELL_SIZE);
+      trap.renderOffsetY = -(dy * CELL_SIZE);
+    }
+  }
+
+  factoryState.portals = factoryState.portals.map((portal) => shiftPointIfFactoryQuarter(portal, sourceQuarter, dx, dy));
+  factoryState.goal = shiftPointIfFactoryQuarter(factoryState.goal, sourceQuarter, dx, dy);
+  factoryState.holeIndex = sourceQuarter;
+  rebuildGridOccupancy();
+  routes = computeRoutes();
 }
 
 function supportWaveIncomeEntries() {
@@ -778,6 +1030,14 @@ function addFloatingText(x, y, text, color = "#ffe27a", ttl = 1.05) {
     vy: -38
   });
   nextEffectId += 1;
+}
+
+function triggerScreenShake(amount = 0, duration = 0) {
+  if (amount <= 0 || duration <= 0) {
+    return;
+  }
+  screenShakeAmount = Math.max(screenShakeAmount, amount * CELL_SIZE * 0.32);
+  screenShakeTimer = Math.max(screenShakeTimer, duration);
 }
 
 function mapBuildZone() {
@@ -860,11 +1120,89 @@ function startingMoney() {
 }
 
 function obstacleAt(x, y) {
+  if (factoryCellInHole(x, y)) {
+    return true;
+  }
   return activeMap.obstacles.some((cell) => cell.x === x && cell.y === y);
 }
 
+function towerNearFurnaceHeat(cells) {
+  if (!isFurnaceMap()) {
+    return false;
+  }
+  const core = activeMap.furnaceCore || [];
+  const radius = activeMap.heatRadius || 0;
+  return cells.some((cell) =>
+    core.some((hotCell) => Math.hypot(hotCell.x - cell.x, hotCell.y - cell.y) <= radius)
+  );
+}
+
+function noBuildAt(x, y) {
+  return (activeMap.noBuildCells || []).some((cell) => cell.x === x && cell.y === y);
+}
+
+function cellsFitInsideDitch(cells) {
+  return cells.length > 0 && cells.every((cell) => noBuildAt(cell.x, cell.y));
+}
+
+function mapUsesIslandPlacement() {
+  return Boolean(activeMap.islandPlacement);
+}
+
+function islandAt(x, y) {
+  return mapUsesIslandPlacement() && activeMap.obstacles.some((cell) => cell.x === x && cell.y === y);
+}
+
+function cellAllowsTowerSurface(x, y) {
+  return (activeMap.towerSurfaces === "obstacles" || mapUsesIslandPlacement()) && activeMap.obstacles.some((cell) => cell.x === x && cell.y === y);
+}
+
+function cliffDivideXForRow(row) {
+  if (!isCliffsMap()) {
+    return COLS / 2;
+  }
+  const ledgeCells = (activeMap.noBuildCells || []).filter((cell) => cell.y === row);
+  if (ledgeCells.length === 0) {
+    return COLS / 2;
+  }
+  return ledgeCells.reduce((total, cell) => total + cell.x, 0) / ledgeCells.length;
+}
+
+function cliffSideForCell(cell) {
+  if (!isCliffsMap() || !cell) {
+    return null;
+  }
+  if (noBuildAt(cell.x, cell.y)) {
+    return "ledge";
+  }
+  return cell.x < cliffDivideXForRow(cell.y) ? "left" : "right";
+}
+
+function cellsStayOnSingleCliffSide(cells) {
+  if (!isCliffsMap() || cells.length === 0) {
+    return true;
+  }
+  const side = cliffSideForCell(cells[0]);
+  if (!side || side === "ledge") {
+    return false;
+  }
+  return cells.every((cell) => cliffSideForCell(cell) === side);
+}
+
+function cellsTouchAnchoredLand(cells) {
+  if (!mapUsesIslandPlacement()) {
+    return true;
+  }
+
+  return cells.some((cell) => islandAt(cell.x, cell.y) || directions.some((direction) => {
+    const nx = cell.x + direction.dx;
+    const ny = cell.y + direction.dy;
+    return inBounds(nx, ny) && (islandAt(nx, ny) || grid[ny][nx].blockId !== null);
+  }));
+}
+
 function isEndpoint(x, y) {
-  return activePortals().some((portal) => portal.x === x && portal.y === y) || (x === goalPortal().x && y === goalPortal().y);
+  return activePortals().some((portal) => portal.x === x && portal.y === y) || activeGoals().some((goal) => goal.x === x && goal.y === y);
 }
 
 function inBounds(x, y) {
@@ -889,14 +1227,6 @@ function rotateOffset(offset, turns) {
 }
 
 function createRandomPiece(mapKey = null) {
-  if (mapKey === "factory") {
-    return {
-      name: "Conveyor Belt",
-      color: "#6e7f89",
-      offsets: [{ x: 0, y: 0 }],
-      conveyor: true
-    };
-  }
   const shape = tetrominoes[Math.floor(Math.random() * tetrominoes.length)];
   const turns = Math.floor(Math.random() * 4);
 
@@ -947,7 +1277,10 @@ function enemyIntroMessage(enemyKey) {
     armored: "Bullets bounce off until lasers or explosions strip the shell.",
     shield: "Break the shield source first or your damage will get absorbed.",
     waffle16: "Waffles split into more waffles, so splash and lane control help.",
-    biscuit: "Biscuits are boss minions and sprint hard toward the base.",
+    hydra: "Only the front live head matters at first. Break each color with the right damage class to work down the chain.",
+    sentinel: "Sentinels are durable, and their Overwatch form bursts back into a swarm when it goes down.",
+    splitter: "Their first layer is not the whole problem, so keep enough follow-up damage ready for the splits.",
+    biscuit: "Shortbread sprint even faster than attackers and slam the base for their remaining health.",
     idaen: "I-daen is the boss, and his summon phases flood the map.",
     adapter: "Adapter is the attacker boss. As you damage it, it builds immunities by damage class and shares them with its ghost attackers until it is destroyed."
   };
@@ -956,29 +1289,53 @@ function enemyIntroMessage(enemyKey) {
 
 function waveWarningMessage(round) {
   const warnings = {
-    4: {
+    14: {
       title: "Hidden Enemies Soon",
-      body: "Hidden enemies arrive on wave 6.\n\nGet detection before they show up. Tesla Path 2, Dippy Path 2, and Support detection upgrades can all help."
+      body: "Hidden enemies arrive on wave 16.\n\nGet detection before they show up. Tesla Path 2, Dippy Path 2, and Support detection upgrades can all help."
     },
-    5: {
+    15: {
       title: "Hidden Enemies Next Wave",
       body: "The next wave includes hidden enemies.\n\nIf a tower cannot detect them, it will not fire."
     },
-    7: {
+    16: {
       title: "Armoured Enemies Soon",
-      body: "Armoured enemies arrive on wave 9.\n\nMissiles, lasers, and explosive damage strip armour cleanly."
+      body: "Armoured enemies arrive on wave 18.\n\nMissiles, lasers, and explosive damage strip armour cleanly."
     },
-    8: {
+    17: {
       title: "Armoured Enemies Next Wave",
       body: "The next wave includes armoured enemies.\n\nKinetic damage struggles until the shell is broken."
     },
-    16: {
+    28: {
       title: "Shielded Enemies Soon",
-      body: "Shielded enemies arrive on wave 18.\n\nEnemies inside the shield do not take direct damage, so crack the shield source first with focused fire."
+      body: "Shielded enemies arrive on wave 30.\n\nEnemies inside the shield do not take direct damage, so crack the shield source first with focused fire."
     },
-    17: {
+    29: {
       title: "Shielded Enemies Next Wave",
       body: "The next wave includes shielded enemies.\n\nBurst damage and splash make it easier to break the shield source before the lane fills up."
+    },
+    34: {
+      title: "Attackers Soon",
+      body: "Attackers arrive on wave 36.\n\nThey stay hidden and move fast, so get detection and reliable burst online before they start slipping through."
+    },
+    35: {
+      title: "Attackers Next Wave",
+      body: "The next wave introduces attackers.\n\nThey are hidden, fast, and much harder to catch than the early enemies."
+    },
+    40: {
+      title: "Shielded Attacker Soon",
+      body: "A shielded attacker appears on wave 42.\n\nMake sure you can crack shields quickly before it reaches your line."
+    },
+    41: {
+      title: "Shielded Attacker Next Wave",
+      body: "The next wave includes a shielded attacker.\n\nYou will need detection and focused anti-shield damage."
+    },
+    56: {
+      title: "Shield Rush Soon",
+      body: "Wave 58 brings a major rush of shielded attackers.\n\nPrepare layered detection, shield breaking, and enough damage to stop a fast hidden flood."
+    },
+    57: {
+      title: "Shield Rush Next Wave",
+      body: "The next wave floods the lane with shielded attackers.\n\nIf your anti-shield damage is shaky, they can snowball through very quickly."
     }
   };
   return warnings[round] || null;
@@ -1081,14 +1438,8 @@ function queueNextTutorialStep() {
   if (tutorialDismissed || isSandboxMode()) {
     return;
   }
-  if (!tutorialProgress.scrolled) {
-    queueDelayedTutorialStep("tutorial-scroll", "Move The Board", "Use the arrow keys to pan around the map.\n\nOnce you move the board, the next tutorial page will appear after a short pause.");
-    return;
-  }
   if (!tutorialProgress.placedBlock) {
-    queueDelayedTutorialStep("tutorial-block", isFactoryMap() ? "Place A Conveyor" : "Place A Block", isFactoryMap()
-      ? "Use the Block tool to place a conveyor on a valid tile and extend the route.\n\nAfter you place one, the next tutorial page will appear after a short pause."
-      : "Use the Block tool, and press R if needed, to place a route block.\n\nAfter you place one, the next tutorial page will appear after a short pause.");
+    queueDelayedTutorialStep("tutorial-block", "Place A Block", "Use the Block tool, and press R if needed, to place a route block.\n\nAfter you place one, the next tutorial page will appear after a short pause.");
     return;
   }
   if (!tutorialProgress.placedTower) {
@@ -1107,14 +1458,9 @@ function renderTutorial() {
 
   const steps = [
     {
-      done: tutorialProgress.scrolled,
-      title: "Pan the board",
-      detail: "Use the arrow keys to move around the map smoothly."
-    },
-    {
       done: tutorialProgress.placedBlock,
-      title: isFactoryMap() ? "Place conveyors" : "Place blocks",
-      detail: isFactoryMap() ? "Use the block tool to lay conveyors and shape the route." : "Use the block tool and R to rotate pieces into the lane."
+      title: "Place blocks",
+      detail: "Use the block tool and R to rotate pieces into the lane."
     },
     {
       done: tutorialProgress.placedTower,
@@ -1160,7 +1506,7 @@ function renderAlmanac() {
     almanacTitle.textContent = "Almanac";
     almanacDetail.innerHTML = `<p class="hint">Select the Towers tab to inspect tower damage, attacks per second, range, and upgrade scaling.</p>`;
 
-    for (const enemy of Object.values(ENEMY_TYPES).filter((entry) => entry.key !== "shield")) {
+    for (const enemy of Object.values(ENEMY_TYPES).filter((entry) => entry.key !== "shield" && entry.key !== "armored")) {
       const entry = document.createElement("article");
       const known = discoveredEnemies.has(enemy.key);
       entry.className = `almanac-entry${known ? "" : " locked"}`;
@@ -1198,12 +1544,28 @@ function enemySpecialAbilities(enemy) {
   }
   if (enemy.key === "idaen") {
     specials.push("Boss summon phase");
-    specials.push("Shielded while summon biscuits survive");
+    specials.push("Shielded while summoned shortbread survive");
   }
   if (enemy.key === "adapter") {
     specials.push("Boss escort launches");
     specials.push("Builds immunity once a damage class reaches one quarter of its health");
     specials.push("Ghost attackers inherit Adapter immunities until the boss falls");
+  }
+  if (enemy.key === "splitter") {
+    specials.push("Has 10 tiers");
+    specials.push("Each tier has 2x the health of the previous tier");
+    specials.push("Splits into 3 of the previous tier on defeat");
+  }
+  if (enemy.key === "sentinel") {
+    specials.push("Sentinel is the base class");
+    specials.push("Overwatch is the fast tanky class");
+    specials.push("Overwatch drops 8 Sentinels on defeat");
+    specials.push("Sentinels burst out farther than normal splits");
+  }
+  if (enemy.key === "hydra") {
+    specials.push("Spawns as a four-segment chain");
+    specials.push("Yellow dies to explosive, blue to kinetic, purple to chemical, red to energy");
+    specials.push("Each next segment stays immune until the previous one falls");
   }
   if (enemy.key === "biscuit") {
     specials.push("Extreme speed");
@@ -1222,7 +1584,7 @@ function enemySpecialAbilities(enemy) {
     specials.push("Break the field first, then it becomes a normal enemy");
     specials.push("Tier 2 splits into three Tier 1 shields");
     specials.push("Tier 3 splits into three Tier 2 shields");
-  } else if (enemySupportsTiers(enemy.key) && !enemy.key.startsWith("waffle")) {
+  } else if (enemy.key !== "splitter" && enemySupportsTiers(enemy.key) && !enemy.key.startsWith("waffle")) {
     specials.push("Tier 2 splits into three Tier 1s");
     specials.push("Tier 3 splits into three Tier 2s");
   }
@@ -1250,17 +1612,73 @@ function renderEnemyAlmanacCard(enemy) {
     effects.push("Adaptive Boss");
   }
   const effectText = effects.length > 0 ? effects.join(", ") : "None";
-  let tierText = "None";
-  if (enemy.key === "waffle16") {
-    tierText = "Tier 1 mini waffle, Tier 2 2x2 waffle, Tier 3 4x4 waffle.";
-  } else if (enemy.key === "shield") {
-    tierText = "Tier 1 normal shield, Tier 2 stronger/larger shield, Tier 3 massive shield with much more shield HP.";
-  } else if (enemy.key === "diamond") {
-    tierText = "Tier 1 normal, Tier 2 tougher/slower/larger, Tier 3 much tougher/slower/larger.";
-  } else if (enemySupportsTiers(enemy.key)) {
-    tierText = "Tier 1 normal, Tier 2 tougher/slower/larger, Tier 3 much tougher/slower/larger.";
+  const tierLines = enemyTierStatLines(enemy);
+  return `<h3>${enemy.name}</h3><p>${enemy.description}</p><p>Health: ${formatNumber(hp)} | Leak Damage: Remaining health | Speed: ${formatNumber(speed / CELL_SIZE)} cells/s</p><p>Effects: ${effectText}</p><p>Tier Stats:<br>${tierLines.join("<br>")}</p><p>Special: ${specialText}</p><p>Reward: ${enemy.reward}</p>`;
+}
+
+function almanacTierStats(enemy, tier) {
+  const round = Math.max(waveNumber, 1);
+  if (enemy.key === "sentinel") {
+    const isOverwatch = tier >= 2;
+    const hp = Math.round(((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp) * (isOverwatch ? 2.6 : 1));
+    const speed = ((((30 + round * 2 + enemy.speedBonus + (isOverwatch ? 30 : 0)) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1))) / CELL_SIZE;
+    const reward = Math.max(1, Math.round(enemy.reward * (isOverwatch ? 2.2 : 1)));
+    return `${isOverwatch ? "Overwatch" : "Sentinel"}: HP ${formatNumber(hp)}, Speed ${formatNumber(speed)} cells/s, Reward ${reward}${isOverwatch ? ", Splits into 8 Sentinels" : ""}`;
   }
-  return `<h3>${enemy.name}</h3><p>${enemy.description}</p><p>Health: ${formatNumber(hp)} | Base Damage: 1 | Speed: ${formatNumber(speed / CELL_SIZE)} cells/s</p><p>Effects: ${effectText}</p><p>Tiers: ${tierText}</p><p>Special: ${specialText}</p><p>Reward: ${enemy.reward}</p>`;
+  if (enemy.key === "splitter") {
+    const hp = Math.round(2 ** (tier - 1));
+    const speed = (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE;
+    const reward = Math.max(1, Math.round(enemy.reward * Math.max(1, tier * 0.7)));
+    return `Tier ${tier}: HP ${formatNumber(hp)}, Speed ${formatNumber(speed)} cells/s, Reward ${reward}, Splits into 2 Tier ${Math.max(1, tier - 1)}s`;
+  }
+  const baseHp = (5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp;
+  const baseSpeed = 30 + round * 2 + enemy.speedBonus;
+  const tierConfig = enemy.key === "diamond"
+    ? diamondTierConfig(tier)
+    : enemy.key === "shield"
+      ? shieldTierConfig(tier)
+      : enemySupportsTiers(enemy.key)
+        ? genericTierConfig(tier)
+        : null;
+  const waffleRewardMultiplier = enemy.key === "waffle16" ? (tier >= 3 ? 1 : tier === 2 ? 0.3 : 0.1) : 1;
+  const waffleSpeedBonus = enemy.key === "waffle16" ? (tier >= 3 ? -10 : tier === 2 ? -2 : 10) : 0;
+  const hp = Math.round(baseHp * (tierConfig?.hpMultiplier || 1));
+  const speed = (((baseSpeed + waffleSpeedBonus) / DIFFICULTIES.standard.interval) * (tierConfig?.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE;
+  const reward = Math.max(1, Math.round(enemy.reward * waffleRewardMultiplier * (tierConfig?.rewardMultiplier || 1)));
+  const extras = [];
+  if (enemy.key === "waffle16") {
+    extras.push(`Size ${tier >= 3 ? "4x4" : tier === 2 ? "2x2" : "1x1"}`);
+  }
+  if (enemy.key === "shield") {
+    const shieldStats = shieldTierConfig(tier);
+    const shieldHp = Math.round((18 + round * 2.4) * (shieldStats.shieldHpMultiplier || 1) * 3);
+    extras.push(`Shield ${formatNumber(shieldHp)}`);
+  }
+  if (enemy.key === "armored") {
+    extras.push(`Armour ${enemy.armor + Math.floor((round - 9) / 4)}`);
+  }
+  return `Tier ${tier}: HP ${formatNumber(hp)}, Speed ${formatNumber(speed)} cells/s, Reward ${reward}${extras.length ? `, ${extras.join(", ")}` : ""}`;
+}
+
+function enemyTierStatLines(enemy) {
+  if (enemy.key === "idaen" || enemy.key === "adapter") {
+    return ["Boss enemy with wave-based scaling instead of normal tier variants."];
+  }
+  if (!enemySupportsTiers(enemy.key)) {
+    return ["No tier variants."];
+  }
+  if (enemy.key === "sentinel") {
+    return [almanacTierStats(enemy, 1), almanacTierStats(enemy, 2)];
+  }
+  if (enemy.key === "hydra") {
+    return [
+      "Yellow head: explosive only.",
+      "Blue head: kinetic only after yellow falls.",
+      "Purple head: chemical only after blue falls.",
+      "Red head: energy only after purple falls."
+    ];
+  }
+  return Array.from({ length: maxTierForEnemy(enemy.key) }, (_, index) => almanacTierStats(enemy, index + 1));
 }
 
 function diamondTierForWave(round = waveNumber) {
@@ -1293,12 +1711,20 @@ function genericEnemyTierForWave(round = waveNumber) {
   return 1;
 }
 
+function splitterTierForWave(round = waveNumber) {
+  return Math.max(1, Math.min(10, 1 + Math.floor(Math.max(0, round - 10) / 4)));
+}
+
+function maxTierForEnemy(enemyKey) {
+  return enemyKey === "splitter" ? 10 : enemyKey === "sentinel" ? 2 : 3;
+}
+
 function waffleTypeForTier(tier = 3) {
   return ENEMY_TYPES.waffle16;
 }
 
 function enemySupportsTiers(enemyKey) {
-  return enemyKey !== "idaen";
+  return enemyKey !== "idaen" && enemyKey !== "hydra";
 }
 
 function isDiamondEnemy(enemy) {
@@ -1505,7 +1931,7 @@ function populateSandboxEnemyOptions() {
   }
 
   sandboxEnemySelect.innerHTML = Object.values(ENEMY_TYPES)
-    .filter((enemy) => enemy.key !== "shield" && enemy.key !== "megaWaffle")
+    .filter((enemy) => enemy.key !== "shield" && enemy.key !== "megaWaffle" && enemy.key !== "armored")
     .map((enemy) => `<option value="${enemy.key}">${enemy.name}</option>`)
     .join("");
   updateSandboxTierOptions();
@@ -1528,6 +1954,25 @@ function updateSandboxTierOptions() {
       <option value="50">Wave 50</option>
       <option value="75">Wave 75</option>
       <option value="100">Wave 100</option>
+    `;
+    sandboxTierSelect.disabled = false;
+    sandboxTierSelect.parentElement?.classList.remove("disabled");
+    return;
+  }
+
+  if (enemyKey === "splitter") {
+    sandboxTierLabel.textContent = "Tier";
+    sandboxTierSelect.innerHTML = Array.from({ length: 10 }, (_, index) => `<option value="${index + 1}">Tier ${index + 1}</option>`).join("");
+    sandboxTierSelect.disabled = false;
+    sandboxTierSelect.parentElement?.classList.remove("disabled");
+    return;
+  }
+
+  if (enemyKey === "sentinel") {
+    sandboxTierLabel.textContent = "Class";
+    sandboxTierSelect.innerHTML = `
+      <option value="1">Sentinel</option>
+      <option value="2">Overwatch</option>
     `;
     sandboxTierSelect.disabled = false;
     sandboxTierSelect.parentElement?.classList.remove("disabled");
@@ -1719,7 +2164,7 @@ function ensureDippyAmmoOrder(tower, slotCount) {
 
 function setTowerType(nextType) {
   if (nextType === "crossbow" && !crossbowUnlocked) {
-    setMessage("Crossbow is locked. Reach Brutal wave 50 on Outpost without placing walls to unlock it.", 2.2);
+    setMessage("Crossbow is locked. Beat Brutal wave 50 on Outpost while placing only one block to unlock it.", 2.2);
     return;
   }
 
@@ -1779,9 +2224,6 @@ function activeBossEnemy() {
 }
 
 function rotateActivePiece() {
-  if (isFactoryMap()) {
-    return;
-  }
   activePiece = {
     ...activePiece,
     offsets: activePiece.offsets.map((offset) => rotateOffset(offset, 1))
@@ -1799,87 +2241,45 @@ function placedCells(originX, originY, piece = activePiece) {
 
 function findPathFrom(startPoint, extraBlocked = [], extraOpen = []) {
   const extraBlockedSet = new Set(extraBlocked.map((cell) => `${cell.x},${cell.y}`));
-  const extraOpenSet = new Set(extraOpen.map((cell) => `${cell.x},${cell.y}`));
   const queue = [{ x: startPoint.x, y: startPoint.y }];
   const visited = new Set([`${startPoint.x},${startPoint.y}`]);
   const parents = new Map([[`${startPoint.x},${startPoint.y}`, null]]);
   let found = null;
-  let fallback = `${startPoint.x},${startPoint.y}`;
-  let fallbackDistance = Math.hypot(goalPortal().x - startPoint.x, goalPortal().y - startPoint.y);
+  const goals = activeGoals();
 
   while (queue.length > 0) {
     const current = queue.shift();
     const currentKey = `${current.x},${current.y}`;
 
-    if (current.x === goalPortal().x && current.y === goalPortal().y) {
+    if (goals.some((goal) => current.x === goal.x && current.y === goal.y)) {
       found = currentKey;
       break;
     }
 
-    if (isFactoryMap()) {
-      for (const direction of factoryTravelDirections()) {
-        const nextX = current.x + direction.dx;
-        const nextY = current.y + direction.dy;
-        const gapX = current.x + direction.gapX;
-        const gapY = current.y + direction.gapY;
-        const nextKey = `${nextX},${nextY}`;
+    for (const direction of directions) {
+      const nextX = current.x + direction.dx;
+      const nextY = current.y + direction.dy;
+      const nextKey = `${nextX},${nextY}`;
 
-        if (!inBounds(nextX, nextY) || visited.has(nextKey) || obstacleAt(gapX, gapY)) {
-          continue;
-        }
-
-        const traversable = isEndpoint(nextX, nextY)
-          || (
-            isFactoryBuildTile(nextX, nextY)
-            && grid[nextY][nextX].blockId !== null
-            && !extraBlockedSet.has(nextKey)
-            && !obstacleAt(nextX, nextY)
-          )
-          || extraOpenSet.has(nextKey);
-
-        if (!traversable) {
-          continue;
-        }
-
-        visited.add(nextKey);
-        parents.set(nextKey, currentKey);
-        const distanceToGoal = Math.hypot(goalPortal().x - nextX, goalPortal().y - nextY);
-        if (distanceToGoal <= fallbackDistance) {
-          fallback = nextKey;
-          fallbackDistance = distanceToGoal;
-        }
-        queue.push({ x: nextX, y: nextY });
+      if (!inBounds(nextX, nextY) || visited.has(nextKey)) {
+        continue;
       }
-    } else {
-      for (const direction of directions) {
-        const nextX = current.x + direction.dx;
-        const nextY = current.y + direction.dy;
-        const nextKey = `${nextX},${nextY}`;
 
-        if (!inBounds(nextX, nextY) || visited.has(nextKey)) {
+      if (!isEndpoint(nextX, nextY)) {
+        const occupied = grid[nextY][nextX].blockId !== null || obstacleAt(nextX, nextY) || extraBlockedSet.has(nextKey);
+        if (occupied) {
           continue;
         }
-
-        if (!isEndpoint(nextX, nextY)) {
-          const occupied = grid[nextY][nextX].blockId !== null || obstacleAt(nextX, nextY) || extraBlockedSet.has(nextKey);
-          if (occupied) {
-            continue;
-          }
-        }
-
-        visited.add(nextKey);
-        parents.set(nextKey, currentKey);
-        queue.push({ x: nextX, y: nextY });
       }
+
+      visited.add(nextKey);
+      parents.set(nextKey, currentKey);
+      queue.push({ x: nextX, y: nextY });
     }
   }
 
   if (!found) {
-    if (isFactoryMap()) {
-      found = fallback;
-    } else {
-      return [];
-    }
+    return [];
   }
 
   const result = [];
@@ -1907,6 +2307,12 @@ function allRoutesOpen(nextRoutes) {
 
 function canPlacePiece(originX, originY) {
   const cells = placedCells(originX, originY);
+  if (isFactoryMap() && !cellsShareFactoryQuarter(cells)) {
+    return false;
+  }
+  if (!cellsStayOnSingleCliffSide(cells)) {
+    return false;
+  }
 
   for (const cell of cells) {
     if (!inBounds(cell.x, cell.y) || isEndpoint(cell.x, cell.y)) {
@@ -1917,17 +2323,17 @@ function canPlacePiece(originX, originY) {
       return false;
     }
 
-    if (isFactoryMap() && !isFactoryBuildTile(cell.x, cell.y)) {
+    if (noBuildAt(cell.x, cell.y) && !cellsFitInsideDitch(cells)) {
       return false;
     }
 
-    if (grid[cell.y][cell.x].blockId !== null || obstacleAt(cell.x, cell.y)) {
+    if (grid[cell.y][cell.x].blockId !== null || (obstacleAt(cell.x, cell.y) && !islandAt(cell.x, cell.y))) {
       return false;
     }
   }
 
-  if (isFactoryMap()) {
-    return factoryPlacementConnectsToLatest(cells);
+  if (mapUsesIslandPlacement() && !cellsTouchAnchoredLand(cells)) {
+    return false;
   }
 
   return allRoutesOpen(computeRoutes(cells));
@@ -1939,6 +2345,9 @@ function canPlaceTowerAt(x, y) {
   }
 
   const cells = towerPlacementCells(selectedTowerType, x, y);
+  if (isFactoryMap() && !cellsShareFactoryQuarter(cells)) {
+    return false;
+  }
   if (money < towerCost(selectedTowerType)) {
     return false;
   }
@@ -1949,13 +2358,14 @@ function canPlaceTowerAt(x, y) {
     }
 
     const state = grid[cell.y][cell.x];
-    if (isFactoryMap()) {
-      if (state.blockId !== null || state.towerId !== null || obstacleAt(cell.x, cell.y)) {
-        return false;
-      }
-    } else if (state.blockId === null || state.towerId !== null) {
+    const hasSurface = state.blockId !== null || islandAt(cell.x, cell.y) || cellAllowsTowerSurface(cell.x, cell.y);
+    if (!hasSurface || state.towerId !== null) {
       return false;
     }
+  }
+
+  if (isFurnaceMap() && towerNearFurnaceHeat(cells)) {
+    return false;
   }
 
   return true;
@@ -1964,7 +2374,13 @@ function canPlaceTowerAt(x, y) {
 function placePiece(originX, originY) {
   if (!canPlacePiece(originX, originY)) {
     setMessage(isFactoryMap()
-      ? "That conveyor must connect to the newest placed conveyor."
+      ? "That placement is invalid. Factory blocks cannot cross quarter seams or enter the open gap."
+      : isCliffsMap() && !cellsStayOnSingleCliffSide(placedCells(originX, originY))
+        ? "That block has to stay fully on one side of the cliff."
+      : mapUsesIslandPlacement() && !cellsTouchAnchoredLand(placedCells(originX, originY))
+        ? "Those blocks must touch an island or another placed block."
+      : placedCells(originX, originY).some((cell) => noBuildAt(cell.x, cell.y)) && !cellsFitInsideDitch(placedCells(originX, originY))
+        ? "That block has to fit fully inside the ditch, not hang out of it."
       : "That placement is invalid. Blocks cannot overlap or seal the route.");
     return false;
   }
@@ -1997,7 +2413,8 @@ function placePiece(originX, originY) {
     currentBlockCost *= 2;
   }
   if (selectedMap === "outpost") {
-    outpostWalllessQuestFailed = true;
+    outpostQuestBlocksPlaced += 1;
+    outpostWalllessQuestFailed = outpostQuestBlocksPlaced > 1;
   }
   activePiece = createRandomPiece(selectedMap);
       tutorialProgress.placedBlock = true;
@@ -2092,64 +2509,48 @@ function seedOutpostMap() {
 }
 
 function seedFortificationMap() {
-  const localWallCells = [];
-  for (let y = 2; y <= 12; y += 1) {
-    if (y === 6 || y === 7 || y === 8) {
-      continue;
-    }
-    localWallCells.push({ x: 4, y });
-  }
-
-  const localCorridorWalls = [
-    { x: 8, y: 2 }, { x: 9, y: 2 }, { x: 10, y: 2 }, { x: 11, y: 2 }, { x: 12, y: 2 },
-    { x: 8, y: 12 }, { x: 9, y: 12 }, { x: 10, y: 12 }, { x: 11, y: 12 }, { x: 12, y: 12 },
-    { x: 11, y: 4 }, { x: 11, y: 5 }, { x: 11, y: 9 }, { x: 11, y: 10 },
-    { x: 16, y: 4 }, { x: 16, y: 5 }, { x: 16, y: 9 }, { x: 16, y: 10 }
-  ];
-  const localCrossbows = [
-    { x: 4, y: 4 },
-    { x: 4, y: 10 }
-  ];
-  const localSpikeCells = [
-    { x: 7, y: 7 },
-    { x: 10, y: 7 },
-    { x: 13, y: 5 },
-    { x: 13, y: 9 },
-    { x: 18, y: 7 }
-  ];
-  const allLocalCells = localWallCells.concat(localCorridorWalls, localCrossbows, localSpikeCells);
-  const minX = Math.min(...allLocalCells.map((cell) => cell.x));
-  const maxX = Math.max(...allLocalCells.map((cell) => cell.x));
-  const minY = Math.min(...allLocalCells.map((cell) => cell.y));
-  const maxY = Math.max(...allLocalCells.map((cell) => cell.y));
-  const layoutWidth = maxX - minX + 1;
-  const layoutHeight = maxY - minY + 1;
-  const offsetX = Math.floor((COLS - layoutWidth) / 2) - minX;
-  const offsetY = Math.floor((ROWS - layoutHeight) / 2) - minY;
-  const shiftCell = (cell) => ({ x: cell.x + offsetX, y: cell.y + offsetY });
+  const centerY = Math.floor(ROWS / 2);
   const wallCells = [];
-  for (const cell of localWallCells) {
-    wallCells.push(shiftCell(cell));
-  }
-  for (const cell of localCorridorWalls) {
-    wallCells.push(shiftCell(cell));
+  const leftWallX = 8;
+  const rightButtressX = 18;
+
+  for (let y = centerY - 5; y <= centerY + 5; y += 1) {
+    if (y < centerY - 1 || y > centerY + 1) {
+      wallCells.push({ x: leftWallX, y });
+    }
   }
 
-  addPresetBlock(wallCells, "#6f7c86", "Fortification Wall", true);
-  for (const cell of localCrossbows) {
-    const shifted = shiftCell(cell);
-    addPresetTower("crossbow", shifted.x, shifted.y, { spent: 0, unique: true, level: 1, upgradeLocked: true });
+  for (let x = 12; x <= 18; x += 1) {
+    wallCells.push({ x, y: centerY - 5 });
+    wallCells.push({ x, y: centerY + 5 });
   }
 
-  for (const cell of localSpikeCells) {
-    const shifted = shiftCell(cell);
-    const center = cellCenter(shifted.x, shifted.y);
+  for (let y = centerY - 3; y <= centerY + 3; y += 1) {
+    if (y !== centerY) {
+      wallCells.push({ x: 15, y });
+    }
+    wallCells.push({ x: rightButtressX, y });
+  }
+
+  addPresetBlock(uniqueCells(wallCells), "#6f7c86", "Fortification Wall", true);
+
+  addPresetTower("crossbow", leftWallX, centerY - 3, { spent: 0, unique: true, level: 1, upgradeLocked: true });
+  addPresetTower("crossbow", leftWallX, centerY + 3, { spent: 0, unique: true, level: 1, upgradeLocked: true });
+
+  const spikeCells = [
+    { x: 12, y: centerY },
+    { x: 16, y: centerY },
+    { x: 20, y: centerY }
+  ];
+
+  for (const cell of spikeCells) {
+    const center = cellCenter(cell.x, cell.y);
     traps.push({
       id: nextTrapId,
       ownerTowerId: null,
       kind: "spike",
-      x: shifted.x,
-      y: shifted.y,
+      x: cell.x,
+      y: cell.y,
       centerX: center.x,
       centerY: center.y,
       damage: 1.9,
@@ -2164,6 +2565,52 @@ function seedFortificationMap() {
   }
 }
 
+function seedDippyCastleMap() {
+  const centerY = Math.floor(ROWS / 2);
+  const wallCells = [];
+
+  const addRect = (x1, y1, x2, y2) => {
+    for (let y = y1; y <= y2; y += 1) {
+      for (let x = x1; x <= x2; x += 1) {
+        wallCells.push({ x, y });
+      }
+    }
+  };
+
+  addRect(15, centerY - 6, 17, centerY - 4);
+  addRect(15, centerY + 4, 17, centerY + 6);
+
+  for (let x = 11; x <= 23; x += 1) {
+    if (x < 13 || x > 21) {
+      wallCells.push({ x, y: centerY - 1 });
+      wallCells.push({ x, y: centerY + 1 });
+    }
+  }
+
+  for (let x = 13; x <= 21; x += 1) {
+    if (x !== 14 && x !== 17 && x !== 20) {
+      wallCells.push({ x, y: centerY - 3 });
+      wallCells.push({ x, y: centerY + 3 });
+    }
+  }
+
+  addPresetBlock(uniqueCells(wallCells), "#7b8895", "Castle Wall", true);
+
+  for (const cell of activeMap.obstacles) {
+    const center = cellCenter(cell.x, cell.y);
+    grid[cell.y][cell.x].towerId = null;
+    effects.push({
+      id: nextEffectId++,
+      kind: "castleSparkle",
+      x: center.x,
+      y: center.y,
+      ttl: 0.01,
+      maxTtl: 0.01,
+      color: "rgba(0,0,0,0)"
+    });
+  }
+}
+
 function applyMapViewport() {
   canvas.width = BASE_CANVAS_WIDTH;
   canvas.height = BASE_CANVAS_HEIGHT;
@@ -2174,17 +2621,22 @@ function applyMapViewport() {
 }
 
 function seedMapFeatures() {
-  if (selectedMap === "outpost") {
+  factoryState = null;
+  if (selectedMap === "factory") {
+    initializeFactoryState();
+  } else if (selectedMap === "outpost") {
     seedOutpostMap();
   } else if (selectedMap === "fortification") {
     seedFortificationMap();
+  } else if (selectedMap === "dippycastle") {
+    seedDippyCastleMap();
   }
 }
 
 function maybeUnlockCrossbowQuest() {
   if (selectedMap === "outpost" && selectedDifficulty === "brutal" && !outpostWalllessQuestFailed && waveNumber >= 50 && !crossbowUnlocked) {
     crossbowUnlocked = true;
-    setMessage("Secret unlocked: Crossbow tower can now be purchased in future runs.", 3.2);
+    setMessage("Secret unlocked: Crossbows now cost 15 cash in future runs.", 3.2);
     updateHud();
   }
 }
@@ -2194,6 +2646,9 @@ function supportWaveIncomeBonus() {
 }
 
 function towerCost(type) {
+  if (type === "crossbow" && crossbowUnlocked) {
+    return 15;
+  }
   return TOWER_BASE_COST[type];
 }
 
@@ -2266,7 +2721,7 @@ function trapperPathDescription(path, tier) {
     },
     2: {
       1: "Path 2 T1: Reinforced Traps. +15 seconds lifetime.",
-      2: "Path 2 T2: Better Engineering. More damage and 12 enemy steps.",
+      2: "Path 2 T2: Better Engineering. Traps now hold 12 spikes.",
       3: "Path 2 T3: Sticky Traps. Traps now slow enemies.",
       4: "Path 2 T4: Mines. Explodes after 12 steps or when time runs out.",
       5: "Path 2 T5: Mango Mines. Explosions rain slowing mango bombs."
@@ -2280,17 +2735,17 @@ function laserPathDescription(path, tier) {
   const descriptions = {
     1: {
       1: "Path 1 T1: Plasma Ignition. Beam applies burn damage over time.",
-      2: "Path 1 T2: Thermal Feed. Faster firing with stronger burn.",
+      2: "Path 1 T2: Thermal Feed. Faster firing with longer burn.",
       3: "Path 1 T3: Plasma Ray. A continuous white heat stream scorches everything in its path.",
-      4: "Path 1 T4: White Core. Longer burn, wider beam, more damage.",
-      5: "Path 1 T5: Star Furnace. Max burn output with a relentless plasma stream."
+      4: "Path 1 T4: White Core. Longer burn and a wider beam.",
+      5: "Path 1 T5: Star Furnace. Maximum burn duration with a relentless plasma stream."
     },
     2: {
       1: "Path 2 T1: Focused Crystals. Higher beam damage.",
       2: "Path 2 T2: Refracted Barrel. More range and burn duration.",
-      3: "Path 2 T3: Photon Beam. Bright yellow doom beam, slower but pierces infinitely.",
-      4: "Path 2 T4: Solar Lance. Much higher damage and burn.",
-      5: "Path 2 T5: Cataclysm Prism. Extreme beam damage with brutal lingering burn."
+      3: "Path 2 T3: Increased Damage. Sharper beam output and heavier burn.",
+      4: "Path 2 T4: Double Beam. Fires two parallel beams through the lane.",
+      5: "Path 2 T5: Photon Beam. Bright yellow doom beams with brutal damage and infinite pierce."
     }
   };
 
@@ -2344,9 +2799,9 @@ function dippyPathDescription(path, tier) {
     1: {
       1: "Path 1 T1: Bigger Eggs. Eggs hit for 8 and explode in a bigger radius.",
       2: "Path 1 T2: Boiled Eggs. Eggs still hit for 8 and now leave lots of burn.",
-      3: "Path 1 T3: Animal Welfare Approved Eggs. Burst of three, each egg deals 8.",
-      4: "Path 1 T4: Half-Dozen. Burst of six, each egg deals 8.",
-      5: "Path 1 T5: A Dozen Eggs. Burst of twelve, each egg deals 8 before reloading."
+      3: "Path 1 T3: Animal Welfare Approved Eggs. Burst of three, each egg deals 8 and curves onto enemies after rising.",
+      4: "Path 1 T4: Half-Dozen. Burst of six homing eggs, each dealing 8.",
+      5: "Path 1 T5: A Dozen Eggs. Two six-egg pods alternate fire for a steady homing stream."
     },
     2: {
       1: "Path 2 T1: Fresh Eggs. More explosion radius.",
@@ -2387,13 +2842,13 @@ function gatePathDescription(path, tier) {
       1: "Path 1 T1: Sour Additive. Acidified enemies take slightly more damage from other towers.",
       2: "Path 1 T2: Etching Mix. Ally damage bonus on acidified targets increases.",
       3: "Path 1 T3: Corrosion Marker. Acid lasts longer and the support debuff grows stronger.",
-      4: "Path 1 T4: Exposed Weakness. Sprayer tags enemies so allied towers punish them harder.",
+      4: "Path 1 T4: Exposed Weakness. Acid tags enemies so allied towers punish them harder.",
       5: "Path 1 T5: Meltdown Solvent. Acidified enemies take massive bonus damage from the rest of your defense."
     },
     2: {
       1: "Path 2 T1: Faster Pump. Sprays acid more often.",
       2: "Path 2 T2: Pressure Nozzle. More spray speed and stronger direct acid hits.",
-      3: "Path 2 T3: Atomizer. Range increases and the sprayer catches hiddens reliably.",
+      3: "Path 2 T3: Atomizer. Range increases and the acid spray catches hiddens reliably.",
       4: "Path 2 T4: Twin Burst. Spray cooldown drops hard and acid ticks faster.",
       5: "Path 2 T5: Flood Jet. Extreme spray speed with dense acid buildup on targets."
     }
@@ -2443,16 +2898,16 @@ function missilePathDescription(path, tier) {
     1: {
       1: "Path 1 T1: Longer range.",
       2: "Path 1 T2: Bigger explosion.",
-      3: "Path 1 T3: Better Munitions. Faster rockets, larger blast, slight damage boost.",
+      3: "Path 1 T3: Missile. Faster rockets, larger blast, slight damage boost.",
       4: "Path 1 T4: Rocket Burst. Shoots a burst of 2 rockets before reloading for 1.24s.",
-      5: "Path 1 T5: Rocket Pods. Shoots a burst of 6 rockets before reloading for 1.20s."
+      5: "Path 1 T5: Rocket Pods. Shoots a burst of 6 homing rockets before reloading for 1.20s."
     },
     2: {
-      1: "Path 2 T1: More damage.",
-      2: "Path 2 T2: Even more damage.",
-      3: "Path 2 T3: Shrapnel. Explosion throws damaging shards.",
-      4: "Path 2 T4: Clusters. Explosion launches 10 mini bombs with reduced reach.",
-      5: "Path 2 T5: Rain of Bombs. Short-range cluster bombs split into more explosives."
+      1: "Path 2 T1: Heavier Barrel. More direct damage.",
+      2: "Path 2 T2: Dense Shot. More direct damage again.",
+      3: "Path 2 T3: Heavy Dart. Fires a piercing kinetic dart instead of an explosive shell.",
+      4: "Path 2 T4: Reinforced Dart. More dart damage and more pierce.",
+      5: "Path 2 T5: Siege Dart. Massive piercing heavy dart with brutal direct impact."
     }
   };
 
@@ -2473,7 +2928,7 @@ function dronePathDescription(path, tier) {
       5: "Path 1 T5: Attack Drone. 1.25x range, can hunt inside allied tower ranges, rockets fire faster."
     },
     2: {
-      1: "Path 2 T1: Improved Mechanics. Faster attack speed.",
+      1: "Path 2 T1: Improved Mechanics. Faster attack speed, much faster flight speed, and tighter response control.",
       2: "Path 2 T2: Sharper Bullets. Bullets pierce twice.",
       3: "Path 2 T3: Extra Support. Gains 2 extra support drones.",
       4: "Path 2 T4: Additional Weapons. Main drone gets four guns, supports get two.",
@@ -2558,6 +3013,21 @@ function pathDescriptionForTower(tower, path, tier) {
   return dronePathDescription(path, tier);
 }
 
+function towerDisplayName(towerOrType) {
+  const type = typeof towerOrType === "string" ? towerOrType : towerOrType?.type;
+  const baseName = TOWER_INFO[type]?.name || "Tower";
+  if (!towerOrType || typeof towerOrType === "string" || !isPathTower(type)) {
+    return baseName;
+  }
+  const renamePath = towerOrType.path1 >= 3 ? 1 : towerOrType.path2 >= 3 ? 2 : 0;
+  if (!renamePath) {
+    return baseName;
+  }
+  const tier3Text = pathDescriptionForTower(towerOrType, renamePath, 3);
+  const renamed = tier3Text.split(": ").pop()?.split(".")[0]?.trim();
+  return renamed || baseName;
+}
+
 function canUpgradeTowerPath(tower, path) {
   if (tower.type === "tesla") {
     return canUpgradeTeslaPath(tower, path);
@@ -2623,8 +3093,13 @@ function towerStatSummary(type, overrides = {}) {
   if (stats.detectHidden) {
     extras.push("Detects hidden");
   }
-  if (type === "missile" && stats.splash) {
-    extras.push(`Splash ${formatNumber(stats.splash)}`);
+  if (type === "missile") {
+    if (stats.heavyDart) {
+      extras.push(`Pierce ${stats.pierce}`);
+      extras.push("Heavy dart path");
+    } else if (stats.splash) {
+      extras.push(`Splash ${formatNumber(stats.splash)}`);
+    }
   }
   if (type === "shotgun") {
     extras.push(`Lines ${stats.pellets}`);
@@ -2678,6 +3153,9 @@ function towerStatSummary(type, overrides = {}) {
     if (stats.burst > 1) {
       extras.push(`Burst ${stats.burst}, reload ${formatNumber(stats.cooldown)}s`);
     }
+    if (stats.welfareHoming) {
+      extras.push("Eggs curve and home after launch");
+    }
     if (stats.burnDamage > 0) {
       extras.push(`Burn ${formatNumber(stats.burnDamage)}/s for ${formatNumber(stats.burnDuration)}s`);
     }
@@ -2728,6 +3206,9 @@ function towerStatSummary(type, overrides = {}) {
   }
   if (type === "missile" && stats.burst > 1) {
     extras.push(`Burst ${stats.burst} rockets, reload ${formatNumber(stats.cooldown)}s`);
+  }
+  if (type === "missile" && stats.homing) {
+    extras.push("Homing rockets");
   }
   if (stats.burnDamage > 0 && stats.burnDuration > 0) {
     extras.push(`Burn ${formatNumber(stats.burnDamage)}/s for ${formatNumber(stats.burnDuration)}s`);
@@ -2878,7 +3359,15 @@ function towerCanDetectHidden(tower) {
 }
 
 function availablePrioritiesForTower(tower) {
-  return TARGET_PRIORITIES.filter((priority) => priority !== "hidden" || towerCanDetectHidden(tower));
+  return TARGET_PRIORITIES.filter((priority) => {
+    if (priority === "hidden" && !towerCanDetectHidden(tower)) {
+      return false;
+    }
+    if (priority === "cursor" && tower.type !== "drone") {
+      return false;
+    }
+    return true;
+  });
 }
 
 function normalizeTowerPriority(tower) {
@@ -2893,7 +3382,7 @@ function towerCapabilityText(tower) {
     return "Passive support aura.";
   }
   if (tower.type === "gate") {
-    return "Sprays acid that deals periodic chemical damage and acidifies enemies for follow-up damage.";
+    return "Sprays acid that deals corrosive damage over time and weakens enemies for follow-up damage.";
   }
   return towerCanDetectHidden(tower) ? "Can attack hiddens." : "Cannot attack hiddens.";
 }
@@ -2912,14 +3401,14 @@ function openTowerPopup(tower) {
   towerPopup.hidden = false;
   towerPopup.classList.toggle("left", tower.x >= COLS / 2);
   towerPopup.classList.toggle("right", tower.x < COLS / 2);
-  towerPopupTitle.textContent = TOWER_INFO[tower.type].name;
+  towerPopupTitle.textContent = towerDisplayName(tower);
 
   normalizeTowerPriority(tower);
 
   if (isPathTower(tower)) {
     towerPopupSummary.textContent = tower.type === "support"
-      ? `${TOWER_INFO[tower.type].name} Lv ${tower.level}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5. ${towerCapabilityText(tower)}`
-      : `${TOWER_INFO[tower.type].name} Lv ${tower.level}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5. Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}. ${towerCapabilityText(tower)}`;
+      ? `${towerDisplayName(tower)} Lv ${tower.level}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5. ${towerCapabilityText(tower)}`
+      : `${towerDisplayName(tower)} Lv ${tower.level}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5. Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}. ${towerCapabilityText(tower)}`;
   } else {
     towerPopupSummary.textContent = tower.type === "support"
       ? `${TOWER_INFO[tower.type].description} Level ${tower.level}/${maxTowerLevel(tower)}. ${towerCapabilityText(tower)}`
@@ -2986,10 +3475,12 @@ function openTowerPopup(tower) {
 function placeTower(x, y) {
   if (!canPlaceTowerAt(x, y)) {
     setMessage(
-      selectedTowerType === "dippy"
+      isFurnaceMap() && towerNearFurnaceHeat(towerPlacementCells(selectedTowerType, x, y))
+        ? "That spot is too hot. Towers cannot be placed near the furnace core."
+        : selectedTowerType === "dippy"
         ? "Dippy needs a clear 2x2 block space."
         : selectedTowerType === "gate"
-          ? "Sprayer needs a free block tile."
+          ? "Acid needs a free block tile."
           : "That block tile cannot take a tower."
     );
     return false;
@@ -3137,7 +3628,7 @@ function upgradeTower(x, y, path = null) {
   selectedTowerId = tower.id;
   tutorialProgress.upgradedTower = true;
   renderTutorial();
-  setMessage(`${TOWER_INFO[tower.type].name} upgraded to level ${tower.level}.`, 1.2);
+    setMessage(`${towerDisplayName(tower)} upgraded to level ${tower.level}.`, 1.2);
   openTowerPopup(tower);
   return true;
 }
@@ -3173,7 +3664,7 @@ function sellTower(x, y) {
 
   money += sellValue(tower);
   removeTowerById(tower.id);
-  setMessage(`${TOWER_INFO[tower.type].name} sold.`, 1.2);
+  setMessage(`${towerDisplayName(tower)} sold.`, 1.2);
   return true;
 }
 
@@ -3223,13 +3714,11 @@ function applyTool(x, y) {
   selectedTowerId = clickedTower ? clickedTower.id : null;
 
   if (clickedTower) {
-    towerDescription.textContent = `${TOWER_INFO[clickedTower.type].description} ${towerCapabilityText(clickedTower)}`;
+  towerDescription.textContent = `${towerDisplayName(clickedTower)}: ${TOWER_INFO[clickedTower.type].description} ${towerCapabilityText(clickedTower)}`;
     openTowerPopup(clickedTower);
   } else if (grid[y][x].blockId !== null) {
     const block = blocks.get(grid[y][x].blockId);
-    towerDescription.textContent = isFactoryMap()
-      ? `${block.name}. Enemies follow connected conveyors through the factory.`
-      : `${block.name} tetromino. Solid wall tile for tower placement.`;
+    towerDescription.textContent = `${block.name} tetromino. Solid wall tile for tower placement.`;
     closeTowerPopup();
   } else {
     closeTowerPopup();
@@ -3291,7 +3780,7 @@ function routeCells(pathIndex = null) {
 }
 
 function createEnemy(enemyType, options = {}) {
-  const requestedTier = Math.max(1, Math.min(3, options.tier || 1));
+  const requestedTier = Math.max(1, Math.min(maxTierForEnemy(enemyType.key), options.tier || 1));
   const resolvedEnemyType = enemyType.key.startsWith("waffle") ? waffleTypeForTier(requestedTier) : enemyType;
   const portalIndex = options.portalIndex ?? nextSpawnPortalIndex();
   const startCell = options.startCell || activePortals()[portalIndex];
@@ -3308,15 +3797,23 @@ function createEnemy(enemyType, options = {}) {
   const diamondTier = resolvedEnemyType.key === "diamond" ? diamondTierConfig(tier) : null;
   const shielded = Boolean(options.shielded) || resolvedEnemyType.key === "shield";
   const shieldTier = shielded ? shieldTierConfig(tier) : null;
-  const genericTier = !diamondTier && !shieldTier && enemyUsesTiers(resolvedEnemyType.key) ? genericTierConfig(tier) : null;
+  const genericTier = !diamondTier && !shieldTier && enemyUsesTiers(resolvedEnemyType.key) && resolvedEnemyType.key !== "splitter" ? genericTierConfig(tier) : null;
   const tierConfig = diamondTier || shieldTier || genericTier;
-  const hp = options.hp ?? Math.round((5 + waveNumber) * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tierConfig?.hpMultiplier || 1));
+  const hp = options.hp ?? (resolvedEnemyType.key === "splitter"
+    ? Math.round(2 ** (tier - 1) * DIFFICULTIES[selectedDifficulty].hp)
+    : resolvedEnemyType.key === "sentinel"
+      ? Math.round((5 + waveNumber) * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tier >= 2 ? 2.6 : 1))
+    : Math.round((5 + waveNumber) * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tierConfig?.hpMultiplier || 1)));
   const armored = options.armored ?? (Boolean(resolvedEnemyType.armored) || resolvedEnemyType.key === "armored");
   const armorValue = options.armorHp ?? (armored ? resolvedEnemyType.armor + Math.floor((waveNumber - 9) / 4) : 0);
   const waffleRewardMultiplier = resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? 1 : tier === 2 ? 0.3 : 0.1) : 1;
   const waffleSpeedBonus = resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? -10 : tier === 2 ? -2 : 10) : 0;
-  const reward = options.reward ?? Math.max(1, Math.round(resolvedEnemyType.reward * waffleRewardMultiplier * rewardMultiplier() * (tierConfig?.rewardMultiplier || 1)));
-  const speed = options.speed ?? (((30 + waveNumber * 2 + (resolvedEnemyType.speedBonus + waffleSpeedBonus)) / DIFFICULTIES[selectedDifficulty].interval) * (tierConfig?.speedMultiplier || 1) * (activeMap.enemySpeed || 1));
+  const reward = options.reward ?? (resolvedEnemyType.key === "splitter"
+    ? Math.max(1, Math.round(resolvedEnemyType.reward * Math.max(1, tier * 0.7) * rewardMultiplier()))
+    : resolvedEnemyType.key === "sentinel"
+      ? Math.max(1, Math.round(resolvedEnemyType.reward * (tier >= 2 ? 2.2 : 1) * rewardMultiplier()))
+    : Math.max(1, Math.round(resolvedEnemyType.reward * waffleRewardMultiplier * rewardMultiplier() * (tierConfig?.rewardMultiplier || 1))));
+  const speed = options.speed ?? (((30 + waveNumber * 2 + (resolvedEnemyType.speedBonus + waffleSpeedBonus + (resolvedEnemyType.key === "sentinel" && tier >= 2 ? 30 : 0))) / DIFFICULTIES[selectedDifficulty].interval) * (tierConfig?.speedMultiplier || 1) * (activeMap.enemySpeed || 1));
   const shieldHp = shielded
     ? (options.shieldHp ?? Math.round((18 + waveNumber * 2.4) * (shieldTier?.shieldHpMultiplier || 1) * 3))
     : 0;
@@ -3329,10 +3826,10 @@ function createEnemy(enemyType, options = {}) {
     key: resolvedEnemyType.key,
     portalIndex,
     route,
-    type: resolvedEnemyType.name,
+    type: resolvedEnemyType.key === "sentinel" && tier >= 2 ? "Overwatch" : resolvedEnemyType.name,
     shapeSides: resolvedEnemyType.shape,
     reward,
-    color: options.color || (shielded ? "#79beff" : null) || tierConfig?.color || resolvedEnemyType.color,
+    color: options.color || (shielded ? "#79beff" : null) || (resolvedEnemyType.key === "sentinel" && tier >= 2 ? "#b7d9ff" : null) || tierConfig?.color || resolvedEnemyType.color,
     waffleSquares: options.waffleSquares ?? (resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? 16 : tier === 2 ? 4 : 1) : (resolvedEnemyType.waffleSquares || 0)),
     x: center.x,
     y: center.y,
@@ -3342,7 +3839,7 @@ function createEnemy(enemyType, options = {}) {
     maxHp: hp,
     tier,
     coreColor: tierConfig?.coreColor || null,
-    sizeScale: tierConfig?.radiusMultiplier || 1,
+    sizeScale: options.sizeScale ?? (resolvedEnemyType.key === "sentinel" ? (tier >= 2 ? 1.34 : 1.08) : (tierConfig?.radiusMultiplier || 1)),
     shielded,
     shieldHp,
     maxShieldHp: shieldHp,
@@ -3362,9 +3859,20 @@ function createEnemy(enemyType, options = {}) {
     acidAmpTimer: 0,
     acidAmp: 1,
     whiteoutTimer: 0,
+    healthBarTint: null,
+    healthBarTintTimer: 0,
     healthBarLagHp: hp,
     healthBarFlashTimer: 0,
     facingAngle: 0,
+    turnRate: options.turnRate
+      || (resolvedEnemyType.key === "hydra" ? 2.7 : resolvedEnemyType.key === "adapter" ? 2.4 : resolvedEnemyType.key === "idaen" ? 1.9 : 3.4),
+    spawnSourceX: options.spawnSourceX ?? null,
+    spawnSourceY: options.spawnSourceY ?? null,
+    spawnIntroTimer: options.spawnIntroDuration || 0,
+    spawnIntroDuration: options.spawnIntroDuration || 0,
+    segmentOffset: options.segmentOffset || 0,
+    hydraGroupId: options.hydraGroupId || null,
+    hydraStage: options.hydraStage ?? null,
     summonWave: options.summonWave || waveNumber,
     bossOwnerId: options.bossOwnerId || null,
     bossShieldMinion: Boolean(options.bossShieldMinion),
@@ -3399,7 +3907,7 @@ function pushEnemy(enemy) {
   if ((enemy.shielded || isShieldEnemy(enemy)) && (enemy.shieldHp || 0) > 0) {
     addPulse(enemy.x, enemy.y, enemy.shieldRadius || 24, "rgba(176, 225, 255, 0.45)");
   }
-  if (firstEncounter && gameMode === "playing" && !enemy.bossShieldMinion) {
+  if (firstEncounter && gameMode === "playing" && !enemy.bossShieldMinion && !tutorialDismissed && !isSandboxMode()) {
     queueTutorialPopup(`enemy-intro-${enemy.key}`, `${ENEMY_TYPES[enemy.key]?.name || enemy.type} Spotted`, enemyIntroMessage(enemy.key));
   }
   enemies.push(enemy);
@@ -3481,7 +3989,7 @@ function spawnIdaenSummons(enemy) {
       armorHp: summonWave >= 75 ? 3 + Math.floor((summonWave - 75) / 25) : 0,
       reward: Math.max(1, Math.round(waffleType.reward * rewardMultiplier()))
     });
-    pushEnemy(waffle);
+    pushEnemy(prepareSummonedChild(waffle, enemy));
   }
 
   if (summonWave >= 75) {
@@ -3503,17 +4011,18 @@ function spawnIdaenSummons(enemy) {
         bossShieldMinion: true,
         reward: Math.max(1, Math.round(ENEMY_TYPES.biscuit.reward * rewardMultiplier()))
       });
-      pushEnemy(biscuit);
+      pushEnemy(prepareSummonedChild(biscuit, enemy));
     }
   }
 }
 
 function spawnIdaenBoss() {
+  const bossStage = Math.max(1, Math.round(waveNumber / 25));
   const boss = createEnemy(ENEMY_TYPES.idaen, {
     portalIndex: Math.floor(Math.random() * activePortals().length),
     reward: Math.max(20, Math.round(ENEMY_TYPES.idaen.reward * rewardMultiplier())),
-    hp: Math.round((220 + waveNumber * 35) * 10 * DIFFICULTIES[selectedDifficulty].hp),
-    speed: Math.max(12, (16 + waveNumber * 0.28) / DIFFICULTIES[selectedDifficulty].interval),
+    hp: Math.round((180 + bossStage * 170) * 8.4 * DIFFICULTIES[selectedDifficulty].hp),
+    speed: Math.max(10, (13 + bossStage * 2.2) / DIFFICULTIES[selectedDifficulty].interval),
     waffleSquares: 64,
     summonWave: waveNumber
   });
@@ -3544,8 +4053,7 @@ function spawnAdapterEscorts(enemy) {
       reward: Math.max(2, Math.round(ENEMY_TYPES.attacker.reward * rewardMultiplier()))
     });
     if (escort) {
-      escort.facingAngle = enemy.facingAngle || 0;
-      pushEnemy(escort);
+      pushEnemy(prepareSummonedChild(escort, enemy));
     }
   }
 }
@@ -3627,12 +4135,16 @@ function spawnWave() {
   waveNumber = Math.max(1, waveNumber);
   resetSpawnPortalOrder();
   wave = {
-    count: Math.max(3, Math.round((1.6 + waveNumber * 1.05 + Math.floor(waveNumber / 4) * 0.4) * enemyCountMultiplier())),
+    count: Math.max(3, Math.round((1.25 + waveNumber * 0.62 + Math.floor(waveNumber / 6) * 0.18) * enemyCountMultiplier())),
     spawned: 0,
     timer: 0,
-    interval: Math.max(0.95 - waveNumber * 0.02, 0.38),
+    interval: Math.max(1.08 - waveNumber * 0.015, 0.56),
     complete: false
   };
+  if (waveNumber === 58) {
+    wave.count = Math.max(wave.count, Math.round(16 * enemyCountMultiplier()));
+    wave.interval = Math.min(wave.interval, 0.68);
+  }
   autoWaveTimer = 0;
   maybeUnlockCrossbowQuest();
   if (isIdaenWave()) {
@@ -3662,7 +4174,16 @@ function setSandboxWave() {
   sandboxWaveTarget = requestedWave;
   waveNumber = requestedWave;
   wave = null;
+  enemies = [];
+  projectiles = [];
+  effects = effects.filter((effect) => effect.kind === "puddle" || effect.kind === "floatingText");
   autoWaveTimer = 0;
+  tutorialPopupQueue = [];
+  activeTutorialPopup = null;
+  tutorialOverlay?.classList.remove("active");
+  tutorialResumeMode = null;
+  gameMode = "playing";
+  openOverlay(null);
   setMessage(`Sandbox wave set to ${requestedWave}. Launching it now.`, 1.8);
   updateHud();
   if (allRoutesOpen(routes)) {
@@ -3682,7 +4203,7 @@ function spawnSandboxEnemyFromControls() {
 
   const count = Math.max(1, Math.floor(Number(sandboxSpawnCountInput?.value) || 1));
   const selectedTierValue = Number(sandboxTierSelect?.value) || 1;
-  const tier = enemyType.key === "idaen" ? 1 : Math.max(1, Math.min(3, selectedTierValue));
+  const tier = enemyType.key === "idaen" ? 1 : Math.max(1, Math.min(maxTierForEnemy(enemyType.key), selectedTierValue));
   const summonWave = enemyType.key === "idaen" ? Math.max(25, selectedTierValue) : waveNumber;
   const hidden = Boolean(sandboxSpawnHidden?.checked);
   const armored = Boolean(sandboxSpawnArmored?.checked) || enemyType.key === "armored";
@@ -3691,7 +4212,8 @@ function spawnSandboxEnemyFromControls() {
 
   for (let index = 0; index < count; index += 1) {
     const portalIndex = portalValue === "auto" ? undefined : Number(portalValue);
-    const spawned = enemyType.key === "idaen"
+    const bossStage = Math.max(1, Math.round(summonWave / 25));
+  const spawned = enemyType.key === "idaen"
       ? pushEnemy(createEnemy(enemyType, {
         portalIndex,
         hidden,
@@ -3699,11 +4221,13 @@ function spawnSandboxEnemyFromControls() {
         shielded,
         tier,
         summonWave,
-        hp: Math.round((220 + summonWave * 35) * 10 * DIFFICULTIES[selectedDifficulty].hp),
-        speed: Math.max(12, (16 + summonWave * 0.28) / DIFFICULTIES[selectedDifficulty].interval),
+        hp: Math.round((180 + bossStage * 170) * 8.4 * DIFFICULTIES[selectedDifficulty].hp),
+        speed: Math.max(10, (13 + bossStage * 2.2) / DIFFICULTIES[selectedDifficulty].interval),
         waffleSquares: 64,
         reward: Math.max(20, Math.round(enemyType.reward * rewardMultiplier()))
       }))
+      : enemyType.key === "hydra"
+        ? (spawnHydra(enemyType, { portalIndex, hidden, armored, shielded }), true)
       : pushEnemy(createEnemy(enemyType, { portalIndex, hidden, armored, shielded, tier }));
     if (!spawned) {
       return;
@@ -3717,52 +4241,97 @@ function spawnSandboxEnemyFromControls() {
 
 function spawnEnemy() {
   const roll = Math.random();
+  const spawnIndex = Math.max(1, wave?.spawned || 1);
+  const forceHidden = waveNumber === 16 && spawnIndex === 1;
+  const forceArmored = waveNumber === 18 && spawnIndex === 1;
+  const forceShielded = waveNumber === 30 && spawnIndex === 1;
+  const shieldedAttackerWave = waveNumber === 58;
+  const singleShieldedAttackerWave = waveNumber === 42;
   let enemyType = ENEMY_TYPES.fast;
 
-  if (waveNumber >= 2 && roll > 0.45) {
-    enemyType = ENEMY_TYPES.pentagon;
-  }
-
-  if (waveNumber >= 5 && roll > 0.62) {
-    enemyType = ENEMY_TYPES.diamond;
-  }
-
-  if (waveNumber >= 10 && roll > 0.72) {
+  if (shieldedAttackerWave) {
+    enemyType = ENEMY_TYPES.attacker;
+  } else if (singleShieldedAttackerWave && spawnIndex === 1) {
     enemyType = ENEMY_TYPES.attacker;
   }
 
-  if (waveNumber >= 4 && roll > 0.78) {
+  if (!shieldedAttackerWave && waveNumber >= 3 && roll > 0.58) {
+    enemyType = ENEMY_TYPES.pentagon;
+  }
+
+  if (!shieldedAttackerWave && waveNumber >= 7 && roll > 0.72) {
+    enemyType = ENEMY_TYPES.diamond;
+  }
+
+  if (!shieldedAttackerWave && waveNumber >= 10 && roll > 0.9) {
+    enemyType = ENEMY_TYPES.splitter;
+  }
+
+  if (!shieldedAttackerWave && waveNumber >= 26 && roll > 0.965) {
+    enemyType = ENEMY_TYPES.sentinel;
+  }
+
+  if (!shieldedAttackerWave && waveNumber >= 40 && roll > 0.985) {
+    enemyType = ENEMY_TYPES.hydra;
+  }
+
+  if (!shieldedAttackerWave && !singleShieldedAttackerWave && waveNumber >= 36 && roll > 0.82) {
+    enemyType = ENEMY_TYPES.attacker;
+  }
+
+  if (!shieldedAttackerWave && waveNumber >= 6 && roll > 0.84) {
     enemyType = ENEMY_TYPES.hexagon;
   }
 
-  if (waveNumber >= 8 && roll > 0.93) {
+  if (!shieldedAttackerWave && waveNumber >= 12 && roll > 0.95) {
     enemyType = ENEMY_TYPES.waffle16;
   }
 
-  if (waveNumber >= 9 && roll > 0.7) {
-    enemyType = ENEMY_TYPES.armored;
-  }
-  if (waveNumber >= 75 && roll > 0.95) {
+  if (!shieldedAttackerWave && waveNumber >= 24 && roll > 0.93) {
     enemyType = ENEMY_TYPES.biscuit;
   }
 
-  let hidden = waveNumber >= 6 && Math.random() < Math.min(0.16 + (waveNumber - 6) * 0.025, 0.38);
-  if (enemyType.key === "armored" && waveNumber < 12) {
-    hidden = false;
+  let hidden = false;
+  if (forceHidden) {
+    hidden = true;
+  } else if (waveNumber >= 17) {
+    hidden = Math.random() < Math.min(0.09 + (waveNumber - 17) * 0.016, 0.34);
   }
   const waffleMods = enemyType.key.startsWith("waffle") ? waffleStatusModifiers() : { hidden: false, armored: false, armorHp: 0 };
+  const attackerHidden = enemyType.key === "attacker";
+  const attackerArmored = false;
+  const enemyArmored = forceArmored
+    || attackerArmored
+    || (enemyType.key.startsWith("waffle") && waffleMods.armored);
+  if (enemyType.key === "hydra") {
+    spawnHydra(enemyType, {
+      hidden,
+      armored: forceArmored,
+      shielded: forceShielded || false
+    });
+    return;
+  }
+
   const enemy = createEnemy(enemyType, {
     tier: enemyType.key === "diamond"
       ? diamondTierForWave()
+      : enemyType.key === "sentinel"
+        ? (waveNumber >= 34 ? 2 : 1)
+      : enemyType.key === "splitter"
+        ? splitterTierForWave()
       : genericEnemyTierForWave(),
-    hidden: enemyType.key === "attacker" ? true : enemyType.key.startsWith("waffle") ? waffleMods.hidden : hidden,
-    armored: enemyType.key === "attacker" || enemyType.key === "armored" || (enemyType.key.startsWith("waffle") && waffleMods.armored),
-    armorHp: enemyType.key === "attacker"
+    hidden: attackerHidden || (enemyType.key.startsWith("waffle") ? waffleMods.hidden : hidden),
+    armored: enemyArmored,
+    armorHp: attackerArmored
       ? ENEMY_TYPES.attacker.armor + Math.max(0, Math.floor((waveNumber - 10) / 4))
       : enemyType.key.startsWith("waffle")
         ? waffleMods.armorHp
         : undefined,
-    shielded: waveNumber >= 18 && Math.random() < Math.min(0.08 + (waveNumber - 18) * 0.01, 0.26)
+    shielded: shieldedAttackerWave
+      ? true
+      : (singleShieldedAttackerWave && enemyType.key === "attacker" && spawnIndex === 1)
+        ? true
+        : (forceShielded || (waveNumber >= 31 && enemyType.key !== "attacker" && Math.random() < Math.min(0.05 + (waveNumber - 31) * 0.008, 0.22)))
   });
   pushEnemy(enemy);
 }
@@ -3793,10 +4362,13 @@ function updateWave(deltaTime) {
         addFloatingText(entry.tower.centerX, entry.tower.centerY - 12, `+$${entry.amount}`, "#ffe27a", 1.15);
       }
     }
-    freeBlocks = isFactoryMap() ? freeBlocks + 1 : 1;
+    freeBlocks = 1;
     currentBlockCost = BLOCK_COST;
+    if (isFactoryMap()) {
+      advanceFactoryQuarter();
+    }
     autoWaveTimer = autoWaveEnabled ? 0.9 : 0;
-    setMessage(`Wave ${waveNumber} cleared.`, 1.6);
+    setMessage(isFactoryMap() ? `Wave ${waveNumber} cleared. A factory quarter slides into the gap.` : `Wave ${waveNumber} cleared.`, 1.8);
   }
 }
 
@@ -3805,6 +4377,7 @@ function updateEnemies(deltaTime) {
     return;
   }
   const survivors = [];
+  const resolvedHydraGroups = new Set();
 
   for (const enemy of enemies) {
     const bossBiscuitsAlive = enemy.key === "idaen" && enemies.some((entry) => entry.bossShieldMinion && entry.bossOwnerId === enemy.id && entry.hp > 0);
@@ -3833,6 +4406,13 @@ function updateEnemies(deltaTime) {
       enemy.healthBarLagHp = enemy.hp;
     }
 
+    if ((enemy.healthBarTintTimer || 0) > 0) {
+      enemy.healthBarTintTimer = Math.max(0, enemy.healthBarTintTimer - deltaTime);
+      if (enemy.healthBarTintTimer === 0) {
+        enemy.healthBarTint = null;
+      }
+    }
+
     if (enemy.burnTimer > 0 && enemy.hp > 0) {
       enemy.burnTimer = Math.max(0, enemy.burnTimer - deltaTime);
       damageEnemy(enemy, enemy.burnDamage * deltaTime, "laser");
@@ -3844,7 +4424,7 @@ function updateEnemies(deltaTime) {
     if ((enemy.poisonTimer || 0) > 0 && enemy.hp > 0) {
       enemy.poisonTimer = Math.max(0, enemy.poisonTimer - deltaTime);
       if (!enemy.armored) {
-        damageEnemy(enemy, (enemy.poisonDamage || 0) * deltaTime, "chemical");
+        damageEnemy(enemy, (enemy.poisonDamage || 0) * deltaTime, "chemical", { dotBarColor: "#a66cff" });
       }
       if (enemy.poisonTimer === 0) {
         enemy.poisonDamage = 0;
@@ -3884,20 +4464,47 @@ function updateEnemies(deltaTime) {
 
     const points = enemyRoutePoints(enemy);
 
-    if (enemy.progress >= points.length - 1) {
-      lives = Math.max(0, lives - 1);
-      setMessage("An enemy slipped through.", 1.0);
+    const visualProgress = Math.max(0, enemy.progress - (enemy.segmentOffset || 0));
+
+    if (visualProgress >= points.length - 1) {
+      if (enemy.key === "hydra" && enemy.hydraGroupId) {
+        if (resolvedHydraGroups.has(enemy.hydraGroupId)) {
+          continue;
+        }
+        resolvedHydraGroups.add(enemy.hydraGroupId);
+        const remainingSegments = enemies.filter((entry) => entry.key === "hydra" && entry.hydraGroupId === enemy.hydraGroupId && entry.hp > 0);
+        const leakDamage = Math.max(1, remainingSegments.reduce((sum, entry) => sum + Math.max(1, Math.ceil(entry.hp)), 0));
+        lives = Math.max(0, lives - leakDamage);
+        setMessage(`Hydra slipped through for ${formatNumber(leakDamage)} base damage.`, 1.2);
+        continue;
+      }
+      const leakDamage = Math.max(1, Math.ceil(enemy.hp));
+      lives = Math.max(0, lives - leakDamage);
+      setMessage(`${enemy.type} slipped through for ${formatNumber(leakDamage)} base damage.`, 1.1);
       continue;
     }
 
-    const index = Math.floor(enemy.progress);
-    const segment = enemy.progress - index;
+    const index = Math.floor(visualProgress);
+    const segment = visualProgress - index;
     const current = points[index];
     const next = points[index + 1];
 
-    enemy.x = current.x + (next.x - current.x) * segment;
-    enemy.y = current.y + (next.y - current.y) * segment;
-    enemy.facingAngle = Math.atan2(next.y - current.y, next.x - current.x);
+    const targetX = current.x + (next.x - current.x) * segment;
+    const targetY = current.y + (next.y - current.y) * segment;
+    if ((enemy.spawnIntroTimer || 0) > 0 && enemy.spawnSourceX !== null && enemy.spawnSourceY !== null) {
+      enemy.spawnIntroTimer = Math.max(0, enemy.spawnIntroTimer - deltaTime);
+      const progress = 1 - (enemy.spawnIntroTimer / Math.max(enemy.spawnIntroDuration || 0.001, 0.001));
+      const eased = 1 - (1 - progress) * (1 - progress);
+      enemy.x = enemy.spawnSourceX + (targetX - enemy.spawnSourceX) * eased;
+      enemy.y = enemy.spawnSourceY + (targetY - enemy.spawnSourceY) * eased;
+    } else {
+      enemy.x = targetX;
+      enemy.y = targetY;
+      enemy.spawnSourceX = null;
+      enemy.spawnSourceY = null;
+    }
+    const targetAngle = Math.atan2(next.y - current.y, next.x - current.x);
+    enemy.facingAngle = smoothAngle(enemy.facingAngle || targetAngle, targetAngle, deltaTime * (enemy.turnRate || 3.4));
     survivors.push(enemy);
   }
 
@@ -3926,18 +4533,22 @@ function towerStats(tower) {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
     const plasma = path1 >= 3;
-    const photon = path2 >= 3;
+    const increasedDamage = path2 >= 3;
+    const doubleBeam = path2 >= 4;
+    const photon = path2 >= 5;
     return {
-      range: CELL_SIZE * (4.9 + path2 * 0.16 + path1 * 0.04 + (plasma ? 0.28 : 0)),
+      range: CELL_SIZE * (4.9 + path2 * 0.16 + path1 * 0.04 + (plasma ? 0.28 : 0) + (photon ? 0.18 : 0)),
       cooldown: photon
-        ? Math.max(1.05 - path1 * 0.04 - path2 * 0.04, 0.54)
-        : Math.max(0.84 - path1 * 0.09 - path2 * 0.04 - (plasma ? 0.14 : 0), 0.14),
-      damage: 2.5 + path1 * 0.7 + path2 * 1.45 + (plasma ? 1.8 : 0) + (photon ? 3.6 : 0),
-      burnDamage: path1 > 0 || path2 > 0 ? 0.8 + path1 * 0.65 + path2 * 0.95 + (photon ? 1.9 : 0) : 0,
-      burnDuration: path1 > 0 || path2 > 0 ? 1.5 + path1 * 0.34 + path2 * 0.46 + (plasma ? 0.6 : 0) : 0,
-      beamWidth: 12 + path1 * 1.6 + path2 * 2 + (plasma ? 3 : 0) + (photon ? 4 : 0),
+        ? Math.max(1.14 - path1 * 0.02 - path2 * 0.04, 0.72)
+        : Math.max(0.9 - path1 * 0.05 - path2 * 0.04 - (plasma ? 0.04 : 0), 0.22),
+      damage: 2.5 + path2 * 1.45 + (increasedDamage ? 1.4 : 0) + (photon ? 3.6 : 0),
+      burnDamage: path1 > 0 || path2 > 0 ? 0.8 + path2 * 0.95 + (increasedDamage ? 0.85 : 0) + (photon ? 1.9 : 0) : 0,
+      burnDuration: path1 > 0 || path2 > 0 ? 1.5 + path1 * 0.42 + path2 * 0.3 + (plasma ? 0.8 : 0) : 0,
+      beamWidth: 12 + path1 * 1.8 + path2 * 1.4 + (plasma ? 3 : 0) + (photon ? 4 : 0),
       beamColor: photon ? "#ffe35c" : plasma ? "#ffffff" : "#ff96b8",
-      beamTtl: plasma ? 0.18 : photon ? 0.16 : 0.12
+      beamTtl: plasma ? 0.18 : photon ? 0.16 : 0.12,
+      doubleBeam,
+      beamSeparation: doubleBeam ? (photon ? 16 : 12) : 0
     };
   }
 
@@ -3950,12 +4561,12 @@ function towerStats(tower) {
     return {
       range: CELL_SIZE * (2.95 + path2 * 0.14),
       cooldown: bulletStorm
-        ? Math.max(0.29 - path1 * 0.03 - path2 * 0.02, 0.07)
-        : Math.max(0.86 - path1 * 0.07 - path2 * 0.03, 0.26),
-      damage: 1.35 + path1 * 0.32 + path2 * 0.52 + (path2 >= 3 ? 1.2 : 0) + (path2 >= 5 ? 0.8 : 0),
+        ? Math.max(0.24 - path1 * 0.025 - path2 * 0.02, 0.06)
+        : Math.max(0.76 - path1 * 0.065 - path2 * 0.03, 0.22),
+      damage: 1.8 + path1 * 0.4 + path2 * 0.62 + (path2 >= 3 ? 1.4 : 0) + (path2 >= 5 ? 1 : 0),
       pellets: lines,
       spread: wavelength ? Math.PI : Math.max(0.55 - path2 * 0.045 - (bulletStorm ? 0.04 : 0), 0.18),
-      pelletSpeed: 300 + path2 * 14,
+      pelletSpeed: 380 + path2 * 20,
       pelletLife: 0.24 + path2 * 0.01,
       detectHidden: false,
       bulletStorm
@@ -4012,8 +4623,9 @@ function towerStats(tower) {
       range: CELL_SIZE * (11.4 + path2 * 0.28),
       minRange: CELL_SIZE * 3.5,
       cooldown: baseCooldown + reloadPenalty,
+      firingCooldown: path1 >= 5 ? 0.14 : Math.max(0.16 - Math.max(0, path1 - 3) * 0.01, 0.06),
       damage,
-      splash: Math.max(42, biggerEggs ? 82 + path2 * 14 + (eggPudding ? 16 : 0) + (mangoPudding ? 26 : 0) : (34 - path1 * 2.5 + path2 * 10 + (path2 >= 3 ? 14 : 0) + (path2 >= 5 ? 8 : 0)) * 2),
+      splash: Math.max(32, biggerEggs ? 58 + path2 * 10 + (eggPudding ? 10 : 0) + (mangoPudding ? 18 : 0) : 44 + path2 * 8 + (path2 >= 3 ? 8 : 0) + (path2 >= 5 ? 6 : 0)),
       burst: path1 >= 5 ? 12 : path1 >= 4 ? 6 : path1 >= 3 ? 3 : 1,
       burstDelay: path1 >= 5 ? 0.06 : path1 >= 4 ? 0.07 : path1 >= 3 ? 0.09 : 0,
       holdDelay: 1,
@@ -4033,6 +4645,11 @@ function towerStats(tower) {
       yolkColor: path2 >= 5 ? "#ffd11a" : path2 >= 4 ? "#ffcf33" : path2 >= 3 ? "#ffcc4a" : "#ffce54",
       shieldMultiplier: path2 >= 5 ? 10 : 1,
       inaccuracy: path1 >= 5 ? CELL_SIZE * 3 : path2 >= 5 ? CELL_SIZE * 1.5 : 0,
+      welfareHoming: path1 >= 3,
+      welfareTurnRate: path1 >= 5 ? 9.5 : path1 >= 4 ? 8 : 6.8,
+      welfareCruiseSpeed: path1 >= 5 ? 520 : path1 >= 4 ? 470 : 430,
+      welfareApexHeight: path1 >= 5 ? 200 : path1 >= 4 ? 176 : 150,
+      alternatingPods: path1 >= 5,
       syrupDamage: path2 >= 5 ? 1.5 : 0,
       syrupRadius: path2 >= 5 ? CELL_SIZE * 2.1 : 0,
       syrupTtl: path2 >= 5 ? 5.2 : 0,
@@ -4058,7 +4675,7 @@ function towerStats(tower) {
       acceleration: 560,
       damage: 8.5,
       splash: 28,
-      homing: true,
+      homing: path1 >= 5 ? 9.5 : 7,
       shrapnel: false,
       clusters: false,
       rain: false,
@@ -4072,9 +4689,9 @@ function towerStats(tower) {
     return {
       range: CELL_SIZE * (2.55 + path2 * 0.18 + path1 * 0.08),
       cooldown: Math.max(1.08 - path2 * 0.12 - (path2 >= 4 ? 0.08 : 0), 0.28),
-      damage: 0.4 + path2 * 0.2 + (path2 >= 3 ? 0.28 : 0),
-      acidDot: 0.85 + path2 * 0.35 + path1 * 0.12 + (path2 >= 5 ? 0.5 : 0),
-      acidDuration: 2.3 + path1 * 0.34 + (path1 >= 3 ? 0.45 : 0),
+      damage: 0.18 + path2 * 0.1 + (path2 >= 3 ? 0.14 : 0),
+      acidDot: 1.25 + path2 * 0.48 + path1 * 0.2 + (path2 >= 5 ? 0.75 : 0),
+      acidDuration: 2.9 + path1 * 0.42 + (path1 >= 3 ? 0.55 : 0),
       acidAmp: 1.08 + path1 * 0.07 + (path1 >= 4 ? 0.06 : 0) + (path1 >= 5 ? 0.12 : 0),
       spraySlow: Math.max(0.94 - path2 * 0.04, 0.72),
       spraySlowDuration: 0.48 + path2 * 0.08,
@@ -4110,19 +4727,22 @@ function towerStats(tower) {
   if (tower.type === "missile") {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
+    const heavyDart = path2 >= 3;
     return {
-      range: CELL_SIZE * (3.8 + path1 * 0.28),
-      cooldown: Math.max(1.22 - path1 * 0.05, 0.62),
-      damage: 4 + path2 * 1.45 + (path1 >= 3 ? 1.05 : 0),
-      splash: 36 + path1 * 5 + (path1 >= 3 ? 8 : 0),
-      speed: 120 + (path1 >= 3 ? 120 : 0),
-      acceleration: 520 + (path1 >= 3 ? 220 : 0),
+      range: CELL_SIZE * (4.6 + path1 * 0.34),
+      cooldown: heavyDart ? Math.max(1.22 - (path2 - 3) * 0.08, 0.82) : Math.max(0.98 - path1 * 0.05, 0.48),
+      damage: heavyDart ? 10 + path2 * 3.1 : 4 + path2 * 1.45 + (path1 >= 3 ? 1.05 : 0),
+      splash: heavyDart ? 0 : 50 + path1 * 6 + (path1 >= 3 ? 10 : 0),
+      speed: heavyDart ? 520 + (path2 - 3) * 60 : 120 + (path1 >= 3 ? 120 : 0),
+      acceleration: heavyDart ? 0 : 520 + (path1 >= 3 ? 220 : 0),
       burst: path1 >= 5 ? 6 : path1 >= 4 ? 2 : 1,
       burstDelay: path1 >= 5 ? 0.1 : path1 >= 4 ? 0.25 : 0,
-      homing: path1 >= 3,
-      shrapnel: path2 >= 3,
-      clusters: path2 >= 4,
-      rain: path2 >= 5
+      homing: heavyDart ? 0 : (path1 >= 5 ? 9.5 : 7),
+      shrapnel: heavyDart ? false : path2 >= 3,
+      clusters: heavyDart ? false : path2 >= 4,
+      rain: heavyDart ? false : path2 >= 5,
+      heavyDart,
+      pierce: heavyDart ? (path2 >= 5 ? 9 : path2 >= 4 ? 6 : 3) : 0
     };
   }
 
@@ -4133,10 +4753,10 @@ function towerStats(tower) {
     const lifespan = 30 + (path2 >= 1 ? 15 : 0) + (path1 >= 4 ? 15 : 0) + (path1 >= 5 ? 35 : 0);
     return {
       range: CELL_SIZE * (2.8 + path1 * 0.08 + path2 * 0.08),
-      cooldown: Math.max(2.25 - path1 * 0.42 - (path1 >= 5 ? 0.2 : 0), 0.5),
-      damage: 1.15 + path2 * 0.85 + (path1 >= 5 ? 1.25 : 0),
+      cooldown: Math.max(2.85 - path1 * 0.32 - (path1 >= 5 ? 0.12 : 0), 0.8),
+      damage: 1,
       trapRadius: 14 + tower.level * 2,
-      trapUses: path2 >= 2 ? 12 : 8,
+      trapUses: path2 >= 2 ? 12 : 6,
       trapLifetime: lifespan,
       sticky: path2 >= 3,
       slow: path2 >= 3 ? 0.55 : 1,
@@ -4155,16 +4775,16 @@ function towerStats(tower) {
   if (tower.type === "drone") {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
-    const baseRange = CELL_SIZE * (4 + levelBonus * 0.2) * (path2 >= 5 ? 1.5 : path1 >= 5 ? 1.25 : 1);
+    const baseRange = CELL_SIZE * (8.85 + levelBonus * 0.24) * (path2 >= 5 ? 1.5 : path1 >= 5 ? 1.25 : 1);
     const supportCount = path2 >= 5 ? 4 : path2 >= 3 ? 2 : 0;
     const mainGuns = path2 >= 4 ? 4 : path1 >= 1 ? 2 : 1;
     const supportGuns = path2 >= 4 ? 2 : 1;
     return {
       range: baseRange,
-      cooldown: Math.max(0.74 - levelBonus * 0.04 - path2 * 0.05 - (path1 >= 5 ? 0.08 : 0), 0.2),
+      cooldown: Math.max(0.56 - levelBonus * 0.035 - path2 * 0.04 - (path1 >= 5 ? 0.14 : 0), 0.12),
       damage: 0.9 + levelBonus * 0.32,
       droneRange: CELL_SIZE * (1.5 + levelBonus * 0.08 + (path1 >= 2 ? 0.24 : 0)),
-      droneSpeed: 88 + levelBonus * 8 + (path1 >= 5 ? 24 : 0),
+      droneSpeed: 238 + levelBonus * 12 + path2 * 34 + (path1 >= 5 ? 34 : 0),
       detectHidden: path1 >= 2,
       bulletGuns: mainGuns,
       bulletDamage: 0.9 + levelBonus * 0.28,
@@ -4244,6 +4864,9 @@ function effectiveTowerDamageType(tower, baseType, stats = towerStats(tower)) {
   }
 
   const buffs = supportBuffsForTower(tower);
+  if (tower.type === "dippy" && baseType === "bullet") {
+    return tower.path2 >= 4 ? "chemical" : "explosion";
+  }
   return buffs.munitions ? "explosion" : baseType;
 }
 
@@ -4270,6 +4893,41 @@ function createShieldHitTracker() {
   return { hitShield: false };
 }
 
+function normalizeAngle(angle) {
+  let next = angle;
+  while (next > Math.PI) {
+    next -= Math.PI * 2;
+  }
+  while (next < -Math.PI) {
+    next += Math.PI * 2;
+  }
+  return next;
+}
+
+function smoothAngle(current, target, rate) {
+  const delta = normalizeAngle(target - current);
+  if (Math.abs(delta) <= rate) {
+    return normalizeAngle(target);
+  }
+  return normalizeAngle(current + Math.sign(delta) * rate);
+}
+
+function hydraRequiredDamageClass(stage = 0) {
+  return ["explosive", "kinetic", "chemical", "energy"][stage] || "energy";
+}
+
+function hydraPreviousStageAlive(enemy) {
+  if (enemy?.key !== "hydra" || (enemy.hydraStage ?? 0) <= 0) {
+    return false;
+  }
+  return enemies.some((entry) =>
+    entry.key === "hydra"
+    && entry.hydraGroupId === enemy.hydraGroupId
+    && (entry.hydraStage ?? 0) === enemy.hydraStage - 1
+    && entry.hp > 0
+  );
+}
+
 function damageClassForType(damageType) {
   if (damageType === "laser" || damageType === "shock") {
     return "energy";
@@ -4289,13 +4947,26 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
   }
 
   const damageClass = damageClassForType(damageType);
+  const acceptedClasses = options.damageClasses || [damageClass];
   const shieldMultiplier = options.shieldMultiplier || 1;
-  let { stun = 0, slow = null, slowDuration = 0, burnDamage = 0, burnDuration = 0 } = options;
+  let { stun = 0, slow = null, slowDuration = 0, burnDamage = 0, burnDuration = 0, dotBarColor = null } = options;
   const bossBiscuitsAlive = enemy.key === "idaen" && enemies.some((entry) => entry.bossShieldMinion && entry.bossOwnerId === enemy.id && entry.hp > 0);
 
   if (enemy.key === "idaen" && ((enemy.phaseTimer || 0) > 0 || bossBiscuitsAlive)) {
     enemy.phaseColor = "#8a5b2d";
     return false;
+  }
+
+  if (enemy.key === "hydra") {
+    if (hydraPreviousStageAlive(enemy)) {
+      addPulse(enemy.x, enemy.y, 22, "rgba(255, 244, 180, 0.36)");
+      return false;
+    }
+    const requiredClass = hydraRequiredDamageClass(enemy.hydraStage || 0);
+    if (!acceptedClasses.includes(requiredClass)) {
+      addPulse(enemy.x, enemy.y, 22, "rgba(255, 244, 180, 0.36)");
+      return false;
+    }
   }
 
   const shieldSource = activeShieldSourceForEnemy(enemy);
@@ -4363,8 +5034,17 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
   }
 
   if (enemy.hp < hpBefore) {
-    enemy.healthBarLagHp = Math.max(enemy.healthBarLagHp || hpBefore, hpBefore);
-    enemy.healthBarFlashTimer = 0.18;
+    if (dotBarColor) {
+      enemy.healthBarLagHp = enemy.hp;
+      enemy.healthBarFlashTimer = 0;
+      enemy.healthBarTint = dotBarColor;
+      enemy.healthBarTintTimer = Math.max(enemy.healthBarTintTimer || 0, 0.24);
+    } else {
+      enemy.healthBarLagHp = Math.max(enemy.healthBarLagHp || hpBefore, hpBefore);
+      enemy.healthBarFlashTimer = 0.18;
+      enemy.healthBarTint = null;
+      enemy.healthBarTintTimer = 0;
+    }
   }
 
   if (enemy.key === "adapter" && enemy.hp < hpBefore && damageClass in enemy.adapterGuards) {
@@ -4394,6 +5074,9 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
 }
 
 function canTowerDamageEnemy(tower, enemy, stats = towerStats(tower)) {
+  if (enemy?.key === "hydra") {
+    return true;
+  }
   const effectiveType = effectiveTowerDamageType(tower, tower.type === "freezer" ? "freeze" : tower.type === "trapper" ? (stats.mine ? "explosion" : "trap") : tower.type === "drone" ? (stats.rocket ? "explosion" : "bullet") : "bullet", stats);
 
   if (tower.type === "missile" || tower.type === "laser") {
@@ -4453,7 +5136,7 @@ function enemiesInRange(originX, originY, range, detectHidden = false, requireLi
   });
 }
 
-function selectEnemyByPriority(candidates, priority = "first") {
+function selectEnemyByPriority(candidates, priority = "first", cursorPoint = null) {
   if (candidates.length === 0) {
     return null;
   }
@@ -4468,6 +5151,14 @@ function selectEnemyByPriority(candidates, priority = "first") {
       return selectEnemyByPriority(hiddenTargets, "first");
     }
     return selectEnemyByPriority(candidates, "first");
+  }
+
+  if (priority === "cursor" && cursorPoint) {
+    const scored = [...candidates].sort((left, right) =>
+      Math.hypot(left.x - cursorPoint.x, left.y - cursorPoint.y) - Math.hypot(right.x - cursorPoint.x, right.y - cursorPoint.y)
+      || right.progress - left.progress
+    );
+    return scored[0];
   }
 
   const scored = [...candidates].sort((left, right) => {
@@ -4504,7 +5195,69 @@ function towerHasLineOfSightToPoint(tower, x, y) {
   return hasLineOfSight(tower.centerX, tower.centerY, x, y);
 }
 
+function clampPointToRadius(point, centerX, centerY, radius) {
+  const dx = point.x - centerX;
+  const dy = point.y - centerY;
+  const distance = Math.hypot(dx, dy);
+  if (distance <= radius || distance === 0) {
+    return { x: point.x, y: point.y };
+  }
+  return {
+    x: centerX + (dx / distance) * radius,
+    y: centerY + (dy / distance) * radius
+  };
+}
+
+function entityRenderOffset(entity) {
+  return {
+    x: entity?.renderOffsetX || 0,
+    y: entity?.renderOffsetY || 0
+  };
+}
+
+function decayRenderOffset(entity, deltaTime) {
+  if (!entity) {
+    return;
+  }
+  const easing = Math.max(0, 1 - deltaTime * 10);
+  entity.renderOffsetX = (entity.renderOffsetX || 0) * easing;
+  entity.renderOffsetY = (entity.renderOffsetY || 0) * easing;
+  if (Math.abs(entity.renderOffsetX || 0) < 0.5) {
+    entity.renderOffsetX = 0;
+  }
+  if (Math.abs(entity.renderOffsetY || 0) < 0.5) {
+    entity.renderOffsetY = 0;
+  }
+}
+
+function droneCursorAnchor(tower, stats) {
+  const sourcePoint = tower.cursorPoint || hoverPoint || { x: tower.centerX, y: tower.centerY };
+  return stats.attackDrone
+    ? { x: sourcePoint.x, y: sourcePoint.y }
+    : clampPointToRadius(sourcePoint, tower.centerX, tower.centerY, stats.range);
+}
+
+function droneInterceptPoint(target, droneRange) {
+  if (!target) {
+    return null;
+  }
+  const leadDistance = Math.min(Math.max(droneRange * 0.9, 28), 72);
+  const base = baseCenter(target);
+  const angle = Math.atan2(base.y - target.y, base.x - target.x);
+  return {
+    x: target.x + Math.cos(angle) * leadDistance,
+    y: target.y + Math.sin(angle) * leadDistance
+  };
+}
+
 function hasLineOfSight(x1, y1, x2, y2) {
+  if (isCliffsMap()) {
+    const originCell = { x: Math.floor(x1 / CELL_SIZE), y: Math.floor(y1 / CELL_SIZE) };
+    const targetCell = { x: Math.floor(x2 / CELL_SIZE), y: Math.floor(y2 / CELL_SIZE) };
+    if (cliffSideForCell(originCell) === "left" && cliffSideForCell(targetCell) === "right") {
+      return false;
+    }
+  }
   const steps = Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 8);
 
   for (let index = 1; index < steps; index += 1) {
@@ -4586,28 +5339,38 @@ function distanceToBeam(enemy, startX, startY, angle) {
 
 function fireLaserBeam(tower, target, stats) {
   const angle = Math.atan2(target.y - tower.centerY, target.x - tower.centerX);
-  const end = beamEndPoint(tower.centerX, tower.centerY, angle);
-  const maxDistance = Math.hypot(end.x - tower.centerX, end.y - tower.centerY);
-  const shieldHitTracker = createShieldHitTracker();
+  const perpendicularX = -Math.sin(angle);
+  const perpendicularY = Math.cos(angle);
+  const beamOffsets = stats.doubleBeam
+    ? [-(stats.beamSeparation || 12) / 2, (stats.beamSeparation || 12) / 2]
+    : [0];
 
-  for (const enemy of enemies) {
-    if (!canSeeEnemy(enemy, stats.detectHidden)) {
-      continue;
+  for (const offset of beamOffsets) {
+    const startX = tower.centerX + perpendicularX * offset;
+    const startY = tower.centerY + perpendicularY * offset;
+    const end = beamEndPoint(startX, startY, angle);
+    const maxDistance = Math.hypot(end.x - startX, end.y - startY);
+    const shieldHitTracker = createShieldHitTracker();
+
+    for (const enemy of enemies) {
+      if (!canSeeEnemy(enemy, stats.detectHidden)) {
+        continue;
+      }
+
+      const { projection, perpendicular } = distanceToBeam(enemy, startX, startY, angle);
+      if (projection < 0 || projection > maxDistance || perpendicular > stats.beamWidth) {
+        continue;
+      }
+
+      damageEnemy(enemy, stats.damage, "laser", {
+        shieldHitTracker,
+        burnDamage: stats.burnDamage,
+        burnDuration: stats.burnDuration
+      });
     }
 
-    const { projection, perpendicular } = distanceToBeam(enemy, tower.centerX, tower.centerY, angle);
-    if (projection < 0 || projection > maxDistance || perpendicular > stats.beamWidth) {
-      continue;
-    }
-
-    damageEnemy(enemy, stats.damage, "laser", {
-      shieldHitTracker,
-      burnDamage: stats.burnDamage,
-      burnDuration: stats.burnDuration
-    });
+    addBeam(startX, startY, end.x, end.y, stats.beamColor, Math.max(3, stats.beamWidth * 0.32), stats.beamTtl);
   }
-
-  addBeam(tower.centerX, tower.centerY, end.x, end.y, stats.beamColor, Math.max(3, stats.beamWidth * 0.32), stats.beamTtl);
 }
 
 function spawnDippyEgg(tower, target, stats) {
@@ -4647,6 +5410,12 @@ function spawnDippyEgg(tower, target, stats) {
     whiteoutDuration: stats.whiteoutDuration,
     yolkColor: stats.yolkColor,
     shieldMultiplier: stats.shieldMultiplier,
+    welfareHoming: stats.welfareHoming,
+    welfareTurnRate: stats.welfareTurnRate,
+    welfareCruiseSpeed: stats.welfareCruiseSpeed,
+    welfareApexHeight: stats.welfareApexHeight,
+    podIndex: stats.alternatingPods ? ((tower.dippyShotIndex || 0) % 2) : 0,
+    damageClasses: stats.sticky ? ["explosive", "kinetic", "chemical"] : ["explosive", "kinetic"],
     speed: 1400,
     arcDrift: (Math.random() - 0.5) * 26,
     roll: (Math.random() - 0.5) * 0.3,
@@ -4654,6 +5423,7 @@ function spawnDippyEgg(tower, target, stats) {
     trailTimer: 0
   });
   nextProjectileId += 1;
+  tower.dippyShotIndex = (tower.dippyShotIndex || 0) + 1;
   tower.dippyAmmo = Math.max(0, (tower.dippyAmmo ?? stats.burst) - 1);
 }
 
@@ -4793,6 +5563,27 @@ function groundCellsInRange(tower, range) {
   return cells;
 }
 
+function routeCellsInRange(tower, range) {
+  const seen = new Set();
+  const cells = [];
+
+  for (const path of routes) {
+    for (const point of path) {
+      const key = `${point.x},${point.y}`;
+      if (seen.has(key) || isEndpoint(point.x, point.y) || grid[point.y][point.x].blockId !== null || obstacleAt(point.x, point.y)) {
+        continue;
+      }
+      const center = cellCenter(point.x, point.y);
+      if (Math.hypot(center.x - tower.centerX, center.y - tower.centerY) <= range) {
+        seen.add(key);
+        cells.push({ x: point.x, y: point.y });
+      }
+    }
+  }
+
+  return cells;
+}
+
 function randomPointInCell(x, y, padding = 8) {
   const min = padding;
   const max = CELL_SIZE - padding;
@@ -4812,7 +5603,7 @@ function spawnTrapperConstruct(tower) {
       return false;
     }
   }
-  const cells = stats.turretMode ? wallCellsInRange(tower, stats.range) : groundCellsInRange(tower, stats.range);
+  const cells = stats.turretMode ? wallCellsInRange(tower, stats.range) : routeCellsInRange(tower, stats.range);
 
   if (cells.length === 0) {
     return false;
@@ -4991,8 +5782,12 @@ function fireTower(tower, target) {
   if (tower.type === "dippy") {
     spawnDippyEgg(tower, target, stats);
     tower.burstTargetId = null;
-    tower.burstShotsRemaining = Math.max(0, stats.burst - 1);
-    tower.burstTimer = tower.burstShotsRemaining > 0 ? stats.burstDelay : 0;
+    if (stats.alternatingPods) {
+      tower.cooldown = stats.firingCooldown;
+    } else {
+      tower.burstShotsRemaining = Math.max(0, stats.burst - 1);
+      tower.burstTimer = tower.burstShotsRemaining > 0 ? stats.burstDelay : 0;
+    }
     return;
   }
 
@@ -5025,6 +5820,7 @@ function fireTower(tower, target) {
 
 function updateTowers(deltaTime) {
   for (const tower of towers) {
+    tower.currentTargetId = null;
     const stats = towerStats(tower);
     const supportBuffs = supportBuffsForTower(tower);
     const detectHidden = towerHasHiddenDetection(tower, stats);
@@ -5033,7 +5829,16 @@ function updateTowers(deltaTime) {
       tower.dippyAmmo = tower.dippyAmmo ?? stats.burst;
       tower.dippyAmmo = Math.min(tower.dippyAmmo, stats.burst);
       tower.dippyReloadTimer = Math.max(0, tower.dippyReloadTimer || 0);
-      if (tower.burstShotsRemaining === 0 && tower.cooldown > 0 && tower.dippyAmmo < stats.burst) {
+      if (stats.alternatingPods) {
+        const reloadStep = Math.max(stats.cooldown / 6, 0.26);
+        tower.dippyReloadTimer -= deltaTime * cooldownRate;
+        if (tower.dippyAmmo < stats.burst && tower.dippyReloadTimer <= 0) {
+          tower.dippyAmmo += 1;
+          tower.dippyReloadTimer = reloadStep;
+        } else if (tower.dippyAmmo >= stats.burst) {
+          tower.dippyReloadTimer = 0;
+        }
+      } else if (tower.burstShotsRemaining === 0 && tower.cooldown > 0 && tower.dippyAmmo < stats.burst) {
         tower.dippyReloadTimer -= deltaTime * cooldownRate;
         const reloadStep = (stats.cooldown / Math.max(stats.burst, 1)) * 1.12;
         if (tower.dippyReloadTimer <= 0) {
@@ -5096,6 +5901,7 @@ function updateTowers(deltaTime) {
     if (tower.type === "gate" && tower.cooldown === 0) {
       const target = nearestEnemyInRange(tower, stats.range, true);
       if (target && canTowerDamageEnemy(tower, target, stats)) {
+        tower.currentTargetId = target.id;
         tower.aimAngle = Math.atan2(target.y - tower.centerY, target.x - tower.centerX);
         damageEnemy(target, stats.damage, "chemical", {
           slow: stats.spraySlow,
@@ -5130,6 +5936,7 @@ function updateTowers(deltaTime) {
       const burstTarget = nearestEnemyInRange(tower, stats.range, detectHidden);
 
       if (burstTarget) {
+        tower.currentTargetId = burstTarget.id;
         tower.aimAngle = Math.atan2(burstTarget.y - tower.centerY, burstTarget.x - tower.centerX);
         spawnMissileProjectile(tower, burstTarget, stats);
       }
@@ -5150,6 +5957,7 @@ function updateTowers(deltaTime) {
 
       const burstTarget = nearestEnemyInRange(tower, stats.range, detectHidden);
       if (burstTarget) {
+        tower.currentTargetId = burstTarget.id;
         tower.aimAngle = Math.atan2(burstTarget.y - tower.centerY, burstTarget.x - tower.centerX);
         spawnDippyEgg(tower, burstTarget, stats);
       }
@@ -5160,6 +5968,12 @@ function updateTowers(deltaTime) {
       } else {
         tower.cooldown = stats.cooldown;
       }
+      continue;
+    }
+
+    if (tower.type === "dippy" && stats.alternatingPods && tower.cooldown === 0 && tower.dippyAmmo > 0) {
+      spawnDippyEgg(tower, target, stats);
+      tower.cooldown = stats.firingCooldown;
       continue;
     }
 
@@ -5190,6 +6004,7 @@ function updateTowers(deltaTime) {
       continue;
     }
 
+    tower.currentTargetId = target.id;
     tower.aimAngle = Math.atan2(target.y - tower.centerY, target.x - tower.centerX);
     if (tower.type === "drone") {
       continue;
@@ -5203,6 +6018,26 @@ function updateTowers(deltaTime) {
 
 function spawnMissileProjectile(tower, target, stats) {
   const angle = Math.atan2(target.y - tower.centerY, target.x - tower.centerX);
+  if (stats.heavyDart) {
+    projectiles.push({
+      id: nextProjectileId,
+      kind: "cannonDart",
+      x: tower.centerX,
+      y: tower.centerY,
+      targetId: target.id,
+      speed: stats.speed,
+      acceleration: 0,
+      angle,
+      homing: 0,
+      damage: stats.damage,
+      damageType: "bullet",
+      pierce: stats.pierce,
+      hitIds: [],
+      ttl: 1.5
+    });
+    nextProjectileId += 1;
+    return;
+  }
   projectiles.push({
     id: nextProjectileId,
     kind: "missile",
@@ -5268,44 +6103,63 @@ function updateDrones(deltaTime) {
     const attackRange = isSupport ? stats.supportRange : stats.droneRange;
     const baseDamage = isSupport ? stats.supportDamage : stats.bulletDamage;
     const gunCount = isSupport ? stats.supportGuns : stats.bulletGuns;
+    const cursorAnchor = droneCursorAnchor(tower, stats);
+    const ownRadiusTargets = enemies.filter((enemy) => {
+      if (!canSeeEnemy(enemy, detection)) {
+        return false;
+      }
+      if (!canTowerDamageEnemy(tower, enemy, stats)) {
+        return false;
+      }
+      return Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY) <= stats.range;
+    });
+    const assistTargets = stats.attackDrone
+      ? enemies.filter((enemy) => {
+        if (!canSeeEnemy(enemy, detection)) {
+          return false;
+        }
+        if (!canTowerDamageEnemy(tower, enemy, stats)) {
+          return false;
+        }
+        return towers.some((ally) => ally.id !== tower.id && ally.currentTargetId === enemy.id);
+      })
+      : [];
     drone.range = attackRange;
     drone.cooldown = Math.max(0, drone.cooldown - deltaTime);
     drone.rocketCooldown = Math.max(0, (drone.rocketCooldown || 0) - deltaTime);
 
-    const enemiesInTowerRadius = enemies.filter((enemy) => {
-      if (!canSeeEnemy(enemy, detection)) {
-        return false;
-      }
-
-      if (!canTowerDamageEnemy(tower, enemy, stats)) {
-        return false;
-      }
-
-      const insideOwnRadius = Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY) <= stats.range;
-      const insideAlliedRadius = stats.attackDrone && towers.some((ally) => Math.hypot(enemy.x - ally.centerX, enemy.y - ally.centerY) <= towerStats(ally).range);
-      return insideOwnRadius || insideAlliedRadius;
-    });
-
-    const target = selectEnemyByPriority(enemiesInTowerRadius, tower.targetPriority || "first");
+    const target = selectEnemyByPriority(
+      ownRadiusTargets.length > 0 ? ownRadiusTargets : assistTargets,
+      tower.targetPriority || "first",
+      cursorAnchor
+    );
 
     if (target) {
-      const dx = target.x - drone.x;
-      const dy = target.y - drone.y;
+      const interceptPoint = droneInterceptPoint(target, drone.range) || target;
+      const dx = interceptPoint.x - drone.x;
+      const dy = interceptPoint.y - drone.y;
       const distance = Math.hypot(dx, dy) || 1;
-      const stopDistance = drone.range * 0.72 + drone.bodyRadius + 11;
+      const base = baseCenter(target);
+      const droneBaseDistance = Math.hypot(drone.x - base.x, drone.y - base.y);
+      const targetBaseDistance = Math.hypot(target.x - base.x, target.y - base.y);
+      const needsFrontline = droneBaseDistance >= targetBaseDistance - 6;
+      const stopDistance = needsFrontline
+        ? Math.max(drone.bodyRadius + 1, drone.range * 0.05)
+        : Math.max(drone.bodyRadius + 3, drone.range * 0.16);
       const desiredTravel = Math.max(distance - stopDistance, 0);
-      const travel = Math.min(desiredTravel, stats.droneSpeed * deltaTime);
+      const pursuitSpeed = stats.droneSpeed * (needsFrontline ? 2.1 : 1.35);
+      const travel = Math.min(desiredTravel, pursuitSpeed * deltaTime);
       const nextX = drone.x + (dx / distance) * travel;
       const nextY = drone.y + (dy / distance) * travel;
       const leashDistance = Math.hypot(nextX - tower.centerX, nextY - tower.centerY);
 
-      if (leashDistance <= stats.range) {
+      if (leashDistance <= stats.range || stats.attackDrone) {
         drone.x = nextX;
         drone.y = nextY;
       }
     } else {
-      const hoverX = tower.centerX;
-      const hoverY = tower.centerY;
+      const hoverX = tower.targetPriority === "cursor" ? cursorAnchor.x : tower.centerX;
+      const hoverY = tower.targetPriority === "cursor" ? cursorAnchor.y : tower.centerY;
       const dx = hoverX - drone.x;
       const dy = hoverY - drone.y;
       const distance = Math.hypot(dx, dy) || 1;
@@ -5329,7 +6183,7 @@ function updateDrones(deltaTime) {
 
     const attackDistance = Math.hypot(target.x - drone.x, target.y - drone.y);
 
-    if (attackDistance <= drone.range && attackDistance > drone.bodyRadius + 7) {
+    if (attackDistance <= drone.range) {
       if (drone.cooldown === 0) {
         const angle = Math.atan2(target.y - drone.y, target.x - drone.x);
         for (let index = 0; index < gunCount; index += 1) {
@@ -5541,6 +6395,10 @@ function projectileCollisionRadius(projectile) {
     return 12;
   }
 
+  if (projectile.kind === "cannonDart") {
+    return 11;
+  }
+
   if (projectile.kind === "mangoBomb" || projectile.kind === "cluster" || projectile.kind === "shard" || projectile.kind === "dippyShell") {
     return 10;
   }
@@ -5565,6 +6423,9 @@ function explodeDroneRocket(projectile) {
 }
 
 function explodeDippyEgg(projectile) {
+  if ((projectile.screenShake || 0) > 0 && (projectile.screenShakeDuration || 0) > 0) {
+    triggerScreenShake(projectile.screenShake, projectile.screenShakeDuration);
+  }
   addPulse(projectile.x, projectile.y, projectile.splash, "#ffe8a3");
   addBurstParticles(projectile.x, projectile.y, projectile.whiteoutDuration > 0 ? 22 : 8, projectile.whiteoutDuration > 0 ? "#fff6c2" : "#ffe199", projectile.whiteoutDuration > 0 ? 80 : 35, projectile.whiteoutDuration > 0 ? 180 : 90);
   const shieldHitTracker = createShieldHitTracker();
@@ -5579,7 +6440,8 @@ function explodeDippyEgg(projectile) {
       shieldHitTracker,
       burnDamage: projectile.burnDamage,
       burnDuration: projectile.burnDuration,
-      shieldMultiplier: projectile.shieldMultiplier
+      shieldMultiplier: projectile.shieldMultiplier,
+      damageClasses: projectile.damageClasses
     });
 
     if (projectile.sticky && !activeShieldSourceForEnemy(enemy)) {
@@ -5599,8 +6461,8 @@ function explodeDippyEgg(projectile) {
       projectile.stickySlow,
       projectile.syrupTtl || projectile.stickyDuration + 1.2,
       projectile.syrupDamage > 0 ? "rgba(255, 171, 51, 0.48)" : "rgba(255, 215, 82, 0.55)",
-      projectile.syrupDamage || 0,
-      Boolean(projectile.syrupDamage > 0),
+      Math.max(projectile.syrupDamage || 0, 0.35),
+      true,
       0,
       0,
       projectile.syrupTowerBuff || 1
@@ -5620,7 +6482,8 @@ function explodeDippyEgg(projectile) {
       if (distance <= secondRadius) {
         damageEnemy(enemy, projectile.damage * 0.42 * (1 - distance / Math.max(secondRadius, 1) * 0.3), "explosion", {
           shieldHitTracker: secondShieldHitTracker,
-          shieldMultiplier: projectile.shieldMultiplier
+          shieldMultiplier: projectile.shieldMultiplier,
+          damageClasses: projectile.damageClasses
         });
         if (projectile.sticky && !activeShieldSourceForEnemy(enemy)) {
           enemy.slowFactor = Math.min(enemy.slowFactor, projectile.stickySlow);
@@ -5638,9 +6501,9 @@ function updateProjectiles(deltaTime) {
   const survivors = [];
 
   for (const projectile of projectiles) {
-    if (projectile.kind === "crossbowBolt") {
+    if (projectile.kind === "crossbowBolt" || projectile.kind === "cannonDart") {
       const target = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null;
-      if (target) {
+      if (target && projectile.kind === "crossbowBolt") {
         const desiredAngle = Math.atan2(target.y - projectile.y, target.x - projectile.x);
         const angleDelta = Math.atan2(Math.sin(desiredAngle - projectile.angle), Math.cos(desiredAngle - projectile.angle));
         const maxTurn = (projectile.homing || 0) * deltaTime;
@@ -5655,7 +6518,7 @@ function updateProjectiles(deltaTime) {
           continue;
         }
 
-        if (Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= 10) {
+        if (Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= (projectile.kind === "cannonDart" ? 12 : 10)) {
           projectile.shieldHitTracker ||= createShieldHitTracker();
           if (damageEnemy(enemy, projectile.damage, projectile.damageType || "bullet", { shieldHitTracker: projectile.shieldHitTracker })) {
             projectile.hitIds.push(enemy.id);
@@ -5797,12 +6660,48 @@ function updateProjectiles(deltaTime) {
           addBurstParticles(projectile.x, projectile.y + 10, 2, "rgba(255, 239, 182, 0.55)", 18, 36, 0.08, 0.16);
           projectile.trailTimer = 0.04;
         }
-        if (projectile.y <= 0) {
+        const apexY = projectile.welfareHoming
+          ? Math.max(projectile.targetY - (projectile.welfareApexHeight || 150), 56)
+          : 0;
+        if (projectile.y <= apexY) {
           projectile.risingComplete = true;
-          projectile.y = 0;
-          projectile.hiddenOffscreen = true;
+          projectile.y = apexY;
+          projectile.hiddenOffscreen = !projectile.welfareHoming;
         }
         survivors.push(projectile);
+        continue;
+      }
+
+      if (projectile.welfareHoming) {
+        const target = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null;
+        projectile.falling = true;
+        projectile.hiddenOffscreen = false;
+        if (target) {
+          projectile.targetX = target.x;
+          projectile.targetY = target.y;
+        }
+        if (projectile.angle === undefined) {
+          projectile.angle = Math.PI / 2;
+        }
+        const desiredAngle = Math.atan2(projectile.targetY - projectile.y, projectile.targetX - projectile.x);
+        const angleDelta = Math.atan2(Math.sin(desiredAngle - projectile.angle), Math.cos(desiredAngle - projectile.angle));
+        const maxTurn = (projectile.welfareTurnRate || 7) * deltaTime;
+        projectile.angle += Math.max(-maxTurn, Math.min(maxTurn, angleDelta));
+        projectile.speed += (((projectile.welfareCruiseSpeed || 430) - projectile.speed) * Math.min(1, deltaTime * 4));
+        projectile.roll += projectile.spin * deltaTime * 1.5;
+        projectile.x += Math.cos(projectile.angle) * projectile.speed * deltaTime;
+        projectile.y += Math.sin(projectile.angle) * projectile.speed * deltaTime;
+        projectile.trailTimer = (projectile.trailTimer || 0) - deltaTime;
+        if (projectile.trailTimer <= 0) {
+          addBurstParticles(projectile.x, projectile.y - 2, 3, "rgba(255, 211, 118, 0.55)", 22, 46, 0.08, 0.18);
+          projectile.trailTimer = 0.03;
+        }
+        const impactEnemy = firstEnemyTouchingProjectile(projectile);
+        if (impactEnemy || Math.hypot(projectile.x - projectile.targetX, projectile.y - projectile.targetY) <= 18) {
+          explodeDippyEgg(projectile);
+        } else if (projectile.x > -40 && projectile.x < canvas.width + 40 && projectile.y > -40 && projectile.y < canvas.height + 40) {
+          survivors.push(projectile);
+        }
         continue;
       }
 
@@ -5845,7 +6744,10 @@ function updateProjectiles(deltaTime) {
     const target = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null;
 
     if (target && (projectile.homing || projectile.kind === "droneRocket")) {
-      projectile.angle = Math.atan2(target.y - projectile.y, target.x - projectile.x);
+      const desiredAngle = Math.atan2(target.y - projectile.y, target.x - projectile.x);
+      const angleDelta = Math.atan2(Math.sin(desiredAngle - projectile.angle), Math.cos(desiredAngle - projectile.angle));
+      const maxTurn = ((typeof projectile.homing === "number" ? projectile.homing : 8) || 8) * deltaTime;
+      projectile.angle += Math.max(-maxTurn, Math.min(maxTurn, angleDelta));
     }
 
     projectile.speed += (projectile.acceleration || 0) * deltaTime;
@@ -5855,7 +6757,9 @@ function updateProjectiles(deltaTime) {
     if (projectile.ttl !== undefined) {
       projectile.ttl -= deltaTime;
       if (projectile.ttl <= 0) {
-        explodeProjectile(projectile);
+        if (projectile.kind === "missile" || projectile.kind === "cluster" || projectile.kind === "mangoBomb" || projectile.kind === "shard") {
+          explodeProjectile(projectile);
+        }
         continue;
       }
     }
@@ -5903,6 +6807,13 @@ function updateProjectiles(deltaTime) {
 }
 
 function updateEffects(deltaTime) {
+  if (screenShakeTimer > 0) {
+    screenShakeTimer = Math.max(0, screenShakeTimer - deltaTime);
+    if (screenShakeTimer === 0) {
+      screenShakeAmount = 0;
+    }
+  }
+
   for (const effect of effects) {
     if (effect.kind === "puddle") {
       for (const enemy of enemies) {
@@ -5910,7 +6821,7 @@ function updateEffects(deltaTime) {
           enemy.slowFactor = Math.min(enemy.slowFactor, effect.slow);
           enemy.slowTimer = Math.max(enemy.slowTimer, 0.24);
           if (!enemy.armored && effect.damage > 0) {
-            damageEnemy(enemy, effect.damage * deltaTime, "chemical");
+            damageEnemy(enemy, effect.damage * deltaTime, "chemical", { dotBarColor: "#f0cc46" });
           }
           if (!enemy.armored && effect.poisonDamage > 0) {
             enemy.poisonDamage = Math.max(enemy.poisonDamage || 0, effect.poisonDamage);
@@ -5964,7 +6875,7 @@ function spawnWaffleChildren(enemy, type, count, hpDivisor) {
         startCell,
         route,
         tier: nextTier,
-        reward: Math.max(1, Math.round(type.reward * rewardMultiplier())),
+        reward: 0,
         hp: Math.max(1, Math.round(enemy.maxHp / hpDivisor)),
         speed: Math.max(18, enemy.speed + type.speedBonus),
         hidden: enemy.hidden,
@@ -5975,7 +6886,7 @@ function spawnWaffleChildren(enemy, type, count, hpDivisor) {
       : createEnemy(type, {
         portalIndex: enemy.portalIndex,
         tier: nextTier,
-        reward: Math.max(1, Math.round(type.reward * rewardMultiplier())),
+        reward: 0,
         hp: Math.max(1, Math.round(enemy.maxHp / hpDivisor)),
         speed: Math.max(18, enemy.speed + type.speedBonus),
         progress: enemy.progress,
@@ -5986,8 +6897,7 @@ function spawnWaffleChildren(enemy, type, count, hpDivisor) {
       });
 
     if (child) {
-      child.facingAngle = enemy.facingAngle || 0;
-      pushEnemy(child);
+      pushEnemy(prepareSummonedChild(child, enemy));
     }
   }
 }
@@ -6020,7 +6930,7 @@ function spawnDiamondChildren(enemy) {
         startCell,
         route,
         tier: nextTier,
-        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        reward: 0,
         hidden: enemy.hidden,
         armored: enemy.armored,
         armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
@@ -6029,7 +6939,7 @@ function spawnDiamondChildren(enemy) {
       : createEnemy(ENEMY_TYPES.diamond, {
         portalIndex: enemy.portalIndex,
         tier: nextTier,
-        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        reward: 0,
         progress: enemy.progress,
         hidden: enemy.hidden,
         armored: enemy.armored,
@@ -6038,8 +6948,7 @@ function spawnDiamondChildren(enemy) {
       });
 
     if (child) {
-      child.facingAngle = enemy.facingAngle || 0;
-      pushEnemy(child);
+      pushEnemy(prepareSummonedChild(child, enemy));
     }
   }
 }
@@ -6072,7 +6981,7 @@ function spawnShieldChildren(enemy) {
         startCell,
         route,
         tier: nextTier,
-        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        reward: 0,
         hidden: enemy.hidden,
         armored: enemy.armored,
         armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
@@ -6081,7 +6990,7 @@ function spawnShieldChildren(enemy) {
       : createEnemy(ENEMY_TYPES.shield, {
         portalIndex: enemy.portalIndex,
         tier: nextTier,
-        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        reward: 0,
         progress: enemy.progress,
         hidden: enemy.hidden,
         armored: enemy.armored,
@@ -6090,8 +6999,7 @@ function spawnShieldChildren(enemy) {
       });
 
     if (child) {
-      child.facingAngle = enemy.facingAngle || 0;
-      pushEnemy(child);
+      pushEnemy(prepareSummonedChild(child, enemy));
     }
   }
 }
@@ -6129,7 +7037,7 @@ function spawnGenericTierChildren(enemy) {
         startCell,
         route,
         tier: nextTier,
-        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        reward: 0,
         hidden: enemy.hidden,
         armored: enemy.armored,
         armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
@@ -6138,7 +7046,7 @@ function spawnGenericTierChildren(enemy) {
       : createEnemy(enemyType, {
         portalIndex: enemy.portalIndex,
         tier: nextTier,
-        reward: Math.max(1, Math.round(enemy.reward / 3)),
+        reward: 0,
         progress: enemy.progress,
         hidden: enemy.hidden,
         armored: enemy.armored,
@@ -6147,8 +7055,144 @@ function spawnGenericTierChildren(enemy) {
       });
 
     if (child) {
-      child.facingAngle = enemy.facingAngle || 0;
-      pushEnemy(child);
+      pushEnemy(prepareSummonedChild(child, enemy));
+    }
+  }
+}
+
+function spawnSentinelChildren(enemy) {
+  const nextTier = Math.max(1, (enemy.tier || 1) - 1);
+  if (nextTier === enemy.tier || nextTier < 1) {
+    return;
+  }
+
+  const originCell = {
+    x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x / CELL_SIZE))),
+    y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y / CELL_SIZE)))
+  };
+  const directionsForSpawn = [
+    { x: 2, y: 0 },
+    { x: -2, y: 0 },
+    { x: 0, y: 2 },
+    { x: 0, y: -2 },
+    { x: 2, y: 2 },
+    { x: 2, y: -2 },
+    { x: -2, y: 2 },
+    { x: -2, y: -2 }
+  ];
+
+  for (const direction of directionsForSpawn) {
+    const startCell = {
+      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
+      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
+    };
+    const route = findPathFrom(startCell);
+    const child = route.length > 0
+      ? createEnemy(ENEMY_TYPES.sentinel, {
+        portalIndex: enemy.portalIndex,
+        startCell,
+        route,
+        tier: nextTier,
+        reward: 0,
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+        shielded: enemy.shielded
+      })
+      : createEnemy(ENEMY_TYPES.sentinel, {
+        portalIndex: enemy.portalIndex,
+        tier: nextTier,
+        reward: 0,
+        progress: enemy.progress,
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+        shielded: enemy.shielded
+      });
+
+    if (child) {
+      pushEnemy(prepareSummonedChild(child, enemy));
+    }
+  }
+}
+
+function spawnHydra(enemyType = ENEMY_TYPES.hydra, options = {}) {
+  const hydraGroupId = `hydra-${nextEnemyId}-${Math.random().toString(36).slice(2, 7)}`;
+  const colors = ["#ffd84f", "#56a8ff", "#a56cff", "#d34a4a"];
+  for (let stage = 0; stage < 4; stage += 1) {
+    const segment = createEnemy(enemyType, {
+      ...options,
+      color: colors[stage],
+      hydraGroupId,
+      hydraStage: stage,
+      segmentOffset: stage * 0.34,
+      sizeScale: 1.26,
+      turnRate: 2.35
+    });
+    if (segment) {
+      segment.type = "Hydra";
+      pushEnemy(segment);
+    }
+  }
+}
+
+function prepareSummonedChild(child, parent) {
+  if (!child || !parent) {
+    return child;
+  }
+  child.facingAngle = parent.facingAngle || 0;
+  child.spawnSourceX = parent.x;
+  child.spawnSourceY = parent.y;
+  child.spawnIntroDuration = 0.26;
+  child.spawnIntroTimer = 0.26;
+  return child;
+}
+
+function spawnSplitterChildren(enemy) {
+  const nextTier = Math.max(1, (enemy.tier || 1) - 1);
+  if (nextTier === enemy.tier || nextTier < 1) {
+    return;
+  }
+
+  const originCell = {
+    x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x / CELL_SIZE))),
+    y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y / CELL_SIZE)))
+  };
+  const directionsForSpawn = Math.random() < 0.5
+    ? [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: 0, y: 2 }]
+    : [{ x: -1, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }];
+
+  for (const direction of directionsForSpawn) {
+    const startCell = {
+      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
+      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
+    };
+    const route = findPathFrom(startCell);
+    const child = route.length > 0
+      ? createEnemy(ENEMY_TYPES.splitter, {
+        portalIndex: enemy.portalIndex,
+        startCell,
+        route,
+        tier: nextTier,
+        reward: 0,
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+        shielded: enemy.shielded
+      })
+      : createEnemy(ENEMY_TYPES.splitter, {
+        portalIndex: enemy.portalIndex,
+        tier: nextTier,
+        reward: 0,
+        progress: enemy.progress,
+        hidden: enemy.hidden,
+        armored: enemy.armored,
+        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+        shielded: enemy.shielded
+      });
+
+    if (child) {
+      pushEnemy(prepareSummonedChild(child, enemy));
     }
   }
 }
@@ -6160,10 +7204,14 @@ function purgeDefeatedEnemies() {
     if (enemy.hp > 0) {
       nextEnemies.push(enemy);
     } else {
-  if (enemy.key === "waffle16" && (enemy.tier || 1) > 1) {
-    spawnWaffleChildren(enemy, ENEMY_TYPES.waffle16, 4, 4);
-  } else if (enemy.key === "diamond" && (enemy.tier || 1) > 1) {
+      if (enemy.key === "waffle16" && (enemy.tier || 1) > 1) {
+        spawnWaffleChildren(enemy, ENEMY_TYPES.waffle16, 4, 4);
+      } else if (enemy.key === "diamond" && (enemy.tier || 1) > 1) {
         spawnDiamondChildren(enemy);
+      } else if (enemy.key === "sentinel" && (enemy.tier || 1) > 1) {
+        spawnSentinelChildren(enemy);
+      } else if (enemy.key === "splitter" && (enemy.tier || 1) > 1) {
+        spawnSplitterChildren(enemy);
       } else if (enemy.key === "shield" && (enemy.tier || 1) > 1) {
         spawnShieldChildren(enemy);
       } else if ((enemy.tier || 1) > 1) {
@@ -6177,32 +7225,31 @@ function purgeDefeatedEnemies() {
 }
 
 function updateHud() {
-  nextPieceText.textContent = isFactoryMap() ? `Next conveyor: ${activePiece.name}` : `Next block: ${activePiece.name}`;
+  nextPieceText.textContent = `Next block: ${activePiece.name}`;
   routeText.textContent = isGraveyardMap()
     ? "Routes: gravebound"
     : allRoutesOpen(routes) ? `Routes: ${routes.length} open` : "Routes: blocked";
   updateTowerButtons();
   if (blockToolButton) {
-    blockToolButton.textContent = isFactoryMap()
-      ? (freeBlocks > 0 ? "Conveyor (Free)" : `Conveyor (${currentBlockCost})`)
-      : (freeBlocks > 0 ? "Block (Free)" : `Block (${currentBlockCost})`);
+    blockToolButton.textContent = freeBlocks > 0 ? "Block (Free)" : `Block (${currentBlockCost})`;
   }
   if (moneyText) {
     moneyText.textContent = `Cash: ${money}`;
   }
   boardCashText.textContent = `Cash: ${money}`;
-  freeBlockText.textContent = isFactoryMap()
-    ? (freeBlocks > 0 ? `Conveyor price after free: ${currentBlockCost}` : `Conveyor price: ${currentBlockCost}`)
-    : (freeBlocks > 0 ? `Block price after free: ${currentBlockCost}` : `Block price: ${currentBlockCost}`);
-  livesText.textContent = `Lives: ${lives}`;
+  freeBlockText.textContent = freeBlocks > 0 ? `Block price after free: ${currentBlockCost}` : `Block price: ${currentBlockCost}`;
+  livesText.textContent = `Base HP: ${Math.max(0, Math.ceil(lives))}`;
   waveText.textContent = `Wave: ${waveNumber}`;
   enemyText.textContent = `Enemies: ${enemies.length}`;
   if (autoWaveToggle) {
     autoWaveToggle.checked = autoWaveEnabled;
   }
+  speedControls?.querySelectorAll("[data-speed]").forEach((button) => {
+    button.classList.toggle("active", Number(button.dataset.speed) === gameSpeedMultiplier);
+  });
   waveButton.textContent = autoWaveEnabled ? "Start Wave Now" : "Start Wave";
   selectionText.textContent = `Selected: ${TOWER_INFO[selectedTowerType].name}`;
-  upgradeText.textContent = `Upgrade: ${currentTool === "upgrade" ? "click tower, max 5" : "max 5"}${selectedMap === "outpost" && !crossbowUnlocked ? " | Secret: Brutal Outpost wave 50 without placing walls" : ""}`;
+  upgradeText.textContent = `Upgrade: ${currentTool === "upgrade" ? "click tower, max 5" : "max 5"}${selectedMap === "outpost" && !crossbowUnlocked ? " | Secret: Brutal Outpost wave 50 with only one block placed" : ""}`;
   updateSandboxControls();
   updateAirstrikeControls();
   renderTutorial();
@@ -6212,26 +7259,29 @@ function updateHud() {
   } else if (lives <= 0) {
     statusText.textContent = "Game over.";
   } else if (!allRoutesOpen(routes)) {
-    statusText.textContent = isFactoryMap()
-      ? "Factory line incomplete. Place conveyors to extend the route."
-      : "The path is blocked. Erase a block to reopen the route.";
+    statusText.textContent = "The path is blocked. Erase a block to reopen the route.";
   } else if (wave && !wave.complete) {
     statusText.textContent = `Wave ${waveNumber} in progress.`;
   } else if (autoWaveEnabled) {
     statusText.textContent = isSandboxMode() && sandboxWaveTarget !== null
-      ? `Auto wave armed. Sandbox wave ${sandboxWaveTarget} will repeat on its own.`
-      : `Auto wave armed. Next wave ${waveNumber + 1} will start on its own.`;
+      ? `Auto wave armed at ${gameSpeedMultiplier}x. Sandbox wave ${sandboxWaveTarget} will repeat on its own.`
+      : `Auto wave armed at ${gameSpeedMultiplier}x. Next wave ${waveNumber + 1} will start on its own.`;
   } else {
     statusText.textContent = isSandboxMode() && sandboxWaveTarget !== null
-      ? `Path ready. Build and start sandbox wave ${sandboxWaveTarget}.`
-      : `Path ready. Build and start wave ${waveNumber + 1}.`;
+      ? `Path ready at ${gameSpeedMultiplier}x. Build and start sandbox wave ${sandboxWaveTarget}.`
+      : `Path ready at ${gameSpeedMultiplier}x. Build and start wave ${waveNumber + 1}.`;
   }
 }
 
 function updateAmbientEffects(deltaTime) {
   ambientTimer += deltaTime;
 
-  const spawnRate = activeMap.scenery === "canyon" ? 0.22 : activeMap.scenery === "ruins" ? 0.32 : activeMap.scenery === "mango" ? 0.2 : activeMap.scenery === "graveyard" ? 0.26 : Infinity;
+  const spawnRate = activeMap.scenery === "canyon" ? 0.22
+    : activeMap.scenery === "ruins" ? 0.32
+    : activeMap.scenery === "mango" ? 0.2
+    : activeMap.scenery === "graveyard" ? 0.26
+    : activeMap.scenery === "furnace" ? 0.12
+    : Infinity;
 
   while (ambientTimer >= spawnRate && spawnRate !== Infinity) {
     ambientTimer -= spawnRate;
@@ -6278,6 +7328,18 @@ function updateAmbientEffects(deltaTime) {
         ttl: 2 + Math.random() * 1.2,
         color: `rgba(220, 235, 222, ${0.05 + Math.random() * 0.05})`
       });
+    } else if (activeMap.scenery === "furnace") {
+      ambientParticles.push({
+        x: Math.random() * canvas.width,
+        y: canvas.height - 24 - Math.random() * 180,
+        vx: -8 + Math.random() * 16,
+        vy: -(18 + Math.random() * 24),
+        radius: 3 + Math.random() * 5,
+        ttl: 1.1 + Math.random() * 1.2,
+        color: Math.random() > 0.4
+          ? `rgba(255, 168, 72, ${0.08 + Math.random() * 0.1})`
+          : `rgba(255, 97, 38, ${0.08 + Math.random() * 0.1})`
+      });
     }
   }
 
@@ -6293,10 +7355,25 @@ function updateAmbientEffects(deltaTime) {
 
 function drawGrid() {
   if (activeMap.scenery === "factory") {
-    for (let y = 0; y < ROWS; y += 1) {
-      for (let x = 0; x < COLS; x += 1) {
-        ctx.fillStyle = isFactoryBuildTile(x, y) ? "rgba(110, 118, 128, 0.32)" : "rgba(198, 205, 214, 0.24)";
-        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    ctx.strokeStyle = "rgba(230, 237, 245, 0.16)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo((COLS * CELL_SIZE) / 2, 0);
+    ctx.lineTo((COLS * CELL_SIZE) / 2, ROWS * CELL_SIZE);
+    ctx.moveTo(0, (ROWS * CELL_SIZE) / 2);
+    ctx.lineTo(COLS * CELL_SIZE, (ROWS * CELL_SIZE) / 2);
+    ctx.stroke();
+    if (factoryState) {
+      const hole = factoryQuarterBounds(factoryState.holeIndex);
+      ctx.fillStyle = "rgba(10, 14, 18, 0.78)";
+      ctx.fillRect(hole.x * CELL_SIZE, hole.y * CELL_SIZE, hole.width * CELL_SIZE, hole.height * CELL_SIZE);
+      ctx.fillStyle = "rgba(255, 245, 210, 0.08)";
+      for (let x = hole.x; x < hole.x + hole.width; x += 1) {
+        for (let y = hole.y; y < hole.y + hole.height; y += 1) {
+          if ((x + y) % 3 === 0) {
+            ctx.fillRect(x * CELL_SIZE + 4, y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+          }
+        }
       }
     }
   }
@@ -6328,18 +7405,42 @@ function drawMapScenery() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   } else if (activeMap.scenery === "fortification") {
     const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, "#d5dbdf");
-    gradient.addColorStop(0.5, "#bcc5cc");
-    gradient.addColorStop(1, "#98a6b3");
+    if (selectedMap === "dippycastle") {
+      gradient.addColorStop(0, "#f5e8bf");
+      gradient.addColorStop(0.5, "#e7d3a4");
+      gradient.addColorStop(1, "#cfa97a");
+    } else {
+      gradient.addColorStop(0, "#d5dbdf");
+      gradient.addColorStop(0.5, "#bcc5cc");
+      gradient.addColorStop(1, "#98a6b3");
+    }
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   } else if (activeMap.scenery === "ruins") {
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "#14385d");
-    gradient.addColorStop(0.5, "#1a4d79");
-    gradient.addColorStop(1, "#0f2944");
+    gradient.addColorStop(0, "#0b3154");
+    gradient.addColorStop(0.5, "#12507c");
+    gradient.addColorStop(1, "#0b2942");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else if (activeMap.scenery === "shoals") {
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, "#7fd5f1");
+    gradient.addColorStop(0.45, "#4da7d2");
+    gradient.addColorStop(1, "#2a6f95");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else if (activeMap.scenery === "cliffs") {
+    const leftGradient = ctx.createLinearGradient(0, 0, canvas.width / 2, 0);
+    leftGradient.addColorStop(0, "#5c4b39");
+    leftGradient.addColorStop(1, "#7a644e");
+    ctx.fillStyle = leftGradient;
+    ctx.fillRect(0, 0, canvas.width / 2, canvas.height);
+    const rightGradient = ctx.createLinearGradient(canvas.width / 2, 0, canvas.width, 0);
+    rightGradient.addColorStop(0, "#b9aa86");
+    rightGradient.addColorStop(1, "#d5c7a0");
+    ctx.fillStyle = rightGradient;
+    ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
   } else if (activeMap.scenery === "mango") {
     const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
     gradient.addColorStop(0, "#fff0a8");
@@ -6349,9 +7450,16 @@ function drawMapScenery() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   } else if (activeMap.scenery === "factory") {
     const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, "#d7dce2");
-    gradient.addColorStop(0.5, "#c2c8d0");
-    gradient.addColorStop(1, "#aeb6c0");
+    gradient.addColorStop(0, "#8d949c");
+    gradient.addColorStop(0.5, "#6f7782");
+    gradient.addColorStop(1, "#555d66");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else if (activeMap.scenery === "furnace") {
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, "#120d0a");
+    gradient.addColorStop(0.55, "#261914");
+    gradient.addColorStop(1, "#0b0908");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   } else if (activeMap.scenery === "graveyard") {
@@ -6382,29 +7490,241 @@ function drawMapScenery() {
       }
     }
     if (selectedMap === "fortification") {
+      const centerY = Math.floor(ROWS / 2);
       ctx.fillStyle = "rgba(35, 47, 58, 0.18)";
-      ctx.fillRect(0, 4 * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 2);
-      ctx.fillRect(0, 9 * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 2);
+      ctx.fillRect(0, (centerY - 5) * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 2);
+      ctx.fillRect(0, (centerY + 3) * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 2);
       ctx.fillStyle = "rgba(233, 240, 246, 0.12)";
-      ctx.fillRect(0, 6 * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 3);
+      ctx.fillRect(0, (centerY - 1) * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 3);
+    } else if (selectedMap === "dippycastle") {
+      const eggSets = [
+        { x: canvas.width * 0.18, y: canvas.height * 0.28, rx: 42, ry: 58, color: "rgba(255, 248, 221, 0.3)" },
+        { x: canvas.width * 0.26, y: canvas.height * 0.72, rx: 34, ry: 48, color: "rgba(255, 233, 179, 0.24)" },
+        { x: canvas.width * 0.72, y: canvas.height * 0.22, rx: 30, ry: 42, color: "rgba(255, 241, 196, 0.22)" },
+        { x: canvas.width * 0.84, y: canvas.height * 0.64, rx: 44, ry: 60, color: "rgba(255, 228, 168, 0.26)" }
+      ];
+      ctx.fillStyle = "rgba(255, 205, 88, 0.08)";
+      for (let x = 0; x < canvas.width; x += 96) {
+        ctx.fillRect(x, 0, 24, canvas.height);
+      }
+      for (const egg of eggSets) {
+        ctx.fillStyle = egg.color;
+        ctx.beginPath();
+        ctx.ellipse(egg.x, egg.y, egg.rx, egg.ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(189, 133, 61, 0.24)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = "rgba(255, 194, 86, 0.12)";
+        ctx.beginPath();
+        ctx.arc(egg.x + egg.rx * 0.12, egg.y + egg.ry * 0.08, Math.max(8, egg.rx * 0.18), 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   } else if (activeMap.scenery === "ruins") {
-    ctx.fillStyle = "rgba(117, 189, 227, 0.08)";
+    ctx.fillStyle = "rgba(160, 222, 245, 0.09)";
     for (let band = 0; band < 4; band += 1) {
       ctx.fillRect(0, band * 132 + 28, canvas.width, 14);
     }
+  } else if (activeMap.scenery === "shoals") {
+    ctx.fillStyle = "rgba(222, 247, 255, 0.12)";
+    for (let band = 0; band < 5; band += 1) {
+      ctx.fillRect(0, band * 108 + 22, canvas.width, 10);
+    }
+  } else if (activeMap.scenery === "cliffs") {
+    ctx.fillStyle = "rgba(63, 48, 35, 0.55)";
+    for (const cell of activeMap.noBuildCells || []) {
+      ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    }
+    ctx.fillStyle = "rgba(255, 245, 214, 0.08)";
+    for (let y = 0; y < canvas.height; y += 72) {
+      ctx.fillRect(canvas.width * 0.58, y, canvas.width * 0.34, 20);
+    }
+    ctx.fillStyle = "rgba(30, 24, 20, 0.12)";
+    ctx.fillRect(0, 0, canvas.width * 0.48, canvas.height);
   } else if (activeMap.scenery === "mango") {
     ctx.fillStyle = "rgba(255, 240, 167, 0.22)";
     ctx.beginPath();
     ctx.arc(canvas.width * 0.83, canvas.height * 0.22, 68, 0, Math.PI * 2);
     ctx.fill();
-  } else if (activeMap.scenery === "factory") {
-    ctx.fillStyle = "rgba(77, 87, 98, 0.1)";
-    for (let x = 0; x < canvas.width; x += CELL_SIZE * 2) {
-      ctx.fillRect(x + 6, 0, 6, canvas.height);
+    ctx.fillStyle = "rgba(138, 93, 9, 0.34)";
+    for (const cell of activeMap.noBuildCells || []) {
+      ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
     }
-    for (let y = 0; y < canvas.height; y += CELL_SIZE * 2) {
-      ctx.fillRect(0, y + 6, canvas.width, 6);
+  } else if (activeMap.scenery === "factory") {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+    for (let x = 0; x < canvas.width; x += CELL_SIZE) {
+      ctx.fillRect(x + 2, 0, 2, canvas.height);
+    }
+    ctx.fillStyle = "rgba(35, 40, 46, 0.18)";
+    for (let x = 0; x < canvas.width; x += CELL_SIZE * 5) {
+      ctx.fillRect(x, 0, CELL_SIZE * 2, canvas.height);
+    }
+    ctx.fillStyle = "rgba(20, 25, 30, 0.32)";
+    for (let quarter = 0; quarter < 4; quarter += 1) {
+      const bounds = factoryQuarterBounds(quarter);
+      ctx.fillRect(
+        bounds.x * CELL_SIZE + 8,
+        bounds.y * CELL_SIZE + 8,
+        bounds.width * CELL_SIZE - 16,
+        bounds.height * CELL_SIZE - 16
+      );
+    }
+    const gearSets = [
+      { x: canvas.width * 0.23, y: canvas.height * 0.28, radius: 28, teeth: 10, rotation: dashOffset * 0.06 },
+      { x: canvas.width * 0.31, y: canvas.height * 0.38, radius: 16, teeth: 8, rotation: -dashOffset * 0.09 },
+      { x: canvas.width * 0.72, y: canvas.height * 0.3, radius: 24, teeth: 9, rotation: -dashOffset * 0.05 },
+      { x: canvas.width * 0.64, y: canvas.height * 0.68, radius: 34, teeth: 12, rotation: dashOffset * 0.04 }
+    ];
+    for (const gear of gearSets) {
+      ctx.save();
+      ctx.translate(gear.x, gear.y);
+      ctx.rotate(gear.rotation);
+      ctx.strokeStyle = "rgba(210, 218, 228, 0.16)";
+      ctx.fillStyle = "rgba(38, 44, 52, 0.22)";
+      ctx.lineWidth = 5;
+      for (let tooth = 0; tooth < gear.teeth; tooth += 1) {
+        ctx.save();
+        ctx.rotate((Math.PI * 2 * tooth) / gear.teeth);
+        ctx.fillRect(gear.radius - 2, -3, 10, 6);
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, gear.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, gear.radius * 0.34, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  } else if (activeMap.scenery === "furnace") {
+    ctx.fillStyle = "rgba(67, 51, 34, 0.34)";
+    for (let index = 0; index < 64; index += 1) {
+      const x = (index * 47) % canvas.width;
+      const y = (index * 91) % canvas.height;
+      ctx.beginPath();
+      ctx.arc(x, y, 5 + (index % 4), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (const grate of activeMap.lavaGrates || []) {
+      const left = grate.x * CELL_SIZE;
+      const top = grate.y * CELL_SIZE;
+      const width = grate.width * CELL_SIZE;
+      const height = grate.height * CELL_SIZE;
+      ctx.save();
+      ctx.shadowColor = "rgba(255, 132, 42, 0.76)";
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = "#f07a24";
+      ctx.fillRect(left + 3, top + 3, width - 6, height - 6);
+      ctx.restore();
+      ctx.strokeStyle = "rgba(58, 39, 26, 0.92)";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(left + 1, top + 1, width - 2, height - 2);
+      ctx.fillStyle = "rgba(255, 224, 138, 0.32)";
+      for (let bubble = 0; bubble < 4; bubble += 1) {
+        const bx = left + width * (0.32 + ((bubble % 2) * 0.22));
+        const by = top + height * (0.3 + ((bubble / 4) * 0.35));
+        ctx.beginPath();
+        ctx.arc(bx, by, 2 + (bubble % 2), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.strokeStyle = "rgba(81, 89, 97, 0.6)";
+    ctx.lineWidth = 8;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(canvas.width * 0.06, canvas.height * 0.2);
+    ctx.lineTo(canvas.width * 0.24, canvas.height * 0.2);
+    ctx.lineTo(canvas.width * 0.24, canvas.height * 0.34);
+    ctx.lineTo(canvas.width * 0.44, canvas.height * 0.34);
+    ctx.moveTo(canvas.width * 0.72, canvas.height * 0.14);
+    ctx.lineTo(canvas.width * 0.72, canvas.height * 0.3);
+    ctx.lineTo(canvas.width * 0.9, canvas.height * 0.3);
+    ctx.moveTo(canvas.width * 0.62, canvas.height * 0.78);
+    ctx.lineTo(canvas.width * 0.82, canvas.height * 0.78);
+    ctx.lineTo(canvas.width * 0.82, canvas.height * 0.92);
+    ctx.stroke();
+    const furnaceGearSets = [
+      { x: canvas.width * 0.16, y: canvas.height * 0.78, radius: 20, teeth: 9, rotation: dashOffset * 0.05 },
+      { x: canvas.width * 0.26, y: canvas.height * 0.83, radius: 12, teeth: 7, rotation: -dashOffset * 0.08 },
+      { x: canvas.width * 0.86, y: canvas.height * 0.18, radius: 16, teeth: 8, rotation: dashOffset * 0.06 }
+    ];
+    for (const gear of furnaceGearSets) {
+      ctx.save();
+      ctx.translate(gear.x, gear.y);
+      ctx.rotate(gear.rotation);
+      ctx.strokeStyle = "rgba(153, 162, 170, 0.34)";
+      ctx.fillStyle = "rgba(45, 49, 54, 0.28)";
+      ctx.lineWidth = 4;
+      for (let tooth = 0; tooth < gear.teeth; tooth += 1) {
+        ctx.save();
+        ctx.rotate((Math.PI * 2 * tooth) / gear.teeth);
+        ctx.fillRect(gear.radius - 1, -2.5, 8, 5);
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, gear.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, gear.radius * 0.34, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    const coreGradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 24, canvas.width / 2, canvas.height / 2, 160);
+    coreGradient.addColorStop(0, "rgba(255, 214, 86, 0.42)");
+    coreGradient.addColorStop(0.45, "rgba(255, 122, 45, 0.18)");
+    coreGradient.addColorStop(1, "rgba(255, 98, 31, 0)");
+    ctx.fillStyle = coreGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (activeMap.furnaceCore?.length) {
+      const coreBounds = {
+        left: 13 * CELL_SIZE + 2,
+        top: 6 * CELL_SIZE + 2,
+        width: 4 * CELL_SIZE - 4,
+        height: 4 * CELL_SIZE - 4
+      };
+      ctx.save();
+      ctx.shadowColor = "rgba(255, 126, 48, 0.74)";
+      ctx.shadowBlur = 24;
+      ctx.fillStyle = "#f07a24";
+      ctx.fillRect(coreBounds.left, coreBounds.top, coreBounds.width, coreBounds.height);
+      ctx.restore();
+      for (const cell of activeMap.furnaceCore) {
+        ctx.fillStyle = "rgba(255, 210, 134, 0.2)";
+        ctx.beginPath();
+        ctx.arc(cell.x * CELL_SIZE + CELL_SIZE * 0.48, cell.y * CELL_SIZE + CELL_SIZE * 0.48, 4.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = "rgba(36, 29, 23, 0.86)";
+      ctx.lineWidth = 3;
+      for (const cell of activeMap.furnaceCore) {
+        ctx.strokeRect(cell.x * CELL_SIZE + 3, cell.y * CELL_SIZE + 3, CELL_SIZE - 6, CELL_SIZE - 6);
+      }
+      ctx.strokeStyle = "rgba(255, 205, 124, 0.42)";
+      ctx.lineWidth = 3;
+      for (let x = 13 * CELL_SIZE + 7; x < 17 * CELL_SIZE; x += 10) {
+        ctx.beginPath();
+        ctx.moveTo(x, 6 * CELL_SIZE + 4);
+        ctx.lineTo(x, 10 * CELL_SIZE - 4);
+        ctx.stroke();
+      }
+      for (let y = 6 * CELL_SIZE + 7; y < 10 * CELL_SIZE; y += 10) {
+        ctx.beginPath();
+        ctx.moveTo(13 * CELL_SIZE + 4, y);
+        ctx.lineTo(17 * CELL_SIZE - 4, y);
+        ctx.stroke();
+      }
+      const centerX = coreBounds.left + coreBounds.width / 2;
+      const centerY = coreBounds.top + coreBounds.height / 2;
+      ctx.strokeStyle = "rgba(255, 142, 52, 0.22)";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, CELL_SIZE * ((activeMap.heatRadius || 2) + 1.25), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
   } else if (activeMap.scenery === "graveyard") {
     ctx.fillStyle = "rgba(196, 214, 197, 0.06)";
@@ -6442,8 +7762,36 @@ function drawMapScenery() {
   }
 
   for (const obstacle of activeMap.obstacles) {
-    ctx.fillStyle = "#6b747c";
-    ctx.fillRect(obstacle.x * CELL_SIZE + 4, obstacle.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+    if (activeMap.scenery === "furnace") {
+      const lava = activeMap.furnaceCore?.some((cell) => cell.x === obstacle.x && cell.y === obstacle.y);
+      ctx.fillStyle = lava ? "#4d3327" : "#6b747c";
+      ctx.fillRect(obstacle.x * CELL_SIZE + 4, obstacle.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+    } else if (activeMap.scenery === "ruins" || activeMap.scenery === "shoals") {
+      const left = obstacle.x * CELL_SIZE;
+      const top = obstacle.y * CELL_SIZE;
+      ctx.fillStyle = activeMap.scenery === "shoals" ? "#7e6843" : "#4d5047";
+      ctx.fillRect(left, top, CELL_SIZE, CELL_SIZE);
+      ctx.strokeStyle = activeMap.scenery === "shoals" ? "rgba(220, 197, 138, 0.82)" : "rgba(178, 186, 166, 0.62)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(left + 2, top + 2);
+      ctx.lineTo(left + CELL_SIZE - 2, top + 2);
+      ctx.moveTo(left + CELL_SIZE - 2, top + 2);
+      ctx.lineTo(left + CELL_SIZE - 2, top + CELL_SIZE - 2);
+      ctx.moveTo(left + CELL_SIZE - 2, top + CELL_SIZE - 2);
+      ctx.lineTo(left + 2, top + CELL_SIZE - 2);
+      ctx.moveTo(left + 2, top + CELL_SIZE - 2);
+      ctx.lineTo(left + 2, top + 2);
+      ctx.stroke();
+    } else {
+      const left = obstacle.x * CELL_SIZE;
+      const top = obstacle.y * CELL_SIZE;
+      ctx.fillStyle = "#474f56";
+      ctx.fillRect(left, top, CELL_SIZE, CELL_SIZE);
+      ctx.strokeStyle = "rgba(140, 150, 162, 0.44)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(left + 1, top + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+    }
   }
 }
 
@@ -6463,10 +7811,6 @@ function drawRoundedRect(x, y, width, height, radius) {
 
 function drawRoute() {
   if (activeMap.hideRoutes || !allRoutesOpen(routes)) {
-    return;
-  }
-
-  if (isFactoryMap()) {
     return;
   }
 
@@ -6528,60 +7872,40 @@ function drawRoute() {
   }
 }
 
-function drawFactoryRouteOverlays() {
-  if (!isFactoryMap() || activeMap.hideRoutes || !allRoutesOpen(routes)) {
-    return;
-  }
-
-  const seenConnectors = new Set();
-  for (const path of routes) {
-    for (let index = 0; index < path.length - 1; index += 1) {
-      const current = path[index];
-      const next = path[index + 1];
-      const dx = next.x - current.x;
-      const dy = next.y - current.y;
-      const isFactoryStep = Math.abs(dx) === 2 || Math.abs(dy) === 2;
-      if (!isFactoryStep) {
-        continue;
-      }
-
-      const gapCell = {
-        x: current.x + Math.sign(dx),
-        y: current.y + Math.sign(dy)
-      };
-      const connectorKey = `${Math.min(current.x, next.x)},${Math.min(current.y, next.y)}:${Math.max(current.x, next.x)},${Math.max(current.y, next.y)}`;
-      if (seenConnectors.has(connectorKey)) {
-        continue;
-      }
-      seenConnectors.add(connectorKey);
-
-      const left = gapCell.x * CELL_SIZE;
-      const top = gapCell.y * CELL_SIZE;
-      ctx.save();
-      ctx.fillStyle = "rgba(102, 115, 126, 0.95)";
-      ctx.fillRect(left + 2, top + 2, CELL_SIZE - 4, CELL_SIZE - 4);
-      ctx.strokeStyle = "rgba(234, 241, 245, 0.6)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(left + 3, top + 3, CELL_SIZE - 6, CELL_SIZE - 6);
-
-      const center = cellCenter(gapCell.x, gapCell.y);
-      ctx.translate(center.x, center.y);
-      ctx.rotate(Math.atan2(dy, dx));
-      ctx.strokeStyle = "rgba(84, 170, 255, 0.95)";
-      ctx.lineWidth = 2.4;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(-CELL_SIZE * 0.34, -4);
-      ctx.lineTo(CELL_SIZE * 0.34, -4);
-      ctx.moveTo(-CELL_SIZE * 0.34, 4);
-      ctx.lineTo(CELL_SIZE * 0.34, 4);
-      ctx.stroke();
-      ctx.restore();
+function drawGhostRoutes(previewRoutes) {
+  for (const path of previewRoutes) {
+    if (!path || path.length === 0) {
+      continue;
     }
+    ctx.save();
+    ctx.setLineDash([8, 8]);
+    ctx.lineDashOffset = -dashOffset * 0.7;
+    ctx.strokeStyle = "rgba(165, 214, 255, 0.55)";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    path.forEach((point, index) => {
+      const center = cellCenter(point.x, point.y);
+      if (index === 0) {
+        ctx.moveTo(center.x, center.y);
+      } else {
+        ctx.lineTo(center.x, center.y);
+      }
+    });
+    ctx.stroke();
+    ctx.restore();
   }
 }
 
+function drawFactoryRouteOverlays() {
+  return;
+}
+
 function drawBlock(block) {
+  const offset = entityRenderOffset(block);
+  ctx.save();
+  ctx.translate(offset.x, offset.y);
   for (const cell of block.cells) {
     ctx.fillStyle = block.color;
     ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
@@ -6618,29 +7942,7 @@ function drawBlock(block) {
 
     ctx.stroke();
   }
-
-  if (isFactoryMap() && block.conveyor) {
-    for (const cell of block.cells) {
-      const direction = factoryRouteDirectionAtCell(cell);
-      if (!direction) {
-        continue;
-      }
-      const center = cellCenter(cell.x, cell.y);
-      ctx.save();
-      ctx.translate(center.x, center.y);
-      ctx.rotate(Math.atan2(direction.dy, direction.dx));
-      ctx.strokeStyle = "rgba(84, 170, 255, 0.95)";
-      ctx.lineWidth = 2.4;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(-CELL_SIZE * 0.26, -4);
-      ctx.lineTo(CELL_SIZE * 0.26, -4);
-      ctx.moveTo(-CELL_SIZE * 0.26, 4);
-      ctx.lineTo(CELL_SIZE * 0.26, 4);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
+  ctx.restore();
 }
 
 function drawPreview() {
@@ -6650,15 +7952,29 @@ function drawPreview() {
 
   if (currentTool === "wall") {
     const valid = canPlacePiece(hoverCell.x, hoverCell.y);
+    if (valid) {
+      drawGhostRoutes(computeRoutes(placedCells(hoverCell.x, hoverCell.y)));
+    }
 
+    ctx.save();
+    if (valid) {
+      ctx.shadowColor = "rgba(120, 255, 154, 0.7)";
+      ctx.shadowBlur = 18;
+    }
     for (const cell of placedCells(hoverCell.x, hoverCell.y)) {
       if (!inBounds(cell.x, cell.y) || isEndpoint(cell.x, cell.y)) {
         continue;
       }
 
-      ctx.fillStyle = valid ? `${activePiece.color}66` : "rgba(204, 63, 92, 0.35)";
+      ctx.fillStyle = valid ? "rgba(113, 235, 126, 0.4)" : "rgba(204, 63, 92, 0.35)";
       ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      if (valid) {
+        ctx.strokeStyle = "rgba(184, 255, 196, 0.92)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cell.x * CELL_SIZE + 2, cell.y * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+      }
     }
+    ctx.restore();
     return;
   }
 
@@ -6818,6 +8134,16 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
       ctx.lineTo(3, 10);
       ctx.stroke();
     }
+    if (path2 >= 4) {
+      ctx.strokeStyle = ghost ? "rgba(255, 239, 170, 0.9)" : "#fff7bd";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-1, -8);
+      ctx.lineTo(-1, 8);
+      ctx.moveTo(5, -8);
+      ctx.lineTo(5, 8);
+      ctx.stroke();
+    }
   } else if (type === "shotgun") {
     ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(255, 211, 77, 0.52)") : "#ffd34d";
     ctx.beginPath();
@@ -6907,35 +8233,71 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
       ctx.stroke();
     }
     if (ammoCount > 1) {
-      const ammoSlots = dippyAmmoSlotLayout(ammoCount);
-      const fillOrder = ensureDippyAmmoOrder(tower, ammoSlots.length);
-      const filledSlots = new Set(fillOrder.slice(0, Math.min(visibleAmmo, ammoSlots.length)));
-      const rackRadius = ammoCount >= 12 ? 33 : ammoCount >= 6 ? 24 : 18;
       ctx.save();
-      ctx.fillStyle = ghost ? "rgba(91, 102, 112, 0.55)" : "#5c6670";
-      ctx.strokeStyle = ghost ? "rgba(216, 226, 234, 0.55)" : "#dbe4ea";
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.arc(0, 0, rackRadius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      for (let index = 0; index < ammoSlots.length; index += 1) {
-        const slot = ammoSlots[index];
-        ctx.fillStyle = ghost ? "rgba(24, 31, 38, 0.55)" : "#24303a";
-        ctx.beginPath();
-        ctx.arc(slot.x, slot.y, slot.radius, 0, Math.PI * 2);
-        ctx.fill();
-        if (filledSlots.has(index)) {
-          ctx.fillStyle = ghost ? "rgba(255, 247, 224, 0.7)" : "#fff4dc";
-          ctx.beginPath();
-          ctx.arc(slot.x, slot.y, slot.radius * 0.62, 0, Math.PI * 2);
-          ctx.fill();
+      if (ammoCount >= 12) {
+        const podGap = 13;
+        const podWidth = 16;
+        const podHeight = 36;
+        const perPod = 6;
+        const leftAmmo = Math.min(perPod, visibleAmmo);
+        const rightAmmo = Math.max(0, Math.min(perPod, visibleAmmo - perPod));
+        const activePod = tower ? ((tower.dippyShotIndex || 0) % 2) : 0;
+        const pods = [
+          { x: -podGap, loaded: leftAmmo, active: activePod === 0 },
+          { x: podGap, loaded: rightAmmo, active: activePod === 1 }
+        ];
+        for (const pod of pods) {
+          ctx.fillStyle = ghost ? "rgba(91, 102, 112, 0.55)" : "#5c6670";
+          ctx.strokeStyle = pod.active
+            ? (ghost ? "rgba(255, 226, 163, 0.7)" : "#ffd78a")
+            : (ghost ? "rgba(216, 226, 234, 0.55)" : "#dbe4ea");
+          ctx.lineWidth = pod.active ? 1.8 : 1.2;
+          ctx.fillRect(pod.x - podWidth / 2, -podHeight / 2, podWidth, podHeight);
+          ctx.strokeRect(pod.x - podWidth / 2, -podHeight / 2, podWidth, podHeight);
+          for (let slot = 0; slot < perPod; slot += 1) {
+            const slotY = -podHeight / 2 + 5 + slot * 5.2;
+            ctx.fillStyle = ghost ? "rgba(24, 31, 38, 0.55)" : "#24303a";
+            ctx.fillRect(pod.x - 4.5, slotY, 9, 3.4);
+            if (slot < pod.loaded) {
+              ctx.fillStyle = ghost ? "rgba(255, 247, 224, 0.7)" : "#fff4dc";
+              ctx.beginPath();
+              ctx.ellipse(pod.x, slotY + 1.7, 3.2, 2.2, 0, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
         }
+        ctx.fillStyle = ghost ? "rgba(24, 31, 38, 0.35)" : "#1f2a33";
+        ctx.fillRect(-4, -10, 8, 20);
+      } else {
+        const ammoSlots = dippyAmmoSlotLayout(ammoCount);
+        const fillOrder = ensureDippyAmmoOrder(tower, ammoSlots.length);
+        const filledSlots = new Set(fillOrder.slice(0, Math.min(visibleAmmo, ammoSlots.length)));
+        const rackRadius = ammoCount >= 6 ? 24 : 18;
+        ctx.fillStyle = ghost ? "rgba(91, 102, 112, 0.55)" : "#5c6670";
+        ctx.strokeStyle = ghost ? "rgba(216, 226, 234, 0.55)" : "#dbe4ea";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(0, 0, rackRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        for (let index = 0; index < ammoSlots.length; index += 1) {
+          const slot = ammoSlots[index];
+          ctx.fillStyle = ghost ? "rgba(24, 31, 38, 0.55)" : "#24303a";
+          ctx.beginPath();
+          ctx.arc(slot.x, slot.y, slot.radius, 0, Math.PI * 2);
+          ctx.fill();
+          if (filledSlots.has(index)) {
+            ctx.fillStyle = ghost ? "rgba(255, 247, 224, 0.7)" : "#fff4dc";
+            ctx.beginPath();
+            ctx.arc(slot.x, slot.y, slot.radius * 0.62, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.fillStyle = ghost ? "rgba(24, 31, 38, 0.35)" : "#1f2a33";
+        ctx.beginPath();
+        ctx.arc(0, 0, 5.2, 0, Math.PI * 2);
+        ctx.fill();
       }
-      ctx.fillStyle = ghost ? "rgba(24, 31, 38, 0.35)" : "#1f2a33";
-      ctx.beginPath();
-      ctx.arc(0, 0, ammoCount >= 12 ? 5.8 : 5.2, 0, Math.PI * 2);
-      ctx.fill();
       ctx.restore();
     }
     if (path1 >= 2) {
@@ -6961,26 +8323,27 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
       ctx.fillRect(-8, -3, 8, 6);
     }
     if (path2 >= 3) {
-      ctx.strokeStyle = ghost ? "rgba(255, 233, 180, 0.75)" : "#ffd27a";
-      ctx.lineWidth = 2;
+      ctx.fillStyle = ghost ? "rgba(136, 119, 105, 0.78)" : "#68564b";
+      ctx.fillRect(-12, -4.5, 16, 9);
+      ctx.fillStyle = ghost ? "rgba(229, 220, 210, 0.82)" : "#d9d2cb";
       ctx.beginPath();
-      ctx.moveTo(-4, -11);
-      ctx.lineTo(2, -16);
-      ctx.moveTo(-4, 11);
-      ctx.lineTo(2, 16);
-      ctx.stroke();
+      ctx.moveTo(10, 0);
+      ctx.lineTo(2, -4.5);
+      ctx.lineTo(2, 4.5);
+      ctx.closePath();
+      ctx.fill();
     }
     if (path2 >= 4) {
-      ctx.fillStyle = ghost ? "rgba(255, 206, 120, 0.75)" : "#ffb44e";
-      ctx.fillRect(-14, -5, 5, 10);
+      ctx.fillStyle = ghost ? "rgba(181, 166, 153, 0.78)" : "#b9aa9a";
+      ctx.fillRect(-14, -5.5, 5, 11);
     }
     if (path1 >= 5) {
       ctx.fillStyle = ghost ? "rgba(255, 220, 172, 0.75)" : "#ffd6a8";
       ctx.fillRect(10, -6, 10, 12);
     }
     if (path2 >= 5) {
-      ctx.fillStyle = ghost ? "rgba(255, 184, 95, 0.75)" : "#ff9d45";
-      ctx.fillRect(2, -10, 6, 20);
+      ctx.fillStyle = ghost ? "rgba(231, 227, 220, 0.78)" : "#ece8e0";
+      ctx.fillRect(-2, -10, 5, 20);
     }
   } else if (type === "trapper") {
     const fillSquare = path1 >= 3;
@@ -7163,6 +8526,7 @@ function drawTowerGhost(x, y) {
     primaryStroke: valid ? "rgba(18,26,35,0.42)" : "rgba(204, 63, 92, 0.72)",
     primaryFill: valid ? "rgba(18,26,35,0.1)" : "rgba(204, 63, 92, 0.1)"
   });
+  drawBlockedSightOverlay(previewTower);
   for (const cell of footprint) {
     if (!inBounds(cell.x, cell.y)) {
       continue;
@@ -7177,8 +8541,9 @@ function drawTowerGhost(x, y) {
 }
 
 function drawTower(tower) {
-  const centerX = tower.centerX;
-  const centerY = tower.centerY;
+  const offset = entityRenderOffset(tower);
+  const centerX = tower.centerX + offset.x;
+  const centerY = tower.centerY + offset.y;
   const stats = towerStats(tower);
 
   if (tower.type === "gate") {
@@ -7232,6 +8597,7 @@ function drawTower(tower) {
   drawTowerShape(tower.type, tower.level, centerX, centerY, tower.aimAngle || 0, false, false, tower);
 
   if (selectedTowerId === tower.id) {
+    drawBlockedSightOverlay(tower);
     ctx.strokeStyle = "rgba(255,255,255,0.9)";
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -7248,9 +8614,30 @@ function drawTowers() {
 
 function drawDrones() {
   for (const drone of drones) {
+    const tower = towers.find((entry) => entry.id === drone.towerId);
+    const stats = tower ? towerStats(tower) : null;
+    const offset = entityRenderOffset(drone);
+    const droneX = drone.x + offset.x;
+    const droneY = drone.y + offset.y;
+    if (tower && stats && selectedTowerId === drone.towerId && tower.targetPriority === "cursor") {
+      const anchor = droneCursorAnchor(tower, stats);
+      ctx.save();
+      ctx.strokeStyle = "rgba(125, 227, 214, 0.48)";
+      ctx.setLineDash([6, 6]);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(droneX, droneY);
+      ctx.lineTo(anchor.x, anchor.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(anchor.x, anchor.y, 10, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.fillStyle = drone.support ? "#9cf0e0" : "#7de3d6";
     ctx.beginPath();
-    ctx.arc(drone.x, drone.y, drone.support ? 5 : 6, 0, Math.PI * 2);
+    ctx.arc(droneX, droneY, drone.support ? 5 : 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = "rgba(13, 66, 74, 0.75)";
     ctx.lineWidth = 2;
@@ -7260,7 +8647,7 @@ function drawDrones() {
       ctx.strokeStyle = "rgba(125, 227, 214, 0.32)";
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(drone.x, drone.y, drone.range, 0, Math.PI * 2);
+      ctx.arc(droneX, droneY, drone.range, 0, Math.PI * 2);
       ctx.stroke();
     }
   }
@@ -7316,10 +8703,14 @@ function drawTraps() {
     }
 
     if (trap.kind === "mine") {
+      ctx.save();
+      ctx.shadowColor = trap.mango ? "rgba(255, 170, 71, 0.62)" : "rgba(255, 214, 96, 0.55)";
+      ctx.shadowBlur = 12;
       ctx.fillStyle = trap.mango ? "#ffb347" : "#ffd067";
       ctx.beginPath();
       ctx.arc(trap.centerX, trap.centerY, 6, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
       const spikeCount = Math.max(1, trap.usesRemaining);
       ctx.strokeStyle = "#fff2c4";
       ctx.lineWidth = 1.4;
@@ -7413,7 +8804,15 @@ function regularPolygon(x, y, radius, sides) {
 function drawEnemies() {
   for (const enemy of enemies) {
     drawEnemyShape(enemy);
-    drawDamageLagBar(enemy.x - 12, enemy.y - 18, 24, 4, Math.max(enemy.hp, 0) / enemy.maxHp, Math.max(enemy.healthBarLagHp || enemy.hp, 0) / enemy.maxHp, "#d94f3d");
+    drawDamageLagBar(
+      enemy.x - 12,
+      enemy.y - 18,
+      24,
+      4,
+      Math.max(enemy.hp, 0) / enemy.maxHp,
+      Math.max(enemy.healthBarLagHp || enemy.hp, 0) / enemy.maxHp,
+      (enemy.healthBarTintTimer || 0) > 0 ? enemy.healthBarTint || "#d94f3d" : "#d94f3d"
+    );
   }
 }
 
@@ -7446,6 +8845,26 @@ function drawEnemyShape(enemy) {
 
   if (enemy.key === "attacker") {
     drawAttackerEnemy(enemy);
+    return;
+  }
+
+  if (enemy.key === "biscuit") {
+    drawShortbreadEnemy(enemy);
+    return;
+  }
+
+  if (enemy.key === "splitter") {
+    drawSplitterEnemy(enemy);
+    return;
+  }
+
+  if (enemy.key === "hydra") {
+    drawHydraEnemy(enemy);
+    return;
+  }
+
+  if (enemy.key === "sentinel") {
+    drawSentinelEnemy(enemy);
     return;
   }
 
@@ -7547,6 +8966,125 @@ function drawEnemyShape(enemy) {
     ctx.stroke();
   }
 
+}
+
+function drawShortbreadEnemy(enemy) {
+  const scale = enemy.sizeScale || 1;
+  const width = (20 + ((enemy.tier || 1) - 1) * 4) * scale;
+  const height = (10 + ((enemy.tier || 1) - 1) * 1.6) * scale;
+  const radius = Math.min(width, height) * 0.28;
+
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.rotate(enemy.facingAngle || 0);
+  ctx.fillStyle = enemy.color;
+  ctx.strokeStyle = "rgba(166, 129, 77, 0.95)";
+  ctx.lineWidth = 2;
+  drawRoundedRect(-width / 2, -height / 2, width, height, radius);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(222, 191, 137, 0.88)";
+  for (let column = -1; column <= 1; column += 1) {
+    for (let row = -1; row <= 1; row += 1) {
+      ctx.beginPath();
+      ctx.arc(column * width * 0.22, row * height * 0.26, 1.6 + scale * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if (enemy.hidden) {
+    ctx.strokeStyle = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
+    ctx.lineWidth = 2.2;
+    drawRoundedRect(-width / 2 - 2, -height / 2 - 2, width + 4, height + 4, radius + 1.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawSplitterEnemy(enemy) {
+  const tier = enemy.tier || 1;
+  const radius = (7.5 + Math.min(tier - 1, 9) * 1.2) * (enemy.sizeScale || 1);
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.shadowColor = enemy.shielded ? "rgba(255, 236, 146, 0.85)" : "rgba(255, 215, 79, 0.82)";
+  ctx.shadowBlur = 12 + Math.min(tier, 10) * 1.8;
+  ctx.fillStyle = enemy.shielded ? "#ffe27f" : "#ffd84f";
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(194, 145, 20, 0.95)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  if (enemy.hidden) {
+    ctx.strokeStyle = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + 3, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawHydraEnemy(enemy) {
+  const scale = enemy.sizeScale || 1;
+  const side = 22 * scale;
+  const height = side * Math.sqrt(3) / 2;
+  const noseX = (height * 2) / 3;
+  const tailX = -height / 3;
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.rotate(enemy.facingAngle || 0);
+  ctx.fillStyle = enemy.color || "#ffd84f";
+  ctx.beginPath();
+  ctx.moveTo(noseX, 0);
+  ctx.lineTo(tailX, -side / 2);
+  ctx.lineTo(tailX, side / 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawSentinelEnemy(enemy) {
+  const isOverwatch = (enemy.tier || 1) >= 2;
+  const scale = enemy.sizeScale || 1;
+  const bodyRadius = (isOverwatch ? 14 : 10.5) * scale;
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.rotate(enemy.facingAngle || 0);
+  ctx.fillStyle = "#d34a4a";
+  if (isOverwatch) {
+    ctx.beginPath();
+    ctx.moveTo(bodyRadius * 0.9, 0);
+    ctx.lineTo(-bodyRadius * 0.08, -bodyRadius * 0.72);
+    ctx.lineTo(-bodyRadius * 0.08, bodyRadius * 0.72);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(bodyRadius * 0.36, 0);
+    ctx.lineTo(-bodyRadius * 0.34, -bodyRadius * 0.48);
+    ctx.lineTo(-bodyRadius * 0.34, bodyRadius * 0.48);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.arc(0, 0, bodyRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(245, 248, 255, 0.95)";
+  ctx.lineWidth = isOverwatch ? 4.6 : 4;
+  ctx.beginPath();
+  ctx.moveTo(bodyRadius * (isOverwatch ? 0.9 : 0.7), -bodyRadius * 0.72);
+  ctx.lineTo(bodyRadius * (isOverwatch ? 0.9 : 0.7), bodyRadius * 0.72);
+  ctx.stroke();
+  if (enemy.hidden) {
+    ctx.strokeStyle = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, bodyRadius + 3, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawAttackerEnemy(enemy) {
@@ -7716,6 +9254,8 @@ function drawBurningEnemyEffect(enemy) {
 }
 
 function drawIdaenEnemy(enemy) {
+  const shieldActive = (enemy.phaseTimer || 0) > 0
+    || enemies.some((entry) => entry.bossShieldMinion && entry.bossOwnerId === enemy.id && entry.hp > 0);
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
   ctx.rotate(enemy.facingAngle || 0);
@@ -7736,6 +9276,33 @@ function drawIdaenEnemy(enemy) {
   ctx.fillStyle = "#6b4120";
   ctx.fillRect(-totalSize / 2 - 8, -5, 8, 10);
   ctx.fillRect(totalSize / 2, -5, 8, 10);
+  if (shieldActive) {
+    const shieldRadius = totalSize * 0.9 + 9;
+    const pulse = 1 + Math.sin(lastTimestamp / 110 + enemy.id) * 0.04;
+    ctx.save();
+    ctx.strokeStyle = "rgba(255, 229, 154, 0.92)";
+    ctx.fillStyle = "rgba(255, 208, 120, 0.08)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, shieldRadius * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 243, 196, 0.85)";
+    ctx.lineWidth = 2;
+    for (let index = 0; index < 8; index += 1) {
+      const angle = Math.PI / 4 * index + lastTimestamp / 900;
+      const crystalX = Math.cos(angle) * shieldRadius * 0.86;
+      const crystalY = Math.sin(angle) * shieldRadius * 0.86;
+      ctx.beginPath();
+      ctx.moveTo(crystalX + Math.cos(angle) * 8, crystalY + Math.sin(angle) * 8);
+      ctx.lineTo(crystalX + Math.cos(angle + Math.PI / 2) * 5, crystalY + Math.sin(angle + Math.PI / 2) * 5);
+      ctx.lineTo(crystalX - Math.cos(angle) * 8, crystalY - Math.sin(angle) * 8);
+      ctx.lineTo(crystalX + Math.cos(angle - Math.PI / 2) * 5, crystalY + Math.sin(angle - Math.PI / 2) * 5);
+      ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   if (enemy.hidden) {
     ctx.strokeStyle = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
     ctx.lineWidth = 1.5;
@@ -7785,28 +9352,34 @@ function drawBossBar() {
     return;
   }
 
-  const left = 140;
-  const width = canvas.width - 280;
+  const left = 24;
+  const width = canvas.width - 48;
+  const barHeight = 38;
 
   bosses.forEach((boss, index) => {
     const biscuitsAlive = enemies.some((enemy) => enemy.bossShieldMinion && enemy.bossOwnerId === boss.id && enemy.hp > 0);
     const ratio = Math.max(0, Math.min(1, boss.hp / Math.max(boss.maxHp, 1)));
     const lagRatio = Math.max(0, Math.min(1, (boss.healthBarLagHp || boss.hp) / Math.max(boss.maxHp, 1)));
-    const top = 12 + index * 26;
+    const top = 10 + index * 48;
+    const bossBarColor = (boss.healthBarTintTimer || 0) > 0
+      ? boss.healthBarTint || "#d94f3d"
+      : boss.key === "adapter"
+        ? "#8a6de0"
+        : (boss.phaseTimer > 0 || biscuitsAlive ? "#8a5b2d" : "#d94f3d");
 
-    drawDamageLagBar(left, top, width, 18, ratio, lagRatio, boss.key === "adapter" ? "#8a6de0" : (boss.phaseTimer > 0 || biscuitsAlive ? "#8a5b2d" : "#d94f3d"));
+    drawDamageLagBar(left, top, width, barHeight, ratio, lagRatio, bossBarColor);
     ctx.strokeStyle = "rgba(255, 249, 240, 0.95)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(left, top, width, 18);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(left, top, width, barHeight);
     ctx.fillStyle = "#fffaf2";
-    ctx.font = "bold 14px Georgia";
+    ctx.font = "bold 24px Georgia";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const bossName = boss.key === "adapter" ? "Adapter" : "I-daen";
     const bossState = boss.key === "adapter"
       ? (Object.values(boss.adapterGuards || {}).some(Boolean) ? " - Adapted" : "")
       : (boss.phaseTimer > 0 || biscuitsAlive ? " - Shielded" : "");
-    ctx.fillText(`${bossName}${bossState}`, left + width / 2, top + 9);
+    ctx.fillText(`${bossName}${bossState}`, left + width / 2, top + barHeight / 2);
   });
 }
 
@@ -7816,6 +9389,8 @@ function drawProjectiles() {
       ctx.save();
       ctx.translate(projectile.x, projectile.y);
       ctx.rotate(projectile.angle || 0);
+      ctx.shadowColor = "rgba(255, 173, 96, 0.62)";
+      ctx.shadowBlur = 12;
       ctx.fillStyle = "#ffa560";
       ctx.beginPath();
       ctx.moveTo(7, 0);
@@ -7845,6 +9420,30 @@ function drawProjectiles() {
       ctx.moveTo(-7, 0);
       ctx.lineTo(7, 0);
       ctx.stroke();
+      ctx.restore();
+      continue;
+    }
+
+    if (projectile.kind === "cannonDart") {
+      ctx.save();
+      ctx.translate(projectile.x, projectile.y);
+      ctx.rotate(projectile.angle || 0);
+      ctx.fillStyle = "#5c4f47";
+      ctx.beginPath();
+      ctx.moveTo(12, 0);
+      ctx.lineTo(-4, -4.5);
+      ctx.lineTo(-10, -4.5);
+      ctx.lineTo(-10, 4.5);
+      ctx.lineTo(-4, 4.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#d7d7d7";
+      ctx.beginPath();
+      ctx.moveTo(12, 0);
+      ctx.lineTo(5, -3);
+      ctx.lineTo(5, 3);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
       continue;
     }
@@ -7932,6 +9531,8 @@ function drawProjectiles() {
       ctx.save();
       ctx.translate(projectile.x, projectile.y);
       ctx.rotate(projectile.angle || 0);
+      ctx.shadowColor = "rgba(255, 176, 92, 0.55)";
+      ctx.shadowBlur = 10;
       ctx.fillStyle = "#ffb366";
       ctx.beginPath();
       ctx.moveTo(8, 0);
@@ -8076,6 +9677,9 @@ function drawEndpoint(point, fill) {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
+  if (screenShakeTimer > 0 && screenShakeAmount > 0) {
+    ctx.translate((Math.random() - 0.5) * 2 * screenShakeAmount, (Math.random() - 0.5) * 2 * screenShakeAmount);
+  }
   drawMapScenery();
   drawGrid();
   drawRoute();
@@ -8101,7 +9705,9 @@ function draw() {
       drawEndpoint(portal, "#1f8a70");
     }
   }
-  drawEndpoint(goalPortal(), "#cc3f5c");
+  for (const goal of activeGoals()) {
+    drawEndpoint(goal, "#cc3f5c");
+  }
   ctx.restore();
 }
 
@@ -8167,6 +9773,28 @@ function drawTowerRangeOverlay(tower, colors = {}) {
   ctx.restore();
 }
 
+function drawBlockedSightOverlay(tower) {
+  if (!tower || tower.type === "dippy" || tower.type === "support") {
+    return;
+  }
+  const stats = towerStats(tower);
+  const range = stats.range;
+  ctx.save();
+  ctx.fillStyle = "rgba(214, 55, 55, 0.18)";
+  for (let y = 0; y < ROWS; y += 1) {
+    for (let x = 0; x < COLS; x += 1) {
+      const center = cellCenter(x, y);
+      if (Math.hypot(center.x - tower.centerX, center.y - tower.centerY) > range) {
+        continue;
+      }
+      if (!hasLineOfSight(tower.centerX, tower.centerY, center.x, center.y)) {
+        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      }
+    }
+  }
+  ctx.restore();
+}
+
 function resetGame() {
   activeMap = MAPS[selectedMap];
   applyMapViewport();
@@ -8180,11 +9808,12 @@ function resetGame() {
   effects = [];
   ambientParticles = [];
   ambientTimer = 0;
+  factoryState = null;
   wave = null;
   hoverCell = null;
   activePiece = createRandomPiece(selectedMap);
   money = startingMoney();
-  freeBlocks = isFactoryMap() ? 5 : 1;
+  freeBlocks = 1;
   currentBlockCost = BLOCK_COST;
   lives = DIFFICULTIES[selectedDifficulty].lives;
   waveNumber = 0;
@@ -8199,6 +9828,7 @@ function resetGame() {
   infiniteMode = selectedDifficulty === "sandbox";
   cheatBuffer = [];
   outpostWalllessQuestFailed = false;
+  outpostQuestBlocksPlaced = 0;
   autoWaveTimer = 0;
   armedAbility = null;
   scrollVelocityX = 0;
@@ -8212,6 +9842,8 @@ function resetGame() {
   tutorialResumeMode = null;
   tutorialDismissed = false;
   tutorialStepDelayTimer = 0;
+  screenShakeTimer = 0;
+  screenShakeAmount = 0;
   tutorialOverlay?.classList.remove("active");
   tutorialProgress.scrolled = false;
   tutorialProgress.placedBlock = false;
@@ -8228,11 +9860,24 @@ closeTowerPopup();
 }
 
 function updateGame(deltaTime) {
-  dashOffset = (dashOffset + deltaTime * 18) % DASH_PERIOD;
-  messageTimer = Math.max(0, messageTimer - deltaTime);
-  invalidPlacementTimer = Math.max(0, invalidPlacementTimer - deltaTime);
-  tutorialStepDelayTimer = Math.max(0, tutorialStepDelayTimer - deltaTime);
-  updateSmoothBoardScroll(deltaTime);
+  const simDeltaTime = deltaTime * gameSpeedMultiplier;
+  dashOffset = (dashOffset + simDeltaTime * 18) % DASH_PERIOD;
+  messageTimer = Math.max(0, messageTimer - simDeltaTime);
+  invalidPlacementTimer = Math.max(0, invalidPlacementTimer - simDeltaTime);
+  tutorialStepDelayTimer = Math.max(0, tutorialStepDelayTimer - simDeltaTime);
+  updateSmoothBoardScroll(simDeltaTime);
+  for (const block of blocks.values()) {
+    decayRenderOffset(block, simDeltaTime);
+  }
+  for (const tower of towers) {
+    decayRenderOffset(tower, simDeltaTime);
+  }
+  for (const trap of traps) {
+    decayRenderOffset(trap, simDeltaTime);
+  }
+  for (const drone of drones) {
+    decayRenderOffset(drone, simDeltaTime);
+  }
   presentQueuedTutorialPopup();
 
   if (infiniteMode) {
@@ -8248,17 +9893,17 @@ function updateGame(deltaTime) {
     return;
   }
 
-  updateWave(deltaTime);
-  updateAmbientEffects(deltaTime);
-  updateEnemies(deltaTime);
-  updateTowers(deltaTime);
-  updateTraps(deltaTime);
-  updateDrones(deltaTime);
-  updateProjectiles(deltaTime);
-  updateEffects(deltaTime);
+  updateWave(simDeltaTime);
+  updateAmbientEffects(simDeltaTime);
+  updateEnemies(simDeltaTime);
+  updateTowers(simDeltaTime);
+  updateTraps(simDeltaTime);
+  updateDrones(simDeltaTime);
+  updateProjectiles(simDeltaTime);
+  updateEffects(simDeltaTime);
   purgeDefeatedEnemies();
   if (autoWaveEnabled && allRoutesOpen(routes) && (!wave || wave.complete)) {
-    autoWaveTimer = Math.max(0, autoWaveTimer - deltaTime);
+    autoWaveTimer = Math.max(0, autoWaveTimer - simDeltaTime);
     if (autoWaveTimer === 0) {
       spawnWave();
     }
@@ -8279,6 +9924,13 @@ function animationFrame(timestamp) {
   }
   draw();
   requestAnimationFrame(animationFrame);
+}
+
+function setGameSpeed(multiplier) {
+  const nextSpeed = [1, 2, 4].includes(multiplier) ? multiplier : 1;
+  gameSpeedMultiplier = nextSpeed;
+  setMessage(`Game speed set to ${nextSpeed}x.`, 1.1);
+  updateHud();
 }
 
 function pointerToCell(event) {
@@ -8394,6 +10046,11 @@ canvas.addEventListener("contextmenu", (event) => {
 canvas.addEventListener("mousemove", (event) => {
   const cell = pointerToCell(event);
   hoverPoint = pointerToCanvas(event);
+  for (const tower of towers) {
+    if (tower.type === "drone" && tower.targetPriority === "cursor") {
+      tower.cursorPoint = { x: hoverPoint.x, y: hoverPoint.y };
+    }
+  }
   hoverCell = inBounds(cell.x, cell.y) ? cell : null;
   draw();
 });
@@ -8446,7 +10103,7 @@ document.addEventListener("click", (event) => {
     const currentIndex = allowed.indexOf(tower.targetPriority || "first");
     tower.targetPriority = allowed[(currentIndex + 1) % allowed.length];
     openTowerPopup(tower);
-    setMessage(`${TOWER_INFO[tower.type].name} priority set to ${TARGET_LABELS[tower.targetPriority]}.`, 1.1);
+    setMessage(`${towerDisplayName(tower)} priority set to ${TARGET_LABELS[tower.targetPriority]}.`, 1.1);
     updateHud();
     draw();
     return;
@@ -8539,6 +10196,13 @@ autoWaveToggle?.addEventListener("change", () => {
   autoWaveTimer = autoWaveEnabled ? 0.45 : 0;
   setMessage(autoWaveEnabled ? "Auto wave enabled." : "Auto wave disabled.", 1.3);
   updateHud();
+});
+speedControls?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-speed]");
+  if (!button) {
+    return;
+  }
+  setGameSpeed(Number(button.dataset.speed) || 1);
 });
 pauseButton.addEventListener("click", pauseGame);
 startGameButton.addEventListener("click", withUiGuard("Start Game", startGame));

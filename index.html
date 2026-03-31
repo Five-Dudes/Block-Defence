@@ -31,16 +31,20 @@
           <div class="menu-options menu-options-maps" id="mapOptions">
             <button class="menu-option active" data-map="meadow">Classic</button>
             <button class="menu-option" data-map="canyon">Canyon Fork</button>
-            <button class="menu-option" data-map="ruins">Sunken Ruins</button>
             <button class="menu-option" data-map="mango">Mango Pass</button>
+            <button class="menu-option" data-map="ruins">Sunken Ruins</button>
+            <button class="menu-option" data-map="shoals">Shoals</button>
             <button class="menu-option" data-map="factory">Factory</button>
+            <button class="menu-option" data-map="furnace">Furnace</button>
             <button class="menu-option" data-map="outpost">Outpost</button>
             <button class="menu-option" data-map="fortification">Fortification</button>
+            <button class="menu-option" data-map="dippycastle">Dippy Castle</button>
+            <button class="menu-option" data-map="cliffs">Cliffs</button>
             <button class="menu-option" data-map="graveyard">Graveyard</button>
           </div>
         </section>
       </div>
-      <p class="hint" id="menuMapDescription">Classic: single portal, open lanes, light stone cover.</p>
+      <p class="hint" id="menuMapDescription">Classic: single portal and open grassland with no rocks or sight blockers.</p>
       <div class="overlay-actions">
         <button id="startGameButton">Start Game</button>
         <button id="openAlmanacButton" class="secondary">Almanac</button>
@@ -217,7 +221,7 @@
             <div class="tower-scroll tower-scroll-column">
               <div class="tower-grid tower-grid-column" id="towerGrid">
                 <button class="tower-type active" data-tower-type="tesla">Tesla (7)</button>
-        <button class="tower-type" data-tower-type="missile">Missile (9)</button>
+        <button class="tower-type" data-tower-type="missile">Cannon (9)</button>
         <button class="tower-type" data-tower-type="trapper">Trap Setter (6)</button>
         <button class="tower-type" data-tower-type="laser">Laser (10)</button>
         <button class="tower-type" data-tower-type="shotgun">Shotgun (10)</button>
@@ -226,7 +230,7 @@
             <button class="tower-type" data-tower-type="dippy">Dippy (100)</button>
             <button class="tower-type" data-tower-type="support">Support (42)</button>
             <button class="tower-type" data-tower-type="crossbow">Crossbow (28)</button>
-            <button class="tower-type" data-tower-type="gate">Sprayer (56)</button>
+            <button class="tower-type" data-tower-type="gate">Acid (56)</button>
           </div>
         </div>
         <p class="hint" id="towerDescription">Tesla: chain lightning with fast bursts.</p>
@@ -234,6 +238,11 @@
         </div>
         <div class="board-actions">
           <button id="waveButton">Start Wave</button>
+          <div class="speed-controls" id="speedControls" aria-label="Game speed">
+            <button class="secondary active" type="button" data-speed="1">1x</button>
+            <button class="secondary" type="button" data-speed="2">2x</button>
+            <button class="secondary" type="button" data-speed="4">4x</button>
+          </div>
           <label class="toggle-chip" for="autoWaveToggle">
             <input type="checkbox" id="autoWaveToggle">
             <span>Auto Wave</span>

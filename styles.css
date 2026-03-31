@@ -564,6 +564,28 @@ button.secondary {
   margin-top: 8px;
 }
 
+.speed-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 249, 240, 0.92);
+  border: 1px solid rgba(127, 61, 29, 0.18);
+  box-shadow: var(--shadow);
+}
+
+.speed-controls button {
+  min-width: 46px;
+  padding: 7px 12px;
+}
+
+.speed-controls button.active {
+  background: linear-gradient(180deg, #7fd55f, #4f9d34);
+  color: #16310d;
+  border-color: rgba(29, 86, 18, 0.45);
+}
+
 .toggle-chip {
   display: inline-flex;
   align-items: center;
