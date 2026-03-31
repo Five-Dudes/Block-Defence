@@ -62,6 +62,7 @@ const sandboxSpawnButton = document.getElementById("sandboxSpawnButton");
 const sandboxSpawnHidden = document.getElementById("sandboxSpawnHidden");
 const sandboxSpawnArmored = document.getElementById("sandboxSpawnArmored");
 const sandboxSpawnShielded = document.getElementById("sandboxSpawnShielded");
+const sandboxSpawnShelled = document.getElementById("sandboxSpawnShelled");
 const airstrikePanel = document.getElementById("airstrikePanel");
 const airstrikeButton = document.getElementById("airstrikeButton");
 const airstrikeStatusText = document.getElementById("airstrikeStatusText");
@@ -323,7 +324,7 @@ const ENEMY_TYPES = {
     name: "Popcorn",
     color: "#6fb6ff",
     shape: 32,
-    hpMultiplier: 0.58,
+    hpMultiplier: 1.74,
     speedBonus: 20,
     reward: 6,
     description: "Popcorn is a fragile blue sphere. When it bursts, a wide shower of kernels scatters far from the impact point."
@@ -333,7 +334,7 @@ const ENEMY_TYPES = {
     name: "Kernel",
     color: "#7abfff",
     shape: 32,
-    hpMultiplier: 0.35,
+    hpMultiplier: 1.05,
     speedBonus: 46,
     reward: 1,
     description: "Kernels are tiny blue fragments launched from defeated Popcorn. Their shades change how tough or fast they are."
@@ -343,9 +344,11 @@ const ENEMY_TYPES = {
     name: "Idine",
     color: "#3d1e74",
     shape: 3,
-    hpMultiplier: 12.5,
+    hpMultiplier: 37.5,
     speedBonus: 4,
     reward: 16,
+    armored: true,
+    armor: 7,
     description: "Idine is a late-game splitter elite. Its dark core bursts into Celuns and Celris, which then fracture again."
   },
   celun: {
@@ -353,7 +356,7 @@ const ENEMY_TYPES = {
     name: "Celun",
     color: "#6a2bbf",
     shape: 32,
-    hpMultiplier: 1.65,
+    hpMultiplier: 4.95,
     speedBonus: 22,
     reward: 0,
     description: "Celuns are purple orbs shed by Idine. They split into Cels and Luns on defeat."
@@ -363,7 +366,7 @@ const ENEMY_TYPES = {
     name: "Celris",
     color: "#ff74cf",
     shape: 32,
-    hpMultiplier: 1.65,
+    hpMultiplier: 4.95,
     speedBonus: 24,
     reward: 0,
     allowedDamageClasses: ["energy", "explosive"],
@@ -374,7 +377,7 @@ const ENEMY_TYPES = {
     name: "Cel",
     color: "#274fbe",
     shape: 32,
-    hpMultiplier: 0.95,
+    hpMultiplier: 2.85,
     speedBonus: 28,
     reward: 0,
     description: "Cels are dark blue fragments left from Celuns and Celris."
@@ -384,7 +387,7 @@ const ENEMY_TYPES = {
     name: "Lun",
     color: "#c54444",
     shape: 32,
-    hpMultiplier: 0.95,
+    hpMultiplier: 2.85,
     speedBonus: 30,
     reward: 0,
     description: "Luns are red fragments split from Celuns."
@@ -394,9 +397,11 @@ const ENEMY_TYPES = {
     name: "Ris",
     color: "#f6f8ff",
     shape: 32,
-    hpMultiplier: 0.95,
+    hpMultiplier: 2.85,
     speedBonus: 30,
     reward: 0,
+    armored: true,
+    armor: 4,
     description: "Ris are bright fragments split from Celris."
   },
   megaWaffle: {
@@ -532,8 +537,8 @@ const MAPS = {
     name: "Factory",
     description: "The plant is split into four shifting quarters. One quarter is always a dead gap, and after each wave a full quarter slides into it and leaves a new opening behind.",
     scenery: "factory",
-    goal: { x: COLS - 3, y: 4 },
-    portals: [{ x: 2, y: 4 }],
+    goal: { x: COLS - 4, y: 4 },
+    portals: [{ x: 3, y: 4 }],
     obstacles: [],
     enemySpeed: 1.08
   },
@@ -1065,8 +1070,8 @@ function rebuildGridOccupancy() {
 function initializeFactoryState() {
   factoryState = {
     holeIndex: 3,
-    portals: [{ x: 2, y: 4 }],
-    goal: { x: COLS - 3, y: 4 }
+    portals: [{ x: 3, y: 4 }],
+    goal: { x: COLS - 4, y: 4 }
   };
 }
 
@@ -1640,9 +1645,8 @@ function renderAlmanac() {
     almanacDetail.innerHTML = "";
 
     for (const enemyEntry of entries) {
-      const enemy = ENEMY_TYPES[enemyEntry.key];
       const entry = document.createElement("article");
-      const known = discoveredEnemies.has(enemy.key);
+      const known = enemyAlmanacKnown(enemyEntry);
       entry.className = `almanac-entry clickable${known ? "" : " locked"}${selectedAlmanacEnemy === enemyEntry.id ? " active" : ""}`;
       entry.dataset.almanacEnemy = enemyEntry.id;
       entry.innerHTML = known
@@ -1691,16 +1695,22 @@ function enemyAlmanacEntries() {
     "ris",
     "splitter",
     "popcorn",
-    "kernel"
+    "kernel",
+    "darkKernel",
+    "lightKernel"
   ];
 
   for (const enemyKey of orderedKeys) {
+    if (enemyKey === "darkKernel" || enemyKey === "lightKernel") {
+      entries.push({ id: `${enemyKey}:1`, key: enemyKey, tier: 1, parentKey: "kernel" });
+      continue;
+    }
     const enemy = ENEMY_TYPES[enemyKey];
     if (!enemy || enemy.key === "shield" || enemy.key === "armored" || enemy.key === "megaWaffle") {
       continue;
     }
 
-    if (enemy.key === "idaen" || enemy.key === "adapter" || enemy.key === "hydra" || enemy.key === "idine" || enemy.key === "celun" || enemy.key === "celris" || enemy.key === "cel" || enemy.key === "lun" || enemy.key === "ris") {
+    if (enemy.key === "idaen" || enemy.key === "adapter" || enemy.key === "hydra") {
       entries.push({ id: `${enemy.key}:1`, key: enemy.key, tier: 1 });
       continue;
     }
@@ -1723,6 +1733,14 @@ function enemyAlmanacEntries() {
   }
 
   return entries;
+}
+
+function enemyAlmanacKnown(entry) {
+  return discoveredEnemies.has(entry.parentKey || entry.key);
+}
+
+function enemyAlmanacPrimaryEnemy(entry) {
+  return ENEMY_TYPES[entry.parentKey || entry.key];
 }
 
 function enemySpecialAbilities(enemy, entry = null) {
@@ -1813,9 +1831,15 @@ function enemySpecialAbilities(enemy, entry = null) {
 }
 
 function enemyAlmanacDisplayName(entry) {
-  const enemy = ENEMY_TYPES[entry.key];
+  const enemy = enemyAlmanacPrimaryEnemy(entry);
   if (!enemy) {
     return "Enemy";
+  }
+  if (entry.key === "darkKernel") {
+    return "Dark Kernel";
+  }
+  if (entry.key === "lightKernel") {
+    return "Light Kernel";
   }
   if (entry.key === "sentinel") {
     return entry.tier >= 3 ? "Skrey" : entry.tier >= 2 ? "Overwatch" : "Sentinel";
@@ -1836,10 +1860,30 @@ function enemyAlmanacDisplayName(entry) {
 }
 
 function enemyAlmanacStats(entry) {
-  const enemy = ENEMY_TYPES[entry.key];
+  const enemy = enemyAlmanacPrimaryEnemy(entry);
   const round = Math.max(waveNumber, 1);
   if (!enemy) {
     return { hp: 0, speed: 0, reward: 0, extras: [] };
+  }
+
+  if (entry.key === "darkKernel") {
+    const stats = kernelVariantAlmanacStats("dark", round);
+    return {
+      hp: stats.hp,
+      speed: stats.speed,
+      reward: stats.reward,
+      extras: ["Spawned by Popcorn"]
+    };
+  }
+
+  if (entry.key === "lightKernel") {
+    const stats = kernelVariantAlmanacStats("light", round);
+    return {
+      hp: stats.hp,
+      speed: stats.speed,
+      reward: stats.reward,
+      extras: ["Spawned by Popcorn"]
+    };
   }
 
   if (entry.key === "sentinel") {
@@ -1946,7 +1990,7 @@ function almanacTierPattern(entry) {
 }
 
 function renderEnemyAlmanacArt(entry) {
-  const enemy = ENEMY_TYPES[entry.key];
+  const enemy = enemyAlmanacPrimaryEnemy(entry);
   if (!enemy) {
     return "";
   }
@@ -2042,6 +2086,18 @@ function renderEnemyAlmanacArt(entry) {
       <circle cx="1" cy="-1.5" r="2.2" fill="#d8f1ff"></circle>
     </svg>`;
   }
+  if (entry.key === "darkKernel") {
+    return `<svg viewBox="-20 -20 40 40" width="66" height="50" aria-label="${enemyAlmanacDisplayName(entry)}">
+      <circle cx="0" cy="0" r="7" fill="#3f78d1"></circle>
+      <circle cx="1" cy="-1.5" r="2.2" fill="rgba(255,255,255,0.18)"></circle>
+    </svg>`;
+  }
+  if (entry.key === "lightKernel") {
+    return `<svg viewBox="-20 -20 40 40" width="66" height="50" aria-label="${enemyAlmanacDisplayName(entry)}">
+      <circle cx="0" cy="0" r="7" fill="#b8e1ff"></circle>
+      <circle cx="1" cy="-1.5" r="2.2" fill="#eef9ff"></circle>
+    </svg>`;
+  }
   if (entry.key === "idine") {
     return `<svg viewBox="-34 -28 68 56" width="76" height="52" aria-label="${enemyAlmanacDisplayName(entry)}">
       <polygon points="-14,0 14,-15 14,15" fill="#3d1e74"></polygon>
@@ -2103,6 +2159,36 @@ function renderEnemyAlmanacArt(entry) {
   </svg>`;
 }
 
+function kernelVariantAlmanacStats(variant, round = Math.max(waveNumber, 1)) {
+  const popcorn = ENEMY_TYPES.popcorn;
+  const baseHp = (5 + round) * popcorn.hpMultiplier * DIFFICULTIES.standard.hp;
+  const baseSpeed = ((30 + round * 2 + popcorn.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1) / CELL_SIZE;
+  const configs = {
+    dark: { label: "Dark", hp: 3, speed: 1 },
+    normal: { label: "Normal", hp: 1.5, speed: 1.5 },
+    light: { label: "Light", hp: 1, speed: 3 }
+  };
+  const config = configs[variant];
+  return {
+    label: config.label,
+    hp: Math.round(baseHp * config.hp),
+    speed: baseSpeed * config.speed,
+    reward: 0
+  };
+}
+
+function renderEnemyFamilyVariantBlock(entry) {
+  if (entry.key === "kernel") {
+    const variants = ["dark", "normal", "light"]
+      .map((variant) => kernelVariantAlmanacStats(variant))
+      .map((variant) => `<p><strong>${variant.label} Kernel:</strong> Health ${formatNumber(variant.hp)} | Speed ${formatNumber(variant.speed)} cells/s | Reward ${formatNumber(variant.reward)}</p>`)
+      .join("");
+    return `<h4>Variants</h4>${variants}`;
+  }
+
+  return "";
+}
+
 function renderEnemyAlmanacCard(entry) {
   const name = enemyAlmanacDisplayName(entry);
   return `<div class="enemy-almanac-tile" title="${name}">
@@ -2118,7 +2204,7 @@ function renderEnemyAlmanacDetail(id) {
     almanacDetail.innerHTML = "";
     return;
   }
-  const enemy = ENEMY_TYPES[entry.key];
+  const enemy = enemyAlmanacPrimaryEnemy(entry);
   const stats = enemyAlmanacStats(entry);
   const specials = enemySpecialAbilities(enemy, entry);
   const effects = [];
@@ -2160,41 +2246,42 @@ function renderEnemyAlmanacDetail(id) {
     <p><strong>Health:</strong> ${formatNumber(stats.hp)} | <strong>Speed:</strong> ${formatNumber(stats.speed)} cells/s | <strong>Reward:</strong> ${formatNumber(stats.reward)}</p>
     <p><strong>Effects:</strong> ${effects.length ? effects.join(", ") : "None"}</p>
     ${stats.extras.length ? `<p><strong>Variant:</strong> ${stats.extras.join(", ")}</p>` : ""}
-    ${specials.length ? `<p><strong>Special:</strong> ${specials.join(", ")}</p>` : ""}`;
+    ${specials.length ? `<p><strong>Special:</strong> ${specials.join(", ")}</p>` : ""}
+    ${renderEnemyFamilyVariantBlock(entry)}`;
 }
 
 function diamondTierForWave(round = waveNumber) {
-  if (round >= 30) {
+  if (round >= 48) {
     return 3;
   }
-  if (round >= 14) {
+  if (round >= 22) {
     return 2;
   }
   return 1;
 }
 
 function shieldTierForWave(round = waveNumber) {
-  if (round >= 36) {
+  if (round >= 54) {
     return 3;
   }
-  if (round >= 18) {
+  if (round >= 28) {
     return 2;
   }
   return 1;
 }
 
 function genericEnemyTierForWave(round = waveNumber) {
-  if (round >= 30) {
+  if (round >= 46) {
     return 3;
   }
-  if (round >= 14) {
+  if (round >= 24) {
     return 2;
   }
   return 1;
 }
 
 function splitterTierForWave(round = waveNumber) {
-  return Math.max(1, Math.min(10, 1 + Math.floor(Math.max(0, round - 5) / 10.5)));
+  return Math.max(1, Math.min(10, 1 + Math.floor(Math.max(0, round - 5) / 14)));
 }
 
 function maxTierForEnemy(enemyKey) {
@@ -2412,11 +2499,51 @@ function populateSandboxEnemyOptions() {
     return;
   }
 
-  sandboxEnemySelect.innerHTML = Object.values(ENEMY_TYPES)
-    .filter((enemy) => enemy.key !== "shield" && enemy.key !== "megaWaffle" && enemy.key !== "armored")
-    .map((enemy) => `<option value="${enemy.key}">${enemy.name} (${sandboxEnemyWaveLabel(enemy.key)})</option>`)
+  const renderGroup = (label, keys) => `<optgroup label="${label}">${keys
+    .map((key) => `<option value="${key}">${sandboxEnemyOptionLabel(key)} (${sandboxEnemyWaveLabel(key)})</option>`)
+    .join("")}</optgroup>`;
+  const renderOptions = (keys) => keys
+    .map((key) => `<option value="${key}">${sandboxEnemyOptionLabel(key)} (${sandboxEnemyWaveLabel(key)})</option>`)
     .join("");
+  sandboxEnemySelect.innerHTML = [
+    renderGroup("Main Enemies", ["fast", "pentagon", "hexagon", "diamond", "health", "life", "heavy", "splitter", "biscuit", "sentinel", "attacker", "hydra", "idaen", "adapter"]),
+    renderOptions(["popcorn", "idine"])
+  ].join("");
   updateSandboxTierOptions();
+}
+
+function sandboxFamilyTierForEnemy(enemyKey) {
+  if (enemyKey === "kernel") {
+    return 1;
+  }
+  if (enemyKey === "popcorn") {
+    return 2;
+  }
+  if (enemyKey === "cel" || enemyKey === "lun" || enemyKey === "ris") {
+    return 1;
+  }
+  if (enemyKey === "celun" || enemyKey === "celris") {
+    return 2;
+  }
+  if (enemyKey === "idine") {
+    return 3;
+  }
+  return null;
+}
+
+function sandboxEnemyOptionLabel(enemyKey) {
+  const tier = sandboxFamilyTierForEnemy(enemyKey);
+  return tier ? `${ENEMY_TYPES[enemyKey].name} (T${tier})` : ENEMY_TYPES[enemyKey].name;
+}
+
+function sandboxEnemyKeyForSelection(enemyKey, selectionValue) {
+  if (enemyKey === "popcorn") {
+    return selectionValue === "kernel" ? "kernel" : "popcorn";
+  }
+  if (enemyKey === "idine") {
+    return ["cel", "lun", "ris", "celun", "celris", "idine"].includes(selectionValue) ? selectionValue : "idine";
+  }
+  return enemyKey;
 }
 
 function enemyUsesTiers(enemyKey) {
@@ -2465,9 +2592,36 @@ function updateSandboxTierOptions() {
     return;
   }
 
-  if (enemyKey === "hydra" || enemyKey === "adapter" || enemyKey === "kernel" || enemyKey === "popcorn" || enemyKey === "idine" || enemyKey === "celun" || enemyKey === "celris" || enemyKey === "cel" || enemyKey === "lun" || enemyKey === "ris") {
-    sandboxTierLabel.textContent = "Tier";
-    sandboxTierSelect.innerHTML = `<option value="1">Tier 1 (${sandboxWaveForEnemyTier(enemyKey, 1)})</option>`;
+  if (enemyKey === "popcorn") {
+    sandboxTierLabel.textContent = "";
+    sandboxTierSelect.innerHTML = `
+      <option value="kernel">Kernel (${sandboxWaveForEnemyTier("kernel", 1)})</option>
+      <option value="popcorn">Popcorn (${sandboxWaveForEnemyTier("popcorn", 1)})</option>
+    `;
+    sandboxTierSelect.disabled = false;
+    sandboxTierSelect.parentElement?.classList.remove("disabled");
+    return;
+  }
+
+  if (enemyKey === "idine") {
+    sandboxTierLabel.textContent = "";
+    sandboxTierSelect.innerHTML = `
+      <option value="cel">Cel (${sandboxWaveForEnemyTier("cel", 1)})</option>
+      <option value="lun">Lun (${sandboxWaveForEnemyTier("lun", 1)})</option>
+      <option value="ris">Ris (${sandboxWaveForEnemyTier("ris", 1)})</option>
+      <option value="celun">Celun (${sandboxWaveForEnemyTier("celun", 1)})</option>
+      <option value="celris">Celris (${sandboxWaveForEnemyTier("celris", 1)})</option>
+      <option value="idine">Idine (${sandboxWaveForEnemyTier("idine", 1)})</option>
+    `;
+    sandboxTierSelect.disabled = false;
+    sandboxTierSelect.parentElement?.classList.remove("disabled");
+    return;
+  }
+
+  if (enemyKey === "hydra" || enemyKey === "adapter" || enemyKey === "kernel" || enemyKey === "celun" || enemyKey === "celris" || enemyKey === "cel" || enemyKey === "lun" || enemyKey === "ris") {
+    const familyTier = sandboxFamilyTierForEnemy(enemyKey);
+    sandboxTierLabel.textContent = familyTier ? "Family Tier" : "Tier";
+    sandboxTierSelect.innerHTML = `<option value="1">${familyTier ? `Tier ${familyTier}` : "Tier 1"} (${sandboxWaveForEnemyTier(enemyKey, 1)})</option>`;
     sandboxTierSelect.disabled = false;
     sandboxTierSelect.parentElement?.classList.remove("disabled");
     return;
@@ -2561,6 +2715,21 @@ function sandboxWaveForEnemyTier(enemyKey, tier) {
   if (enemyKey === "attacker") {
     return tier >= 3 ? "Wave 30" : tier >= 2 ? "Wave 14" : "Wave 36";
   }
+  if (enemyKey === "popcorn") {
+    return "Wave 34";
+  }
+  if (enemyKey === "kernel") {
+    return "Wave 34";
+  }
+  if (enemyKey === "idine") {
+    return "Wave 62";
+  }
+  if (enemyKey === "celun" || enemyKey === "celris") {
+    return "Wave 62";
+  }
+  if (enemyKey === "cel" || enemyKey === "lun" || enemyKey === "ris") {
+    return "Wave 62";
+  }
   return tier >= 3 ? "Wave 30" : tier >= 2 ? "Wave 14" : `Wave ${sandboxEarliestWaveForEnemy(enemyKey)}`;
 }
 
@@ -2589,9 +2758,15 @@ function updateSandboxControls() {
   }
 
   if (document.activeElement !== sandboxWaveInput) {
-    sandboxWaveInput.value = String(Math.max(0, waveNumber));
+    sandboxWaveInput.value = String(Math.max(0, sandboxWaveTarget ?? waveNumber));
   }
   updateSandboxPortalOptions();
+}
+
+function currentSandboxWaveReference() {
+  return isSandboxMode() && sandboxWaveTarget !== null
+    ? sandboxWaveTarget
+    : waveNumber;
 }
 
 function readyAirstrikeTowers() {
@@ -2735,7 +2910,7 @@ function ensureDippyAmmoOrder(tower, slotCount) {
 
 function setTowerType(nextType) {
   if (nextType === "crossbow" && !crossbowUnlocked) {
-    setMessage("Crossbow is locked. Beat Brutal wave 50 on Outpost while placing only one block to unlock it.", 2.2);
+    setMessage("Crossbow is locked. Beat Hard wave 50 or Brutal wave 25 on Outpost without placing any blocks to unlock it.", 2.4);
     return;
   }
 
@@ -3086,7 +3261,7 @@ function placePiece(originX, originY) {
   }
   if (selectedMap === "outpost") {
     outpostQuestBlocksPlaced += 1;
-    outpostWalllessQuestFailed = outpostQuestBlocksPlaced > 1;
+    outpostWalllessQuestFailed = outpostQuestBlocksPlaced > 0;
   }
   activePiece = createRandomPiece(selectedMap);
       tutorialProgress.placedBlock = true;
@@ -3283,6 +3458,20 @@ function seedDippyCastleMap() {
   }
 }
 
+function seedGraveyardMap() {
+  const goal = activeMap.goal;
+  const wallCells = uniqueCells([
+    { x: goal.x - 2, y: goal.y - 2 },
+    { x: goal.x - 2, y: goal.y - 1 },
+    { x: goal.x - 2, y: goal.y },
+    { x: goal.x - 2, y: goal.y + 1 },
+    { x: goal.x - 1, y: goal.y + 1 },
+    { x: goal.x, y: goal.y + 1 },
+    { x: goal.x + 1, y: goal.y + 1 }
+  ]).filter((cell) => inBounds(cell.x, cell.y) && !isEndpoint(cell.x, cell.y));
+  addPresetBlock(wallCells, "#708176", "Grave Wall", true);
+}
+
 function applyMapViewport() {
   canvas.width = BASE_CANVAS_WIDTH;
   canvas.height = BASE_CANVAS_HEIGHT;
@@ -3302,13 +3491,22 @@ function seedMapFeatures() {
     seedFortificationMap();
   } else if (selectedMap === "dippycastle") {
     seedDippyCastleMap();
+  } else if (selectedMap === "graveyard") {
+    seedGraveyardMap();
   }
 }
 
 function maybeUnlockCrossbowQuest() {
-  if (selectedMap === "outpost" && selectedDifficulty === "brutal" && !outpostWalllessQuestFailed && waveNumber >= 50 && !crossbowUnlocked) {
+  const unlockedByQuest = selectedMap === "outpost"
+    && !outpostWalllessQuestFailed
+    && outpostQuestBlocksPlaced === 0
+    && (
+      (selectedDifficulty === "brutal" && waveNumber >= 25)
+      || (selectedDifficulty === "hard" && waveNumber >= 50)
+    );
+  if (unlockedByQuest && !crossbowUnlocked) {
     crossbowUnlocked = true;
-    setMessage("Secret unlocked: Crossbows now cost 15 cash in future runs.", 3.2);
+    setMessage("Secret unlocked: Crossbows now cost 14 cash in future runs.", 3.2);
     updateHud();
   }
 }
@@ -3319,7 +3517,7 @@ function supportWaveIncomeBonus() {
 
 function towerCost(type) {
   if (type === "crossbow" && crossbowUnlocked) {
-    return 15;
+    return 14;
   }
   return TOWER_BASE_COST[type];
 }
@@ -4882,6 +5080,10 @@ function spawnWave() {
     interval: Math.max(1.08 - waveNumber * 0.015, 0.56),
     complete: false
   };
+  if (waveNumber === 74) {
+    wave.count = Math.max(wave.count, Math.round(54 * enemyCountMultiplier()));
+    wave.interval = Math.min(wave.interval, 0.14);
+  }
   if (waveNumber === 58) {
     wave.count = Math.max(wave.count, Math.round(16 * enemyCountMultiplier()));
     wave.interval = Math.min(wave.interval, 0.68);
@@ -4925,11 +5127,8 @@ function setSandboxWave() {
   tutorialResumeMode = null;
   gameMode = "playing";
   openOverlay(null);
-  setMessage(`Sandbox wave set to ${requestedWave}. Launching it now.`, 1.8);
+  setMessage(`Sandbox wave target set to ${requestedWave}.`, 1.8);
   updateHud();
-  if (allRoutesOpen(routes)) {
-    spawnWave();
-  }
 }
 
 function spawnSandboxEnemyFromControls() {
@@ -4937,18 +5136,22 @@ function spawnSandboxEnemyFromControls() {
     return;
   }
 
-  const enemyType = ENEMY_TYPES[sandboxEnemySelect?.value];
+  const selectedEnemyKey = sandboxEnemySelect?.value || "";
+  const selectedTierValue = String(sandboxTierSelect?.value || "1");
+  const resolvedEnemyKey = sandboxEnemyKeyForSelection(selectedEnemyKey, selectedTierValue);
+  const enemyType = ENEMY_TYPES[resolvedEnemyKey];
   if (!enemyType) {
     return;
   }
 
   const count = Math.max(1, Math.floor(Number(sandboxSpawnCountInput?.value) || 1));
-  const selectedTierValue = Number(sandboxTierSelect?.value) || 1;
-  const tier = enemyType.key === "idaen" ? 1 : Math.max(1, Math.min(maxTierForEnemy(enemyType.key), selectedTierValue));
-  const summonWave = enemyType.key === "idaen" ? Math.max(25, selectedTierValue) : waveNumber;
+  const numericTierValue = Number(selectedTierValue) || 1;
+  const tier = enemyType.key === "idaen" ? 1 : Math.max(1, Math.min(maxTierForEnemy(enemyType.key), numericTierValue));
+  const summonWave = enemyType.key === "idaen" ? Math.max(25, numericTierValue) : currentSandboxWaveReference();
   const hidden = Boolean(sandboxSpawnHidden?.checked);
   const armored = Boolean(sandboxSpawnArmored?.checked) || enemyType.key === "armored";
   const shielded = Boolean(sandboxSpawnShielded?.checked);
+  const shelled = Boolean(sandboxSpawnShelled?.checked);
   const portalValue = sandboxPortalSelect?.value || "auto";
 
   for (let index = 0; index < count; index += 1) {
@@ -4960,6 +5163,7 @@ function spawnSandboxEnemyFromControls() {
         hidden,
         armored,
         shielded,
+        shelled,
         tier,
         summonWave,
         hp: Math.round((180 + bossStage * 170) * 8.4 * 4 * DIFFICULTIES[selectedDifficulty].hp),
@@ -4975,6 +5179,7 @@ function spawnSandboxEnemyFromControls() {
           hidden,
           armored,
           shielded,
+          shelled,
           tier,
           hp: Math.round((260 + summonWave * 34) * 10.5 * 4 * DIFFICULTIES[selectedDifficulty].hp),
           speed: Math.max(10, (20 + summonWave * 0.24) / DIFFICULTIES[selectedDifficulty].interval),
@@ -4984,7 +5189,7 @@ function spawnSandboxEnemyFromControls() {
           adapterGuardCooldown: 4.8,
           hidden: false
         }))
-        : pushEnemy(createEnemy(enemyType, { portalIndex, hidden, armored, shielded, tier }));
+        : pushEnemy(createEnemy(enemyType, { portalIndex, hidden, armored, shielded, shelled, tier }));
     if (!spawned) {
       return;
     }
@@ -5003,39 +5208,42 @@ function spawnEnemy() {
   const forceShielded = waveNumber === 30 && spawnIndex === 1;
   const shieldedAttackerWave = waveNumber === 58;
   const singleShieldedAttackerWave = waveNumber === 42;
+  const popcornRushWave = waveNumber === 74;
   let enemyType = ENEMY_TYPES.fast;
 
-  if (shieldedAttackerWave) {
+  if (popcornRushWave) {
+    enemyType = ENEMY_TYPES.popcorn;
+  } else if (shieldedAttackerWave) {
     enemyType = ENEMY_TYPES.attacker;
   } else if (singleShieldedAttackerWave && spawnIndex === 1) {
     enemyType = ENEMY_TYPES.attacker;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 3 && roll > 0.58) {
+  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 3 && roll > 0.58) {
     enemyType = ENEMY_TYPES.pentagon;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 7 && roll > 0.72) {
+  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 7 && roll > 0.72) {
     enemyType = ENEMY_TYPES.diamond;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 9 && roll > 0.86) {
+  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 9 && roll > 0.86) {
     enemyType = ENEMY_TYPES.health;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 22 && roll > 0.91) {
+  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 22 && roll > 0.91) {
     enemyType = ENEMY_TYPES.heavy;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 5 && roll > 0.92) {
+  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 5 && roll > 0.92) {
     enemyType = ENEMY_TYPES.splitter;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 26 && roll > 0.965) {
+  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 26 && roll > 0.965) {
     enemyType = ENEMY_TYPES.sentinel;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 40 && roll > 0.985) {
+  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 40 && roll > 0.985) {
     enemyType = ENEMY_TYPES.hydra;
   }
 
@@ -5298,7 +5506,7 @@ function updateEnemies(deltaTime) {
         setMessage(`Hydra slipped through for ${formatNumber(leakDamage)} base damage.`, 1.2);
         continue;
       }
-      const leakDamage = Math.max(1, Math.ceil(enemy.hp));
+      const leakDamage = enemy.key === "popcorn" ? 445 : Math.max(1, Math.ceil(enemy.hp));
       lives = Math.max(0, lives - leakDamage);
       setMessage(`${enemy.type} slipped through for ${formatNumber(leakDamage)} base damage.`, 1.1);
       continue;
@@ -5352,7 +5560,7 @@ function towerStats(tower) {
       cooldown: (level >= 3 ? 0.72 : 0.86) / attackSpeedMultiplier,
       damage: [0.72, 1.05, 1.55, 2.15][level - 1] || 2.15,
       boltSpeed: 520,
-      boltHoming: 4.2,
+      boltHoming: 1.25,
       detectHidden: true,
       attackSpeedMultiplier,
       boltPierce: level >= 3 ? level - 2 : 0
@@ -5373,10 +5581,10 @@ function towerStats(tower) {
       cooldown: photon
         ? Math.max(0.94 - path1 * 0.03 - path2 * 0.05, 0.56)
         : Math.max(0.9 - path1 * 0.06 - path2 * 0.045 - (plasma ? 0.04 : 0), 0.18),
-      damage: 2.5 + path2 * 1.45 + (increasedDamage ? 1.4 : 0) + doubleBeamDamageBoost + (photon ? 8.5 : 0),
+      damage: 2.5 + path2 * 1.45 + (increasedDamage ? 2 : 0) + doubleBeamDamageBoost + (photon ? 8.5 : 0),
       burnDamage: path1 > 0 || path2 > 0 ? 0.8 + path2 * 0.95 + (increasedDamage ? 0.85 : 0) + (path1 >= 4 ? 0.8 : 0) + (photon ? 3.8 + photonBurnBoost : 0) : 0,
       burnDuration: path1 > 0 || path2 > 0 ? 1.5 + path1 * 0.42 + path2 * 0.3 + (plasma ? 0.8 : 0) + (path1 >= 4 ? 0.7 : 0) + (path1 >= 5 ? 1 : 0) : 0,
-      beamWidth: 12 + path1 * 1.8 + path2 * 1.4 + (plasma ? 3 : 0) + (path1 >= 4 ? 2 : 0) + (photon ? 7 : 0),
+      beamWidth: 12 + path1 * 1.8 + path2 * 1.4 + (plasma ? 4.5 : 0) + (path1 >= 4 ? 2 : 0) + (photon ? 7 : 0),
       beamColor: photon ? "#ffe35c" : plasma ? "#ffffff" : "#ff96b8",
       beamTtl: plasma ? 0.18 : photon ? 0.16 : 0.12,
       doubleBeam,
@@ -5396,8 +5604,8 @@ function towerStats(tower) {
       cooldown: bulletStorm
         ? Math.max(0.2 - path1 * 0.03 - path2 * 0.025, 0.04)
         : Math.max(0.76 - path1 * 0.07 - path2 * 0.035 - (path1 >= 4 ? 0.05 : 0), 0.18),
-      damage: 1.8 + path1 * 0.4 + path2 * 0.62 + (path2 >= 3 ? 1.4 : 0) + (path1 >= 4 ? 1.1 : 0) + (path2 >= 4 ? 1.8 : 0) + (path2 >= 5 ? 3.2 : 0),
-      pellets: lines,
+      damage: 1.8 + path1 * 0.4 + path2 * 0.62 + (path2 >= 3 ? 2.1 : 0) + (path1 >= 4 ? 1.1 : 0) + (path2 >= 4 ? 1.8 : 0) + (path2 >= 5 ? 3.2 : 0),
+      pellets: wavelength ? 20 : lines,
       spread: wavelength ? Math.PI : Math.max(0.55 - path2 * 0.045 - (bulletStorm ? 0.04 : 0), 0.18),
       pelletSpeed: 380 + path2 * 20 + (path1 >= 4 ? 30 : 0) + (path2 >= 4 ? 40 : 0),
       pelletLife: 0.24 + path2 * 0.01,
@@ -5420,12 +5628,12 @@ function towerStats(tower) {
       detectHidden: path2 >= 4,
       permafrost,
       pulseRadius: CELL_SIZE * (2.55 + path1 * 0.16 + path2 * 0.08 + (path1 >= 4 ? 0.3 : 0) + (path1 >= 5 ? 0.4 : 0)),
-      pulseDamage: 0.75 + path1 * 0.26 + path2 * 0.18 + (permafrost ? 0.5 : 0) + (path1 >= 4 ? 0.6 : 0) + (path1 >= 5 ? 1.1 : 0),
-      pulseFreeze: permafrost ? 0.38 + (path1 - 3) * 0.12 + (path1 >= 4 ? 0.18 : 0) + (path1 >= 5 ? 0.3 : 0) : 0,
+      pulseDamage: 0.75 + path1 * 0.26 + path2 * 0.18 + (permafrost ? 0.95 : 0) + (path1 >= 4 ? 0.6 : 0) + (path1 >= 5 ? 1.1 : 0),
+      pulseFreeze: permafrost ? 0.48 + (path1 - 3) * 0.12 + (path1 >= 4 ? 0.18 : 0) + (path1 >= 5 ? 0.3 : 0) : 0,
       pulseCooldown: permafrost ? Math.max(2.2 - path1 * 0.28, 0.72) : Math.max(1.22 - path1 * 0.08 - path2 * 0.04, 0.54),
       aura,
       auraRadius: CELL_SIZE * (2.2 + path2 * 0.16),
-      auraDamage: aura ? 0.2 + path2 * 0.16 + path1 * 0.08 + (path2 >= 4 ? 0.28 : 0) + (path2 >= 5 ? 0.55 : 0) : 0,
+      auraDamage: aura ? 0.34 + path2 * 0.18 + path1 * 0.08 + (path2 >= 4 ? 0.28 : 0) + (path2 >= 5 ? 0.55 : 0) : 0,
       auraSlow: aura ? Math.max(0.62 - (path2 - 3) * 0.08 - (path2 >= 4 ? 0.08 : 0) - (path2 >= 5 ? 0.1 : 0), 0.16) : 1,
       auraTick: aura ? (path2 >= 5 ? 0.12 : path2 >= 4 ? 0.16 : 0.22) : 0,
       boltSpeed: 250
@@ -5465,7 +5673,7 @@ function towerStats(tower) {
       firingCooldown: streamCooldown,
       damage,
       splash: Math.max(32, biggerEggs ? 58 + path2 * 10 + (eggPudding ? 10 : 0) + (path1 >= 4 ? 16 : 0) + (mangoPudding ? 34 : 0) : 44 + path2 * 8 + (path2 >= 3 ? 8 : 0) + (path2 >= 4 ? 10 : 0) + (path2 >= 5 ? 14 : 0)),
-      burst: path1 >= 5 ? 12 : path1 >= 4 ? 6 : path1 >= 3 ? 3 : 1,
+      burst: path1 >= 5 ? 12 : path1 >= 4 ? 6 : path1 >= 3 ? 4 : 1,
       burstDelay: path1 >= 5 ? 0.06 : path1 >= 4 ? 0.07 : path1 >= 3 ? 0.075 : 0,
       holdDelay: 1,
       burnDamage: boiledEggs ? 9 + path1 * 2.1 : 0,
@@ -5506,10 +5714,10 @@ function towerStats(tower) {
       range: CELL_SIZE * (1.9 + path2 * 0.18 + (path2 >= 5 ? 0.22 : 0)),
       cooldown: Infinity,
       damage: 0,
-      waveCash: invested / 10 + (path1 >= 4 ? 16 : 0) + (path1 >= 5 ? 42 : 0),
+      waveCash: invested / 10 + (path1 >= 3 ? 8 : 0) + (path1 >= 4 ? 16 : 0) + (path1 >= 5 ? 42 : 0),
       munitions: path2 >= 5,
       detectHiddenAura: path2 >= 4,
-      attackSpeedAura: path2 >= 5 ? 1.46 : path2 >= 4 ? 1.3 : path2 >= 3 ? 1.16 : path2 >= 2 ? 1.08 : 1,
+      attackSpeedAura: path2 >= 5 ? 1.46 : path2 >= 4 ? 1.3 : path2 >= 3 ? 1.22 : path2 >= 2 ? 1.08 : 1,
       helpMissile: path2 >= 5,
       helpMissileCooldown: path2 >= 5 ? 4.8 : 8.8,
       speed: path2 >= 5 ? 176 : 142,
@@ -5550,13 +5758,13 @@ function towerStats(tower) {
     return finalizeStats({
       range: CELL_SIZE * (2.4 + path2 * 0.06),
       cooldown: electrocannon ? Math.max(1.22 - path1 * 0.05, 0.72) : Math.max(0.48 - path1 * 0.055 - (path1 >= 3 ? 0.09 : 0) - (path1 >= 4 ? 0.03 : 0), 0.1),
-      damage: (electrocannon ? 4.8 : 1.3) + path2 * 0.95 + (path2 >= 4 ? 1.4 : 0) + (supercharge ? 1.8 : 0),
+      damage: (electrocannon ? 4.8 : 1.3) + path2 * 0.95 + (path2 >= 3 ? 0.6 : 0) + (path2 >= 4 ? 1.4 : 0) + (supercharge ? 1.8 : 0),
       chainCount: Math.max(path1Chains[path1], path2Chains[path2]),
       splash: electrocannon ? 34 : 0,
       stun: 0.22 + path2 * 0.08 + (path1 >= 4 ? 0.12 : 0) + (path2 >= 5 ? 0.18 : 0),
       chainSlow: path1 >= 4 ? 0.75 : 1,
       field: path2 >= 3,
-      fieldDamage: path2 >= 5 ? 1.1 : path2 >= 4 ? 0.56 : 0.18,
+      fieldDamage: path2 >= 5 ? 1.1 : path2 >= 4 ? 0.56 : path2 >= 3 ? 0.3 : 0.18,
       fieldStun: path2 >= 5 ? 0.22 : path2 >= 4 ? 0.14 : 0.06,
       fieldCooldown: path2 >= 5 ? 0.24 : path2 >= 4 ? 0.38 : 0.7,
       detectHidden: path2 >= 3,
@@ -5571,21 +5779,22 @@ function towerStats(tower) {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
     const heavyDart = path2 >= 3;
+    const blastCore = path1 >= 3;
     return finalizeStats({
       range: CELL_SIZE * (4.6 + path1 * 0.34),
       cooldown: heavyDart ? Math.max(1.02 - (path2 - 3) * 0.1, 0.54) : Math.max(0.98 - path1 * 0.05 - (path1 >= 4 ? 0.08 : 0), 0.34),
-      damage: heavyDart ? 10 + path2 * 3.1 + (path2 >= 4 ? 4 : 0) + (path2 >= 5 ? 10 : 0) : 4 + path2 * 1.45 + (path1 >= 3 ? 1.05 : 0) + (path1 >= 4 ? 1.4 : 0) + (path1 >= 5 ? 2.8 : 0),
-      splash: heavyDart ? 0 : 50 + path1 * 6 + (path1 >= 3 ? 10 : 0) + (path1 >= 4 ? 16 : 0) + (path1 >= 5 ? 26 : 0),
+      damage: heavyDart ? 10 + path2 * 3.1 + (path2 >= 3 ? 2.4 : 0) + (path2 >= 4 ? 4 : 0) + (path2 >= 5 ? 10 : 0) : 4 + path2 * 1.45 + (path1 >= 3 ? 1.8 : 0) + (path1 >= 4 ? 1.4 : 0) + (path1 >= 5 ? 2.8 : 0),
+      splash: heavyDart ? 0 : blastCore ? 50 + path1 * 6 + 16 + (path1 >= 4 ? 16 : 0) + (path1 >= 5 ? 26 : 0) : 0,
       speed: heavyDart ? 520 + (path2 - 3) * 60 + (path2 >= 5 ? 80 : 0) : 120 + (path1 >= 3 ? 120 : 0) + (path1 >= 4 ? 40 : 0) + (path1 >= 5 ? 60 : 0),
       acceleration: heavyDart ? 0 : 520 + (path1 >= 3 ? 220 : 0) + (path1 >= 4 ? 120 : 0) + (path1 >= 5 ? 160 : 0),
       burst: path1 >= 5 ? 8 : path1 >= 4 ? 3 : 1,
       burstDelay: path1 >= 5 ? 0.1 : path1 >= 4 ? 0.25 : 0,
-      homing: heavyDart ? 0 : (path1 >= 5 ? 9.5 : 7),
-      shrapnel: heavyDart ? false : path2 >= 3,
-      clusters: heavyDart ? false : path2 >= 4,
-      rain: heavyDart ? false : path2 >= 5,
+      homing: heavyDart || !blastCore ? 0 : (path1 >= 5 ? 9.5 : 7.8),
+      shrapnel: heavyDart ? false : (blastCore && path2 >= 3),
+      clusters: heavyDart ? false : (blastCore && path2 >= 4),
+      rain: heavyDart ? false : (blastCore && path2 >= 5),
       heavyDart,
-      pierce: heavyDart ? (path2 >= 5 ? 16 : path2 >= 4 ? 9 : 3) : 0
+      pierce: heavyDart ? (path2 >= 5 ? 18 : path2 >= 4 ? 11 : 4) : 0
     });
   }
 
@@ -5607,9 +5816,9 @@ function towerStats(tower) {
       mine: path2 >= 4,
       mango: path2 >= 5,
       turretMode,
-      turretCap: path1 >= 5 ? 28 : path1 >= 4 ? 16 : path1 >= 3 ? 6 : 0,
+      turretCap: path1 >= 5 ? 28 : path1 >= 4 ? 16 : path1 >= 3 ? 8 : 0,
       turretCooldown: Math.max(0.78 - (path1 >= 4 ? 0.12 : 0) - (path1 >= 5 ? 0.24 : 0), 0.16),
-      turretDamage: 1.75 + path2 * 0.6 + (path1 >= 4 ? 1 : 0) + (path1 >= 5 ? 2.6 : 0),
+      turretDamage: 1.75 + path2 * 0.6 + (path1 >= 3 ? 0.5 : 0) + (path1 >= 4 ? 1 : 0) + (path1 >= 5 ? 2.6 : 0),
       turretRange: CELL_SIZE * (2 + path2 * 0.08 + (path1 >= 4 ? 0.28 : 0) + (path1 >= 5 ? 0.55 : 0)),
       turretBarrels: path1 >= 5 ? 3 : path1 >= 4 ? 2 : 1
     });
@@ -5618,8 +5827,8 @@ function towerStats(tower) {
   if (tower.type === "drone") {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
-    const baseRange = CELL_SIZE * (8.85 + levelBonus * 0.24) * (path2 >= 5 ? 1.5 : path1 >= 5 ? 1.25 : 1);
-    const supportCount = path2 >= 5 ? 4 : path2 >= 3 ? 2 : 0;
+    const baseRange = CELL_SIZE * (8.35 + levelBonus * 0.2) * (path2 >= 5 ? 1.45 : path1 >= 5 ? 1.22 : 1);
+    const supportCount = path2 >= 5 ? 4 : path2 >= 3 ? 3 : 0;
     const mainGuns = path2 >= 4 ? 4 : path1 >= 1 ? 2 : 1;
     const supportGuns = path2 >= 4 ? 2 : 1;
     return finalizeStats({
@@ -5634,12 +5843,12 @@ function towerStats(tower) {
       bulletPierce: path2 >= 2 ? 2 : 0,
       rocket: path1 >= 3,
       rocketCooldown: path1 >= 5 ? 0.26 : path1 >= 4 ? 0.52 : 0.7,
-      rocketDamage: 2.8 + levelBonus * 0.45 + (path1 >= 4 ? 1.6 : 0) + (path1 >= 5 ? 2.8 : 0),
-      rocketSplash: path1 >= 5 ? 52 : path1 >= 4 ? 38 : 24,
+      rocketDamage: 2.8 + levelBonus * 0.45 + (path1 >= 3 ? 0.8 : 0) + (path1 >= 4 ? 1.6 : 0) + (path1 >= 5 ? 2.8 : 0),
+      rocketSplash: path1 >= 5 ? 52 : path1 >= 4 ? 38 : path1 >= 3 ? 28 : 24,
       rocketSpeed: path1 >= 5 ? 240 : path1 >= 4 ? 170 : 132,
       supportCount,
       supportGuns: path2 >= 5 ? 3 : supportGuns,
-      supportDamage: 0.38 + levelBonus * 0.16 + (path2 >= 4 ? 0.2 : 0) + (path2 >= 5 ? 0.45 : 0),
+      supportDamage: 0.38 + levelBonus * 0.16 + (path2 >= 3 ? 0.12 : 0) + (path2 >= 4 ? 0.2 : 0) + (path2 >= 5 ? 0.45 : 0),
       supportRange: CELL_SIZE * 1.26,
       supportCooldown: Math.max(0.98 - path2 * 0.04 - (path2 >= 4 ? 0.05 : 0), 0.34),
       attackDrone: path1 >= 5,
@@ -6003,14 +6212,14 @@ function selectEnemyByPriority(candidates, priority = "first", cursorPoint = nul
 
 function nearestEnemyInRange(tower, range, detectHidden = false) {
   const stats = towerStats(tower);
-  const candidates = enemiesInRange(tower.centerX, tower.centerY, range, detectHidden, tower.type !== "dippy")
+  const candidates = enemiesInRange(tower.centerX, tower.centerY, range, detectHidden, tower.type !== "dippy" && tower.type !== "drone")
     .filter((enemy) => Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY) >= (stats.minRange || 0))
     .filter((enemy) => canTowerDamageEnemy(tower, enemy, stats));
   return selectEnemyByPriority(candidates, tower.targetPriority || "first");
 }
 
 function towerHasLineOfSightToPoint(tower, x, y) {
-  if (!tower || tower.type === "dippy") {
+  if (!tower || tower.type === "dippy" || tower.type === "drone") {
     return true;
   }
   return hasLineOfSight(tower.centerX, tower.centerY, x, y);
@@ -6529,7 +6738,7 @@ function fireTower(tower, target) {
   if (tower.type === "crossbow") {
     projectiles.push({
       id: nextProjectileId,
-      kind: "crossbowBolt",
+      kind: "whiteBolt",
       x: tower.centerX,
       y: tower.centerY,
       targetId: target.id,
@@ -6918,6 +7127,7 @@ function spawnMissileProjectile(tower, target, stats) {
     angle,
     homing: stats.homing,
     damage: stats.damage,
+    impactDamage: stats.splash > 0 ? 0 : stats.damage,
     splash: stats.splash,
     shrapnel: stats.shrapnel,
     clusters: stats.clusters,
@@ -7388,9 +7598,9 @@ function updateProjectiles(deltaTime) {
   const survivors = [];
 
   for (const projectile of projectiles) {
-    if (projectile.kind === "crossbowBolt" || projectile.kind === "cannonDart") {
+    if (projectile.kind === "whiteBolt" || projectile.kind === "cannonDart") {
       const target = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null;
-      if (target && projectile.kind === "crossbowBolt") {
+      if (target && projectile.kind === "whiteBolt") {
         const desiredAngle = Math.atan2(target.y - projectile.y, target.x - projectile.x);
         const angleDelta = Math.atan2(Math.sin(desiredAngle - projectile.angle), Math.cos(desiredAngle - projectile.angle));
         const maxTurn = (projectile.homing || 0) * deltaTime;
@@ -7650,7 +7860,7 @@ function updateProjectiles(deltaTime) {
     if (projectile.ttl !== undefined) {
       projectile.ttl -= deltaTime;
       if (projectile.ttl <= 0) {
-        if (projectile.kind === "missile" || projectile.kind === "cluster" || projectile.kind === "mangoBomb" || projectile.kind === "shard") {
+        if ((projectile.kind === "missile" && projectile.splash > 0) || projectile.kind === "cluster" || projectile.kind === "mangoBomb" || projectile.kind === "shard") {
           explodeProjectile(projectile);
         }
         continue;
@@ -7676,12 +7886,15 @@ function updateProjectiles(deltaTime) {
 
     const reachedTargetPoint = projectile.targetX !== undefined
       && projectile.targetY !== undefined
-      && Math.hypot(projectile.targetX - projectile.x, projectile.targetY - projectile.y) <= Math.max(12, projectile.splash * 0.45);
+      && Math.hypot(projectile.targetX - projectile.x, projectile.targetY - projectile.y) <= Math.max(12, Math.max(projectile.splash || 0, 10) * 0.45);
 
     if (impactEnemy || reachedTargetPoint || (target && Math.hypot(target.x - projectile.x, target.y - projectile.y) <= 12) || (projectile.kind === "mangoBomb" && projectile.targetY !== undefined && projectile.y >= projectile.targetY)) {
       const directHitEnemy = impactEnemy || target;
       if (directHitEnemy && projectile.impactDamage > 0) {
         damageEnemy(directHitEnemy, projectile.impactDamage, projectile.kind === "mangoBomb" || projectile.kind === "cluster" ? "explosion" : (projectile.damageType || "bullet"));
+      }
+      if (projectile.kind === "missile" && (projectile.splash || 0) <= 0) {
+        continue;
       }
       if (projectile.kind === "droneRocket") {
         explodeDroneRocket(projectile);
@@ -8168,13 +8381,17 @@ function spawnPopcornChildren(enemy) {
     y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y / CELL_SIZE)))
   };
   const variants = [
-    { key: "dark", color: "#3f78d1", hpMult: 3, speedMult: 1 },
-    { key: "normal", color: "#74b8ff", hpMult: 1.5, speedMult: 1.5 },
-    { key: "light", color: "#b8e1ff", hpMult: 1, speedMult: 3 }
+    ...Array.from({ length: 15 }, () => ({ key: "normal", color: "#74b8ff", hpMult: 1.5, speedMult: 1.5 })),
+    ...Array.from({ length: 5 }, () => ({ key: "dark", color: "#3f78d1", hpMult: 3, speedMult: 1 })),
+    ...Array.from({ length: 5 }, () => ({ key: "light", color: "#b8e1ff", hpMult: 1, speedMult: 3 }))
   ];
 
-  for (let index = 0; index < 25; index += 1) {
-    const variant = variants[Math.floor(Math.random() * variants.length)];
+  for (let index = variants.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [variants[index], variants[swapIndex]] = [variants[swapIndex], variants[index]];
+  }
+
+  for (const variant of variants) {
     let startCell = originCell;
     let route = findPathFrom(originCell);
     for (let attempt = 0; attempt < 16; attempt += 1) {
@@ -8245,9 +8462,10 @@ function spawnIdineChildren(enemy) {
   for (let index = 0; index < directions.length; index += 1) {
     const direction = directions[index];
     const childType = index < 4 ? ENEMY_TYPES.celun : ENEMY_TYPES.celris;
+    const distance = index < 4 ? 2 : 3;
     const startCell = {
-      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
-      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
+      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x * distance)),
+      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y * distance))
     };
     const route = findPathFrom(startCell);
     const child = route.length > 0
@@ -8368,7 +8586,7 @@ function updateHud() {
   });
   waveButton.textContent = autoWaveEnabled ? "Start Wave Now" : "Start Wave";
   selectionText.textContent = `Selected: ${TOWER_INFO[selectedTowerType].name}`;
-  upgradeText.textContent = `Upgrade: ${currentTool === "upgrade" ? "click tower, max 5" : "max 5"}${selectedMap === "outpost" && !crossbowUnlocked ? " | Secret: Brutal Outpost wave 50 with only one block placed" : ""}`;
+  upgradeText.textContent = `Upgrade: ${currentTool === "upgrade" ? "click tower, max 5" : "max 5"}${selectedMap === "outpost" && !crossbowUnlocked ? " | Secret: Outpost Hard 50 or Brutal 25 with no placed blocks" : ""}`;
   updateSandboxControls();
   updateAirstrikeControls();
   renderTutorial();
@@ -8929,7 +9147,7 @@ function drawRoundedRect(x, y, width, height, radius) {
 }
 
 function drawRoute() {
-  if (activeMap.hideRoutes || !allRoutesOpen(routes)) {
+  if (activeMap.hideRoutes || isGraveyardMap() || !allRoutesOpen(routes)) {
     return;
   }
 
@@ -8992,6 +9210,9 @@ function drawRoute() {
 }
 
 function drawGhostRoutes(previewRoutes) {
+  if (isGraveyardMap()) {
+    return;
+  }
   for (const path of previewRoutes) {
     if (!path || path.length === 0) {
       continue;
@@ -9938,6 +10159,11 @@ function regularPolygon(x, y, radius, sides) {
   ctx.closePath();
 }
 
+function drawOpaqueShell() {
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#ffffff";
+}
+
 function drawEnemies() {
   for (const enemy of enemies) {
     drawEnemyShape(enemy);
@@ -10163,9 +10389,20 @@ function drawEnemyShape(enemy) {
   }
 
   if ((enemy.shellHp || 0) > 0) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.52)";
+    drawOpaqueShell();
     ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, radius + 2, 0, Math.PI * 2);
+    for (let index = 0; index < enemy.shapeSides; index += 1) {
+      const angle = rotation + (Math.PI * 2 * index) / enemy.shapeSides;
+      const px = enemy.x + Math.cos(angle) * radius;
+      const py = enemy.y + Math.sin(angle) * radius;
+
+      if (index === 0) {
+        ctx.moveTo(px, py);
+      } else {
+        ctx.lineTo(px, py);
+      }
+    }
+    ctx.closePath();
     ctx.fill();
   }
 
@@ -10211,7 +10448,7 @@ function drawHeavyEnemy(enemy) {
     ctx.stroke();
   }
   if ((enemy.shellHp || 0) > 0) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.58)";
+    drawOpaqueShell();
     ctx.fillRect(-width / 2, -height / 2, width, height);
   }
   if (enemy.hidden) {
@@ -10228,32 +10465,50 @@ function drawHeavyEnemy(enemy) {
 }
 
 function drawPopcornEnemy(enemy) {
+  const scale = enemy.sizeScale || 1;
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
   ctx.rotate(enemy.facingAngle || 0);
+  if ((enemy.shellHp || 0) > 0) {
+    drawOpaqueShell();
+    ctx.beginPath();
+    ctx.arc(0, 0, 11 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
   ctx.fillStyle = "#73b8ff";
   ctx.beginPath();
-  ctx.arc(0, 0, 11 * (enemy.sizeScale || 1), 0, Math.PI * 2);
+  ctx.arc(0, 0, 11 * scale, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#9dd2ff";
   ctx.beginPath();
-  ctx.arc(-2 * (enemy.sizeScale || 1), -2 * (enemy.sizeScale || 1), 6 * (enemy.sizeScale || 1), 0, Math.PI * 2);
+  ctx.arc(-2 * scale, -2 * scale, 6 * scale, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.restore();
 }
 
 function drawKernelEnemy(enemy) {
+  const scale = enemy.sizeScale || 1;
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
   ctx.rotate(enemy.facingAngle || 0);
+  if ((enemy.shellHp || 0) > 0) {
+    drawOpaqueShell();
+    ctx.beginPath();
+    ctx.arc(0, 0, 4.2 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
   ctx.fillStyle = enemy.color || "#7abfff";
   ctx.beginPath();
-  ctx.arc(0, 0, 4.2 * (enemy.sizeScale || 1), 0, Math.PI * 2);
+  ctx.arc(0, 0, 4.2 * scale, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = enemy.kernelVariant === "dark" ? "rgba(255,255,255,0.18)" : enemy.kernelVariant === "light" ? "#eef9ff" : "#d8f1ff";
   ctx.beginPath();
-  ctx.arc(0.8 * (enemy.sizeScale || 1), -0.8 * (enemy.sizeScale || 1), 1.3 * (enemy.sizeScale || 1), 0, Math.PI * 2);
+  ctx.arc(0.8 * scale, -0.8 * scale, 1.3 * scale, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -10262,6 +10517,38 @@ function drawIdineFamilyEnemy(enemy) {
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
   ctx.rotate(enemy.facingAngle || 0);
+  if ((enemy.shellHp || 0) > 0) {
+    drawOpaqueShell();
+    if (enemy.key === "idine") {
+      const scale = enemy.sizeScale || 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-14 * scale, 0);
+      ctx.lineTo(14 * scale, -15 * scale);
+      ctx.lineTo(14 * scale, 15 * scale);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(8 * scale, -12 * scale);
+      ctx.lineTo(24 * scale, -8 * scale);
+      ctx.lineTo(24 * scale, 0);
+      ctx.lineTo(8 * scale, -3 * scale);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(8 * scale, 3 * scale);
+      ctx.lineTo(24 * scale, 0);
+      ctx.lineTo(24 * scale, 8 * scale);
+      ctx.lineTo(8 * scale, 12 * scale);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(0, 0, 8.4 * (enemy.sizeScale || 1), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
   if (enemy.key === "idine") {
     const scale = enemy.sizeScale || 1.2;
     ctx.fillStyle = "#3d1e74";
@@ -10296,12 +10583,6 @@ function drawIdineFamilyEnemy(enemy) {
     ctx.arc(-1.8 * (enemy.sizeScale || 1), -1.8 * (enemy.sizeScale || 1), 3.1 * (enemy.sizeScale || 1), 0, Math.PI * 2);
     ctx.fill();
   }
-  if ((enemy.shellHp || 0) > 0) {
-    ctx.fillStyle = "rgba(255,255,255,0.52)";
-    ctx.beginPath();
-    ctx.arc(0, 0, 11 * (enemy.sizeScale || 1), 0, Math.PI * 2);
-    ctx.fill();
-  }
   ctx.restore();
 }
 
@@ -10330,6 +10611,12 @@ function drawShortbreadEnemy(enemy) {
     }
   }
 
+  if ((enemy.shellHp || 0) > 0) {
+    drawOpaqueShell();
+    drawRoundedRect(-width / 2, -height / 2, width, height, radius);
+    ctx.fill();
+  }
+
   if (enemy.hidden) {
     ctx.strokeStyle = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
     ctx.lineWidth = 2.2;
@@ -10344,6 +10631,37 @@ function drawHealthEnemy(enemy) {
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
   ctx.rotate(enemy.facingAngle || 0);
+  if ((enemy.shellHp || 0) > 0) {
+    drawOpaqueShell();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = (enemy.tier >= 3 ? 4.8 : enemy.tier === 2 ? 4.1 : 3.5) * scale;
+    ctx.beginPath();
+    ctx.moveTo(-11 * scale, -10 * scale);
+    ctx.lineTo(12 * scale, 0);
+    ctx.lineTo(-11 * scale, 10 * scale);
+    ctx.stroke();
+    if ((enemy.tier || 1) >= 2) {
+      ctx.lineWidth = 2.8 * scale;
+      ctx.beginPath();
+      ctx.moveTo(-1 * scale, -7 * scale);
+      ctx.lineTo(-1 * scale, 7 * scale);
+      ctx.stroke();
+    }
+    if ((enemy.tier || 1) >= 3) {
+      ctx.lineWidth = 2.3 * scale;
+      ctx.beginPath();
+      ctx.moveTo(-7 * scale, -10 * scale);
+      ctx.lineTo(-3 * scale, -4 * scale);
+      ctx.moveTo(-7 * scale, 10 * scale);
+      ctx.lineTo(-3 * scale, 4 * scale);
+      ctx.moveTo(-10 * scale, 0);
+      ctx.lineTo(-2 * scale, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
   ctx.strokeStyle = "#d64545";
   ctx.lineWidth = (enemy.tier >= 3 ? 4.8 : enemy.tier === 2 ? 4.1 : 3.5) * scale;
   ctx.lineCap = "round";
@@ -10379,6 +10697,32 @@ function drawLifeEnemy(enemy) {
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
   ctx.rotate(enemy.facingAngle || 0);
+  if ((enemy.shellHp || 0) > 0) {
+    drawOpaqueShell();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = (enemy.tier >= 3 ? 5.3 : enemy.tier === 2 ? 4.6 : 4.1) * scale;
+    ctx.beginPath();
+    ctx.moveTo(-12 * scale, -11 * scale);
+    ctx.lineTo(13 * scale, 0);
+    ctx.lineTo(-12 * scale, 11 * scale);
+    ctx.stroke();
+    ctx.lineWidth = 2.1 * scale;
+    ctx.beginPath();
+    ctx.moveTo(-7 * scale, -7 * scale);
+    ctx.lineTo(-7 * scale, 7 * scale);
+    if ((enemy.tier || 1) >= 2) {
+      ctx.moveTo(-1 * scale, -9 * scale);
+      ctx.lineTo(-1 * scale, 9 * scale);
+    }
+    if ((enemy.tier || 1) >= 3) {
+      ctx.moveTo(4 * scale, -6 * scale);
+      ctx.lineTo(4 * scale, 6 * scale);
+    }
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
   ctx.strokeStyle = "#bf2e46";
   ctx.lineWidth = (enemy.tier >= 3 ? 5.3 : enemy.tier === 2 ? 4.6 : 4.1) * scale;
   ctx.lineCap = "round";
@@ -10423,6 +10767,12 @@ function drawSplitterEnemy(enemy) {
   ctx.beginPath();
   ctx.arc(0, 0, radius, 0, Math.PI * 2);
   ctx.fill();
+  if ((enemy.shellHp || 0) > 0) {
+    drawOpaqueShell();
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.strokeStyle = "rgba(194, 145, 20, 0.95)";
   ctx.lineWidth = 2;
   ctx.stroke();
@@ -10453,7 +10803,7 @@ function drawHydraEnemy(enemy) {
   ctx.closePath();
   ctx.fill();
   if ((enemy.shellHp || 0) > 0) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.58)";
+    drawOpaqueShell();
     ctx.beginPath();
     ctx.moveTo(noseX, 0);
     ctx.lineTo(tailX, -side / 2);
@@ -10472,6 +10822,43 @@ function drawSentinelEnemy(enemy) {
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
   ctx.rotate(enemy.facingAngle || 0);
+  if ((enemy.shellHp || 0) > 0) {
+    drawOpaqueShell();
+    if (isSkrey) {
+      const triangles = [
+        { x: bodyRadius * 0.7, size: 0.9 },
+        { x: bodyRadius * 0.15, size: 0.76 },
+        { x: -bodyRadius * 0.38, size: 0.62 }
+      ];
+      for (const triangle of triangles) {
+        ctx.beginPath();
+        ctx.moveTo(triangle.x + bodyRadius * triangle.size, 0);
+        ctx.lineTo(triangle.x - bodyRadius * 0.38 * triangle.size, -bodyRadius * 0.72 * triangle.size);
+        ctx.lineTo(triangle.x - bodyRadius * 0.38 * triangle.size, bodyRadius * 0.72 * triangle.size);
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if (isOverwatch) {
+      ctx.beginPath();
+      ctx.moveTo(bodyRadius * 0.9, 0);
+      ctx.lineTo(-bodyRadius * 0.08, -bodyRadius * 0.72);
+      ctx.lineTo(-bodyRadius * 0.08, bodyRadius * 0.72);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(bodyRadius * 0.36, 0);
+      ctx.lineTo(-bodyRadius * 0.34, -bodyRadius * 0.48);
+      ctx.lineTo(-bodyRadius * 0.34, bodyRadius * 0.48);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(0, 0, bodyRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
   ctx.fillStyle = "#9f2323";
   if (isSkrey) {
     const triangles = [
@@ -10536,6 +10923,29 @@ function drawAttackerEnemy(enemy) {
   ctx.translate(enemy.x, enemy.y);
   ctx.rotate(enemy.facingAngle || 0);
   ctx.lineCap = "round";
+  if ((enemy.shellHp || 0) > 0) {
+    drawOpaqueShell();
+    ctx.lineWidth = bodyWidth;
+    ctx.beginPath();
+    ctx.moveTo(bodyLength * 0.56, 0);
+    ctx.lineTo(-bodyLength * 0.56, 0);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(2.8, bodyWidth * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(-bodyLength * 0.14, 0);
+    ctx.lineTo(-wingLength, -wingSpread);
+    ctx.moveTo(-bodyLength * 0.14, 0);
+    ctx.lineTo(-wingLength, wingSpread);
+    if (enemy.tier >= 2) {
+      ctx.moveTo(-bodyLength * 0.36, 0);
+      ctx.lineTo(-bodyLength * 0.94, -wingSpread * 0.54);
+      ctx.moveTo(-bodyLength * 0.36, 0);
+      ctx.lineTo(-bodyLength * 0.94, wingSpread * 0.54);
+    }
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
 
   ctx.strokeStyle = enemy.color;
   ctx.lineWidth = bodyWidth;
@@ -10846,15 +11256,25 @@ function drawProjectiles() {
       continue;
     }
 
-    if (projectile.kind === "crossbowBolt") {
+    if (projectile.kind === "whiteBolt") {
       ctx.save();
       ctx.translate(projectile.x, projectile.y);
       ctx.rotate(projectile.angle || 0);
-      ctx.strokeStyle = "#c6935b";
-      ctx.lineWidth = 2;
+      ctx.fillStyle = "#ffffff";
       ctx.beginPath();
-      ctx.moveTo(-7, 0);
-      ctx.lineTo(7, 0);
+      ctx.moveTo(9, 0);
+      ctx.lineTo(-3, -2.8);
+      ctx.lineTo(-8, 0);
+      ctx.lineTo(-3, 2.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "rgba(227, 238, 255, 0.9)";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-1, -1.4);
+      ctx.lineTo(-6, -1.4);
+      ctx.moveTo(-1, 1.4);
+      ctx.lineTo(-6, 1.4);
       ctx.stroke();
       ctx.restore();
       continue;
@@ -11705,13 +12125,26 @@ window.addEventListener("keydown", (event) => {
     cheatBuffer = cheatBuffer.slice(-3);
 
     if (cheatBuffer.join(",") === "5,1,2") {
-      infiniteMode = !infiniteMode;
-      if (infiniteMode) {
-        money = 999999;
-        lives = 999999;
-        setMessage("Infinite money and lives enabled.", 1.8);
+      if (gameMode === "menu") {
+        crossbowUnlocked = true;
+        for (const enemy of Object.values(ENEMY_TYPES)) {
+          discoveredEnemies.add(enemy.key);
+        }
+        updateTowerButtons();
+        renderAlmanac();
+        if (menuMapDescription) {
+          menuMapDescription.textContent = "Cheat unlocked: crossbow unlocked and the full almanac is revealed.";
+        }
+        setMessage("Cheat unlocked: crossbow unlocked and the full almanac is revealed.", 2.4);
       } else {
-        setMessage("Infinite money and lives disabled.", 1.8);
+        infiniteMode = !infiniteMode;
+        if (infiniteMode) {
+          money = 999999;
+          lives = 999999;
+          setMessage("Infinite money and lives enabled.", 1.8);
+        } else {
+          setMessage("Infinite money and lives disabled.", 1.8);
+        }
       }
       updateHud();
       draw();
