@@ -22,7 +22,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   font-family: Georgia, "Times New Roman", serif;
   color: var(--ink);
   background:
@@ -35,9 +36,9 @@ body {
   position: fixed;
   inset: 0;
   display: none;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 20px;
+  padding: 10px 20px 18px;
   background: rgba(17, 24, 32, 0.42);
   backdrop-filter: blur(10px);
   z-index: 20;
@@ -345,15 +346,16 @@ body {
 .app-shell {
   width: min(1460px, calc(100vw - 10px));
   margin: 0 auto;
-  height: 100vh;
-  padding: 6px 0;
+  min-height: 100vh;
+  height: auto;
+  padding: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: visible;
 }
 
 .hero {
-  margin-bottom: 6px;
+  display: none;
 }
 
 .eyebrow {
@@ -389,6 +391,7 @@ h1 {
   gap: 6px;
   align-items: start;
   min-height: 0;
+  padding: 2px 0 10px;
 }
 
 .controls {
@@ -397,7 +400,7 @@ h1 {
   align-content: start;
   width: 244px;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
   padding-right: 2px;
 }
 
@@ -574,7 +577,7 @@ button.secondary {
   min-width: 0;
   position: relative;
   display: grid;
-  gap: 8px;
+  gap: 2px;
   align-content: start;
   min-height: 0;
 }
@@ -583,8 +586,8 @@ button.secondary {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
-  padding: 0 4px;
+  margin-bottom: 0;
+  padding: 0 2px;
 }
 
 .board-left,
@@ -621,7 +624,7 @@ button.secondary {
 }
 
 .board-frame {
-  padding: 8px;
+  padding: 4px;
   min-height: 100%;
   width: 100%;
   margin-left: 0;
@@ -639,7 +642,9 @@ button.secondary {
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 2px;
+  position: relative;
+  z-index: 7;
 }
 
 .speed-controls {
@@ -864,8 +869,8 @@ button.secondary {
 
 .tower-scroll-column {
   overflow-x: visible;
-  overflow-y: auto;
-  max-height: calc(100vh - 232px);
+  overflow-y: visible;
+  max-height: none;
   padding-right: 4px;
 }
 
@@ -907,7 +912,7 @@ button.secondary {
 
 .tower-popup {
   position: absolute;
-  bottom: 68px;
+  top: 44px;
   z-index: 6;
   width: 280px;
 }
@@ -1008,7 +1013,7 @@ canvas {
   .app-shell {
     width: min(100vw - 10px, 1460px);
     height: auto;
-    padding-top: 20px;
+    padding-top: 8px;
     overflow: visible;
   }
 

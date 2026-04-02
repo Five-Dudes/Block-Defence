@@ -89,7 +89,7 @@ const TARGET_LABELS = {
 document.body.dataset.appBootStage = "constants";
 
 const COLS = 34;
-const ROWS = 20;
+const ROWS = 24;
 const CELL_SIZE = 28;
 const CENTER_COL = Math.floor(COLS / 2);
 const CENTER_ROW = Math.floor(ROWS / 2);
@@ -104,67 +104,67 @@ const START_LIVES = 100;
 const DASH_PERIOD = 16;
 const BLOCK_COST = 5;
 const TOWER_BASE_COST = {
-  tesla: 44,
-  missile: 58,
+  tesla: 50,
+  missile: 60,
   trapper: 31,
-  laser: 55,
-  shotgun: 36,
-  freezer: 35,
-  drone: 49,
-  fireball: 63,
-  dippy: 84,
-  support: 47,
-  crossbow: 27,
-  gate: 46
+  laser: 58,
+  shotgun: 54,
+  freezer: 34,
+  drone: 52,
+  fireball: 64,
+  dippy: 92,
+  support: 44,
+  crossbow: 30,
+  gate: 42
 };
 const UPGRADE_COSTS = {
   tesla: {
-    path1: [10, 52, 44, 164, 300],
-    path2: [22, 44, 288, 392, 720]
+    path1: [12, 58, 52, 624, 7488],
+    path2: [24, 50, 300, 3600, 43200]
   },
   missile: {
-    path1: [10, 24, 92, 244, 640],
-    path2: [32, 36, 324, 420, 1120]
+    path1: [12, 28, 98, 1176, 14112],
+    path2: [34, 40, 340, 4080, 48960]
   },
   drone: {
-    path1: [12, 52, 128, 236, 680],
-    path2: [14, 26, 112, 224, 620]
+    path1: [14, 56, 136, 1632, 19584],
+    path2: [16, 30, 124, 1488, 17856]
   },
   trapper: {
-    path1: [10, 18, 88, 176, 420],
-    path2: [12, 20, 64, 168, 360]
+    path1: [12, 22, 94, 1128, 13536],
+    path2: [14, 24, 86, 1032, 12384]
   },
   laser: {
-    path1: [14, 28, 96, 228, 520],
-    path2: [18, 56, 132, 248, 760]
+    path1: [16, 30, 108, 1296, 15552],
+    path2: [20, 60, 144, 1728, 20736]
   },
   shotgun: {
-    path1: [12, 22, 108, 232, 640],
-    path2: [12, 28, 124, 220, 760]
+    path1: [16, 34, 138, 1932, 23184],
+    path2: [18, 36, 156, 2340, 28080]
   },
   freezer: {
-    path1: [12, 26, 94, 214, 560],
-    path2: [10, 24, 88, 196, 500]
+    path1: [12, 28, 96, 1152, 13824],
+    path2: [12, 26, 92, 1104, 13248]
   },
   fireball: {
-    path1: [16, 30, 126, 248, 720],
-    path2: [14, 24, 108, 228, 620]
+    path1: [18, 34, 138, 1656, 19872],
+    path2: [16, 28, 120, 1440, 17280]
   },
   dippy: {
-    path1: [34, 62, 168, 320, 940],
-    path2: [28, 74, 156, 300, 880]
+    path1: [36, 68, 184, 2208, 26496],
+    path2: [30, 82, 170, 2040, 24480]
   },
   support: {
-    path1: [22, 48, 118, 240, 700],
-    path2: [16, 42, 110, 228, 660]
+    path1: [24, 52, 126, 1512, 18144],
+    path2: [18, 46, 116, 1392, 16704]
   },
   crossbow: {
-    path1: [14, 20, 66, 94, 230],
-    path2: [16, 34, 112, 180, 430]
+    path1: [16, 24, 78, 936, 11232],
+    path2: [18, 38, 124, 1488, 17856]
   },
   gate: {
-    path1: [12, 30, 84, 176, 520],
-    path2: [14, 26, 124, 212, 620]
+    path1: [14, 32, 94, 1128, 13536],
+    path2: [16, 28, 132, 1584, 19008]
   }
 };
 const TOWER_INFO = {
@@ -278,7 +278,7 @@ const ENEMY_TYPES = {
     name: "Waffle",
     color: "#d69a43",
     shape: 4,
-    hpMultiplier: 5.4,
+    hpMultiplier: 2.7,
     speedBonus: -10,
     reward: 10,
     waffleSquares: 16,
@@ -680,6 +680,17 @@ const MAPS = {
       { x: 18, y: 12 }, { x: 19, y: 12 }, { x: 20, y: 12 },
       { x: 18, y: 13 }, { x: 19, y: 13 }, { x: 20, y: 13 }
     ], BOARD_CENTER_SHIFT_X, BOARD_CENTER_SHIFT_Y),
+    noBuildCells: shiftCells(uniqueCells([
+      ...cellsFromRects([{ x: 7, y: 2, width: 3, height: 3 }]),
+      ...cellsFromRects([{ x: 8, y: 8, width: 3, height: 4 }]),
+      ...cellsFromRects([{ x: 7, y: 15, width: 4, height: 3 }]),
+      ...cellsFromRects([{ x: 13, y: 1, width: 2, height: 3 }]),
+      ...cellsFromRects([{ x: 14, y: 9, width: 2, height: 4 }]),
+      ...cellsFromRects([{ x: 13, y: 17, width: 2, height: 2 }]),
+      ...cellsFromRects([{ x: 24, y: 3, width: 3, height: 3 }]),
+      ...cellsFromRects([{ x: 23, y: 8, width: 4, height: 4 }]),
+      ...cellsFromRects([{ x: 24, y: 15, width: 3, height: 3 }])
+    ]), BOARD_CENTER_SHIFT_X, BOARD_CENTER_SHIFT_Y),
     towerSurfaces: "obstacles"
   },
   cliffs: {
@@ -722,7 +733,7 @@ const MAPS = {
   },
   freezingmountains: {
     name: "Freezing Mountains",
-    description: "A blinding frozen pass with one narrow approach. From wave 6 onward, sudden cold snaps can freeze one of your towers until the next round.",
+    description: "A blinding frozen pass with one narrow approach. From wave 6 onward, sudden cold snaps can freeze one of your towers for a round before the ice shifts to another target.",
     scenery: "cliffs",
     goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
     portals: [{ x: 0, y: CENTER_ROW }],
@@ -957,6 +968,7 @@ let outpostQuestBlocksPlaced = 0;
 let spawnPortalCursor = 0;
 let spawnPortalOrder = [];
 let autoWaveEnabled = false;
+let autoWaveUnlocked = false;
 let autoWaveTimer = 0;
 let sandboxWaveTarget = null;
 let armedAbility = null;
@@ -2046,16 +2058,10 @@ function enemyAlmanacEntries() {
     "ris",
     "splitter",
     "popcorn",
-    "kernel",
-    "darkKernel",
-    "lightKernel"
+    "kernel"
   ];
 
   for (const enemyKey of orderedKeys) {
-    if (enemyKey === "darkKernel" || enemyKey === "lightKernel") {
-      entries.push({ id: `${enemyKey}:1`, key: enemyKey, tier: 1, parentKey: "kernel" });
-      continue;
-    }
     const enemy = ENEMY_TYPES[enemyKey];
     if (!enemy || enemy.key === "shield" || enemy.key === "armored" || enemy.key === "megaWaffle") {
       continue;
@@ -2193,6 +2199,9 @@ function enemyAlmanacDisplayName(entry) {
   if (entry.key === "lightKernel") {
     return "Light Kernel";
   }
+  if (entry.key === "kernel") {
+    return "Normal Kernel";
+  }
   if (entry.key === "sentinel") {
     return entry.tier >= 3 ? "Skrey" : entry.tier >= 2 ? "Overwatch" : "Sentinel";
   }
@@ -2230,6 +2239,16 @@ function enemyAlmanacStats(entry) {
 
   if (entry.key === "lightKernel") {
     const stats = kernelVariantAlmanacStats("light", round);
+    return {
+      hp: stats.hp,
+      speed: stats.speed,
+      reward: stats.reward,
+      extras: ["Spawned by Popcorn"]
+    };
+  }
+
+  if (entry.key === "kernel") {
+    const stats = kernelVariantAlmanacStats("normal", round);
     return {
       hp: stats.hp,
       speed: stats.speed,
@@ -2481,14 +2500,6 @@ function kernelVariantAlmanacStats(variant, round = Math.max(waveNumber, 1)) {
 }
 
 function renderEnemyFamilyVariantBlock(entry) {
-  if (entry.key === "kernel") {
-    const variants = ["dark", "normal", "light"]
-      .map((variant) => kernelVariantAlmanacStats(variant))
-      .map((variant) => `<p><strong>${variant.label} Kernel:</strong> Health ${formatNumber(variant.hp)} | Speed ${formatNumber(variant.speed)} cells/s | Reward ${formatNumber(variant.reward)}</p>`)
-      .join("");
-    return `<h4>Variants</h4>${variants}`;
-  }
-
   return "";
 }
 
@@ -2747,7 +2758,7 @@ function queueFreezingMountainsTutorial() {
   queueTutorialPopup(
     "freezing-mountains-intro",
     "Freezing Mountains Hazard",
-    "This map has a cold snap hazard.\n\nFrom Wave 6 onward, one of your towers can freeze solid at the start of a wave until the next round. Frozen towers stop firing, appear fully encased in ice, and can be defrosted on the following round."
+    "This map has a cold snap hazard.\n\nFrom Wave 6 onward, one of your towers can freeze solid at the start of a wave for one round. Frozen towers stop firing, appear fully encased in ice, then thaw on the next wave unless there is no other tower available to freeze."
   );
 }
 
@@ -3876,11 +3887,32 @@ function freezeRandomMountainTower() {
   if (!isFreezingMountainsMap() || towers.length === 0 || waveNumber < 6) {
     return;
   }
+  const expiredFrozenTowers = towers.filter((tower) => tower.mapFrozen && waveNumber > (tower.frozenUntilWave || 0));
+  const replacementCandidates = towers.filter((tower) => !tower.mapFrozen);
+  if (expiredFrozenTowers.length > 0) {
+    if (replacementCandidates.length === 0) {
+      for (const tower of expiredFrozenTowers) {
+        tower.frozenUntilWave = waveNumber;
+      }
+      return;
+    }
+    for (const tower of expiredFrozenTowers) {
+      tower.mapFrozen = false;
+      tower.frozenUntilWave = 0;
+      tower.stunnedTimer = 0;
+      addPulse(tower.centerX, tower.centerY, 20, "rgba(216, 248, 255, 0.54)");
+      if (selectedTowerId === tower.id) {
+        openTowerPopup(tower);
+      }
+    }
+  }
   const freezeChance = activeMap.freezeChance || 0.35;
   if (Math.random() > freezeChance) {
     return;
   }
-  const candidates = towers.filter((tower) => !tower.mapFrozen);
+  const candidates = expiredFrozenTowers.length > 0 && replacementCandidates.length > 0
+    ? replacementCandidates
+    : towers.filter((tower) => !tower.mapFrozen);
   if (candidates.length === 0) {
     return;
   }
@@ -3889,7 +3921,7 @@ function freezeRandomMountainTower() {
   tower.frozenUntilWave = waveNumber;
   tower.stunnedTimer = 0;
   addPulse(tower.centerX, tower.centerY, 26, "rgba(196, 240, 255, 0.82)");
-  setMessage(`${towerDisplayName(tower)} froze solid. You can defrost it next round.`, 2.4);
+  setMessage(`${towerDisplayName(tower)} froze solid for this wave.`, 2.4);
   if (selectedTowerId === tower.id) {
     openTowerPopup(tower);
   }
@@ -4008,16 +4040,16 @@ function shotgunPathDescription(path, tier) {
     1: {
       1: "Path 1 T1: Faster Pump. Reloads faster.",
       2: "Path 1 T2: Hot Buck. More damage.",
-      3: "Path 1 T3: Bullet Storm. Quite expensive, much faster firing shotgun.",
-      4: "Path 1 T4: Shell Cascade. Even faster firing with much heavier blasts.",
-      5: "Path 1 T5: Brass Hurricane. Bullet Storm reaches absurd fire rate with brutal close-range damage."
+      3: "Path 1 T3: Bullet Storm. Tightens the cycle into a fast close-range shredder.",
+      4: "Path 1 T4: Shell Cascade. Heavy premium upgrade for denser bursts and stronger buckshot.",
+      5: "Path 1 T5: Brass Hurricane. Extreme investment for the sharpest short-range storm on the board."
     },
     2: {
       1: "Path 2 T1: Signal Splitter. Fires 4 yellow lines.",
       2: "Path 2 T2: Harmonic Fan. Fires 5 yellow lines.",
-      3: "Path 2 T3: Broadwave. Fires 18 yellow lines in a 180 degree spread.",
-      4: "Path 2 T4: Golden Spectrum. Becomes a Triple Cannon with three independent target priorities.",
-      5: "Path 2 T5: Wavelength V. Each cannon unleashes its own 40-line spread."
+      3: "Path 2 T3: Broadwave. Converts to a wide tuned blast for lane coverage.",
+      4: "Path 2 T4: Golden Spectrum. Splits into dual tuned cannons with independent priorities.",
+      5: "Path 2 T5: Wavelength V. A third cannon joins the battery for expensive precision coverage."
     }
   };
 
@@ -4640,6 +4672,124 @@ function towerStatSummary(typeOrTower, overrides = {}) {
   };
 }
 
+function roundUpgradeCash(value) {
+  return Math.max(5, Math.round(value / 5) * 5);
+}
+
+function upgradeUtilityPremium(type, previousTower, nextTower, previousSummary, nextSummary) {
+  const previousStats = towerStats(previousTower);
+  const nextStats = towerStats(nextTower);
+  let premium = 0;
+
+  premium += Math.max(0, (nextSummary.range - previousSummary.range) / CELL_SIZE) * 6;
+  if (!previousStats.detectHidden && nextStats.detectHidden) {
+    premium += 30;
+  }
+  if (!previousSummary.hitsArmored && nextSummary.hitsArmored) {
+    premium += 45;
+  }
+
+  if (type === "crossbow") {
+    premium += Math.max(0, (nextStats.boltPierce || 0) - (previousStats.boltPierce || 0)) * 12;
+  } else if (type === "laser") {
+    if (!previousStats.doubleBeam && nextStats.doubleBeam) {
+      premium += 25;
+    }
+    if (!previousStats.photonBlast && nextStats.photonBlast) {
+      premium += 50;
+    }
+    if (!previousStats.infinitePierce && nextStats.infinitePierce) {
+      premium += 35;
+    }
+    premium += Math.max(0, (nextStats.beamWidth || 0) - (previousStats.beamWidth || 0)) * 0.8;
+  } else if (type === "shotgun") {
+    premium += Math.max(0, (nextStats.cannonCount || 1) - (previousStats.cannonCount || 1)) * 45;
+    premium += Math.max(0, (nextStats.pellets || 1) - (previousStats.pellets || 1)) * 8;
+  } else if (type === "freezer") {
+    premium += Math.max(0, (1 - (nextStats.slow || 1)) - (1 - (previousStats.slow || 1))) * 120;
+    premium += Math.max(0, (nextStats.pulseFreeze || 0) - (previousStats.pulseFreeze || 0)) * 80;
+    premium += Math.max(0, (1 - (nextStats.auraSlow || 1)) - (1 - (previousStats.auraSlow || 1))) * 140;
+  } else if (type === "fireball") {
+    if (!previousStats.flameTrail && nextStats.flameTrail) {
+      premium += 70;
+    }
+    premium += Math.max(0, (nextStats.ringEchoes || 1) - (previousStats.ringEchoes || 1)) * 30;
+  } else if (type === "dippy") {
+    premium += Math.max(0, (nextStats.shockwaves || 1) - (previousStats.shockwaves || 1)) * 30;
+    premium += Math.max(0, (nextStats.shellDamage || 0) - (previousStats.shellDamage || 0)) * 2.5;
+    if (!previousStats.sticky && nextStats.sticky) {
+      premium += 35;
+    }
+    premium += Math.max(0, (nextStats.syrupTowerBuff || 1) - (previousStats.syrupTowerBuff || 1)) * 180;
+  } else if (type === "support") {
+    premium += Math.max(0, (nextStats.waveCash || 0) - (previousStats.waveCash || 0)) * 18;
+    premium += Math.max(0, (nextStats.attackSpeedAura || 1) - (previousStats.attackSpeedAura || 1)) * 260;
+    if (!previousStats.detectHiddenAura && nextStats.detectHiddenAura) {
+      premium += 50;
+    }
+    if (!previousStats.munitions && nextStats.munitions) {
+      premium += 120;
+    }
+    if (!previousStats.helpMissile && nextStats.helpMissile) {
+      premium += 40;
+    }
+  } else if (type === "gate") {
+    premium += Math.max(0, (nextStats.acidAmp || 1) - (previousStats.acidAmp || 1)) * 220;
+    premium += Math.max(0, (nextStats.acidDuration || 0) - (previousStats.acidDuration || 0)) * 14;
+  } else if (type === "tesla") {
+    premium += Math.max(0, (nextStats.chainCount || 1) - (previousStats.chainCount || 1)) * 18;
+    premium += Math.max(0, (nextStats.stun || 0) - (previousStats.stun || 0)) * 70;
+    premium += Math.max(0, (nextStats.fieldZapCount || 1) - (previousStats.fieldZapCount || 1)) * 20;
+  } else if (type === "missile") {
+    premium += Math.max(0, (nextStats.burst || 1) - (previousStats.burst || 1)) * 25;
+    premium += Math.max(0, (nextStats.pierce || 0) - (previousStats.pierce || 0)) * 10;
+    if (!previousStats.shrapnel && nextStats.shrapnel) {
+      premium += 20;
+    }
+    if (!previousStats.clusters && nextStats.clusters) {
+      premium += 35;
+    }
+    if (!previousStats.rain && nextStats.rain) {
+      premium += 60;
+    }
+  } else if (type === "trapper") {
+    premium += Math.max(0, (nextStats.trapUses || 0) - (previousStats.trapUses || 0)) * 2.5;
+    premium += Math.max(0, (nextStats.turretCap || 0) - (previousStats.turretCap || 0)) * 1.5;
+    if (!previousStats.mine && nextStats.mine) {
+      premium += 35;
+    }
+    if (!previousStats.mango && nextStats.mango) {
+      premium += 60;
+    }
+  } else if (type === "drone") {
+    premium += Math.max(0, (nextStats.supportCount || 0) - (previousStats.supportCount || 0)) * 30;
+    premium += Math.max(0, (nextStats.attackDroneMissileVolley || 0) - (previousStats.attackDroneMissileVolley || 0)) * 22;
+    if (!previousStats.attackDrone && nextStats.attackDrone) {
+      premium += 65;
+    }
+  }
+
+  return premium;
+}
+
+function pathUpgradeCostForTier(type, path, tier) {
+  const previousOverrides = path === 1
+    ? { path1: Math.max(0, tier - 1), path2: 0, level: tier }
+    : { path1: 0, path2: Math.max(0, tier - 1), level: tier };
+  const overrides = path === 1
+    ? { path1: tier, path2: 0, level: 1 + tier }
+    : { path1: 0, path2: tier, level: 1 + tier };
+  const previousTower = mockTower(type, previousOverrides);
+  const nextTower = mockTower(type, overrides);
+  const previousSummary = towerStatSummary(previousTower);
+  const nextSummary = towerStatSummary(nextTower);
+  const dpsGain = Math.max(0, nextSummary.dps - previousSummary.dps);
+  const baseCost = dpsGain * 20;
+  const utilityPremium = upgradeUtilityPremium(type, previousTower, nextTower, previousSummary, nextSummary);
+  const tierFloor = [10, 20, 35, 60, 90][tier - 1] || 10;
+  return roundUpgradeCash(Math.max(tierFloor, baseCost + utilityPremium));
+}
+
 function renderTowerStatsBlock(label, summary) {
   const extras = summary.extras.length ? `<p>${summary.extras.join(" | ")}</p>` : "";
   const apsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? `${formatNumber(summary.aps)}` : "Passive";
@@ -4795,6 +4945,202 @@ function linearUpgradeName(type, level) {
   }
 
   return `Level ${level}`;
+}
+
+function estimateTowerDpsFromStats(type, tower, stats) {
+  const safeDivide = (amount, interval) => Number.isFinite(interval) && interval > 0 ? amount / interval : 0;
+
+  if (type === "crossbow") {
+    return safeDivide(stats.damage, stats.cooldown) * (1 + (stats.boltPierce || 0) * 0.12);
+  }
+  if (type === "tesla") {
+    let dps = safeDivide(stats.damage, stats.cooldown) * Math.max(1, 1 + ((stats.chainCount || 1) - 1) * 0.45);
+    dps += safeDivide((stats.fieldDamage || 0) * Math.max(stats.fieldZapCount || 1, 1), stats.fieldCooldown || Infinity);
+    if (stats.splash > 0) {
+      dps *= 1.18;
+    }
+    return dps;
+  }
+  if (type === "missile") {
+    let dps = safeDivide(stats.damage * Math.max(stats.burst || 1, 1), stats.cooldown);
+    if (stats.splash > 0) {
+      dps *= 1.3;
+    }
+    if (stats.homing > 0) {
+      dps *= 1.04;
+    }
+    if (stats.pierce > 0) {
+      dps *= 1 + Math.min(stats.pierce, 18) * 0.05;
+    }
+    return dps;
+  }
+  if (type === "trapper") {
+    return stats.turretMode
+      ? safeDivide(stats.turretDamage * Math.max(stats.turretBarrels || 1, 1), stats.turretCooldown)
+      : safeDivide((stats.damage || 1) + Math.max(stats.trapUses || 0, 0) * 0.1, stats.cooldown);
+  }
+  if (type === "laser") {
+    let dps = safeDivide(stats.damage * (stats.doubleBeam ? 2 : 1), stats.cooldown) + (stats.burnDamage || 0) * 0.55;
+    if (stats.infinitePierce) {
+      dps *= 1.16;
+    }
+    return dps;
+  }
+  if (type === "shotgun") {
+    return safeDivide(stats.damage * Math.max(stats.pellets || 1, 1) * Math.max(stats.cannonCount || 1, 1), stats.cooldown);
+  }
+  if (type === "freezer") {
+    return safeDivide(stats.damage, stats.cooldown)
+      + safeDivide(stats.pulseDamage || 0, stats.pulseCooldown || Infinity)
+      + safeDivide(stats.auraDamage || 0, stats.auraTick || Infinity);
+  }
+  if (type === "drone") {
+    let dps = safeDivide((stats.bulletDamage || 0) * Math.max(stats.bulletGuns || 1, 1), stats.cooldown);
+    if (stats.rocket) {
+      dps += safeDivide(stats.rocketDamage || 0, stats.rocketCooldown || Infinity);
+    }
+    if ((stats.supportCount || 0) > 0) {
+      dps += safeDivide((stats.supportDamage || 0) * Math.max(stats.supportGuns || 1, 1) * stats.supportCount, stats.supportCooldown || Infinity);
+    }
+    return dps;
+  }
+  if (type === "fireball") {
+    const burstCount = stats.flamethrower ? 1 : Math.max(stats.burst || 1, 1);
+    let dps = safeDivide(stats.damage * burstCount, stats.cooldown) + (stats.burnDamage || 0) * 0.5;
+    if (stats.splash > 0) {
+      dps *= 1.18;
+    }
+    if (stats.blazingRing) {
+      dps *= 1.1 + Math.max((stats.ringEchoes || 1) - 1, 0) * 0.08;
+    }
+    return dps;
+  }
+  if (type === "dippy") {
+    let dps = safeDivide(stats.damage * Math.max(stats.burst || 1, 1), stats.cooldown) + (stats.burnDamage || 0) * 0.4 + (stats.syrupDamage || 0) * 0.6;
+    if (stats.splash > 0) {
+      dps *= 1.2;
+    }
+    return dps;
+  }
+  if (type === "support") {
+    return stats.helpMissile ? safeDivide(stats.damage, stats.helpMissileCooldown || Infinity) * 1.15 : 0;
+  }
+  if (type === "gate") {
+    return safeDivide(stats.damage, stats.cooldown) + (stats.acidDot || 0) * 0.95;
+  }
+  return safeDivide(stats.damage || 0, stats.cooldown || Infinity);
+}
+
+function lateTierTargetDps(type, tower) {
+  if (!PATH_TOWER_TYPES.has(type)) {
+    return 0;
+  }
+  const weights = {
+    crossbow: 0.95,
+    tesla: 0.78,
+    missile: 0.82,
+    trapper: 0.74,
+    laser: 0.86,
+    shotgun: 0.92,
+    freezer: 0.52,
+    drone: 0.78,
+    fireball: 0.8,
+    dippy: 0.8,
+    support: 0.26,
+    gate: 0.5
+  };
+  const path1 = tower.path1 || 0;
+  const path2 = tower.path2 || 0;
+  let target = 0;
+  if (path1 >= 4) {
+    target += UPGRADE_COSTS[type].path1[3] / 20;
+  }
+  if (path1 >= 5) {
+    target += UPGRADE_COSTS[type].path1[4] / 20;
+  }
+  if (path2 >= 4) {
+    target += UPGRADE_COSTS[type].path2[3] / 20;
+  }
+  if (path2 >= 5) {
+    target += UPGRADE_COSTS[type].path2[4] / 20;
+  }
+  return target * (weights[type] || 0.8);
+}
+
+function applyLateTierPowerScale(tower, stats) {
+  const type = tower.type;
+  const targetDps = lateTierTargetDps(type, tower);
+  if (targetDps <= 0) {
+    return stats;
+  }
+
+  const currentDps = estimateTowerDpsFromStats(type, tower, stats);
+  if (currentDps >= targetDps * 0.92) {
+    return stats;
+  }
+
+  const scale = Math.min(3.4, Math.max(1, Math.pow(targetDps / Math.max(currentDps, 1), 0.58)));
+
+  if (type === "crossbow") {
+    stats.damage *= scale;
+    if ((tower.path2 || 0) >= 4) {
+      stats.boltPierce = Math.round(stats.boltPierce * Math.min(1.6, 1 + (scale - 1) * 0.45));
+    }
+  } else if (type === "tesla") {
+    stats.damage *= scale;
+    stats.fieldDamage *= 1 + (scale - 1) * 0.85;
+    stats.stun *= 1 + (scale - 1) * 0.2;
+  } else if (type === "missile") {
+    stats.damage *= scale;
+    stats.splash *= 1 + (scale - 1) * 0.35;
+    if (stats.pierce > 0) {
+      stats.pierce = Math.round(stats.pierce * (1 + (scale - 1) * 0.35));
+    }
+  } else if (type === "trapper") {
+    stats.turretDamage *= 1 + (scale - 1) * 0.95;
+    stats.turretCap = Math.round(stats.turretCap * (1 + (scale - 1) * 0.35));
+    stats.trapUses = Math.round(stats.trapUses * (1 + (scale - 1) * 0.3));
+  } else if (type === "laser") {
+    stats.damage *= scale;
+    stats.burnDamage *= 1 + (scale - 1) * 0.8;
+    stats.beamWidth *= 1 + (scale - 1) * 0.18;
+  } else if (type === "shotgun") {
+    stats.damage *= scale;
+    if ((tower.path1 || 0) >= 5 && !((tower.path2 || 0) >= 3)) {
+      stats.pellets += 1;
+    }
+  } else if (type === "freezer") {
+    stats.damage *= 1 + (scale - 1) * 0.55;
+    stats.pulseDamage *= 1 + (scale - 1) * 0.95;
+    stats.auraDamage *= 1 + (scale - 1) * 0.85;
+    stats.pulseFreeze *= 1 + (scale - 1) * 0.18;
+  } else if (type === "drone") {
+    stats.bulletDamage *= 1 + (scale - 1) * 0.9;
+    stats.rocketDamage *= 1 + (scale - 1) * 0.95;
+    stats.supportDamage *= 1 + (scale - 1) * 0.8;
+  } else if (type === "fireball") {
+    stats.damage *= scale;
+    stats.burnDamage *= 1 + (scale - 1) * 0.8;
+    stats.splash *= 1 + (scale - 1) * 0.3;
+  } else if (type === "dippy") {
+    stats.damage *= scale;
+    stats.splash *= 1 + (scale - 1) * 0.28;
+    stats.shellDamage *= 1 + (scale - 1) * 0.7;
+    stats.syrupDamage *= 1 + (scale - 1) * 0.7;
+    if ((tower.path1 || 0) >= 5) {
+      stats.burst = Math.round(stats.burst * (1 + (scale - 1) * 0.2));
+    }
+  } else if (type === "support") {
+    stats.waveCash *= 1 + (scale - 1) * 0.65;
+    stats.attackSpeedAura = 1 + ((stats.attackSpeedAura || 1) - 1) * (1 + (scale - 1) * 0.5);
+    stats.damage *= 1 + (scale - 1) * 0.8;
+  } else if (type === "gate") {
+    stats.damage *= 1 + (scale - 1) * 0.6;
+    stats.acidDot *= 1 + (scale - 1) * 0.9;
+    stats.acidAmp = 1 + ((stats.acidAmp || 1) - 1) * (1 + (scale - 1) * 0.5);
+  }
+
+  return stats;
 }
 
 function renderTowerAlmanacDetail(type) {
@@ -5317,6 +5663,14 @@ function enemyRoutePoints(enemy) {
   return enemy.route ? enemy.route.map((point) => cellCenter(point.x, point.y)) : routePoints(enemy.portalIndex);
 }
 
+function enemyRemainingPathTiles(enemy) {
+  const points = enemyRoutePoints(enemy);
+  if (points.length <= 1) {
+    return 0;
+  }
+  return Math.max(0, points.length - 1 - (enemy.progress || 0));
+}
+
 function routeCells(pathIndex = null) {
   if (pathIndex !== null) {
     return (routes[pathIndex] || []).slice(1, -1);
@@ -5729,7 +6083,7 @@ function waffleStatusModifiers() {
   return { hidden: false, armored: false, armorHp: 0 };
 }
 
-function spawnWave() {
+function spawnWave(manualStart = false) {
   if (gameMode !== "playing") {
     return;
   }
@@ -5769,6 +6123,9 @@ function spawnWave() {
     wave.interval = Math.min(wave.interval, selectedDifficulty === "brutal" ? 0.76 : 0.68);
   }
   autoWaveTimer = 0;
+  if (manualStart || waveNumber > 1) {
+    autoWaveUnlocked = true;
+  }
   maybeUnlockCrossbowQuest();
   if (isIdaenWave()) {
     spawnIdaenBoss();
@@ -6035,7 +6392,6 @@ function updateWave(deltaTime) {
         addFloatingText(entry.tower.centerX, entry.tower.centerY - 12, `+$${entry.amount}`, "#ffe27a", 1.15);
       }
     }
-    freeBlocks = 0;
     currentBlockCost = BLOCK_COST;
     if (isFactoryMap()) {
       advanceFactoryQuarter();
@@ -6174,6 +6530,15 @@ function updateEnemies(deltaTime) {
     }
     }
 
+    if (enemy.spawnDetourActive && Array.isArray(enemy.route) && enemy.route.length > 0) {
+      const routeIndex = Math.max(0, Math.min(enemy.route.length - 1, Math.floor(enemy.progress || 0)));
+      const currentRouteCell = enemy.route[routeIndex];
+      const nextRouteCell = enemy.route[Math.min(enemy.route.length - 1, routeIndex + 1)];
+      if (isEnemyRouteCellBlocked(currentRouteCell) || isEnemyRouteCellBlocked(nextRouteCell)) {
+        abortSummonedChildDetour(enemy);
+      }
+    }
+
     const stunFactor = enemy.stunTimer > 0 || enemy.phaseTimer > 0 ? 0 : 1;
     enemy.progress += (enemy.speed * enemy.slowFactor * (enemy.speedBoostFactor || 1) * stunFactor * deltaTime) / CELL_SIZE;
 
@@ -6228,7 +6593,7 @@ function updateEnemies(deltaTime) {
 
 function towerStats(tower) {
   const levelBonus = tower.level - 1;
-  const finalizeStats = (stats) => stats;
+  const finalizeStats = (stats) => applyLateTierPowerScale(tower, stats);
 
   if (tower.type === "crossbow") {
     const path1 = tower.path1 || 0;
@@ -6238,18 +6603,18 @@ function towerStats(tower) {
     return finalizeStats({
       range: CELL_SIZE * (4.55 + path2 * 0.28 + (ballista ? 0.55 : 0) + (path2 >= 5 ? 0.7 : 0)),
       cooldown: repeater
-        ? Math.max(0.34 - (path1 - 3) * 0.06 - path2 * 0.01, 0.16)
+        ? Math.max(0.34 - (path1 - 3) * 0.07 - path2 * 0.01 - (path1 >= 5 ? 0.02 : 0), 0.12)
         : Math.max(0.72 - path1 * 0.09 - path2 * 0.02, 0.28),
       damage: ballista
-        ? 3.2 + path2 * 1.65 + path1 * 0.28 + (path2 >= 4 ? 2.8 : 0) + (path2 >= 5 ? 6.8 : 0)
-        : 1.4 + path1 * 0.5 + path2 * 0.22 + (path1 >= 3 ? 0.85 : 0) + (path1 >= 4 ? 1.25 : 0) + (path1 >= 5 ? 2.1 : 0),
+        ? 3.2 + path2 * 1.65 + path1 * 0.28 + (path2 >= 4 ? 4.6 : 0) + (path2 >= 5 ? 10.8 : 0)
+        : 1.4 + path1 * 0.5 + path2 * 0.22 + (path1 >= 3 ? 0.85 : 0) + (path1 >= 4 ? 2.1 : 0) + (path1 >= 5 ? 4.8 : 0),
       boltSpeed: ballista ? 660 : 560,
       boltHoming: ballista ? 0.3 : 1.25,
       detectHidden: true,
       attackSpeedMultiplier: 1,
       boltPierce: ballista
-        ? (path2 >= 5 ? 7 : path2 >= 4 ? 5 : 3)
-        : (path1 >= 5 ? 2 : path1 >= 4 || path2 >= 2 ? 1 : 0)
+        ? (path2 >= 5 ? 10 : path2 >= 4 ? 7 : 3)
+        : (path1 >= 5 ? 3 : path1 >= 4 || path2 >= 2 ? 1 : 0)
     });
   }
 
@@ -6260,17 +6625,17 @@ function towerStats(tower) {
     const increasedDamage = path2 >= 3;
     const photon = path2 >= 5;
     const doubleBeam = path2 >= 4 && !photon;
-    const doubleBeamDamageBoost = path2 >= 4 ? (photon ? 18 : 4.6) : 0;
-    const photonBurnBoost = path2 >= 4 && photon ? 4.2 : 0;
+    const doubleBeamDamageBoost = path2 >= 4 ? (photon ? 24 : 6.8) : 0;
+    const photonBurnBoost = path2 >= 4 && photon ? 6.4 : 0;
     return finalizeStats({
       range: CELL_SIZE * (4.85 + path2 * 0.22 + path1 * 0.08 + (plasma ? 0.42 : 0) + (path2 >= 4 ? 0.38 : 0) + (photon ? 0.58 : 0)),
       cooldown: photon
-        ? Math.max(1.02 - path1 * 0.06 - path2 * 0.08, 0.56)
-        : Math.max(0.84 - path1 * 0.08 - path2 * 0.05 - (plasma ? 0.06 : 0) - (path2 >= 4 ? 0.05 : 0), 0.12),
-      damage: 2.75 + path2 * 1.92 + (increasedDamage ? 2.9 : 0) + doubleBeamDamageBoost + (photon ? 16 : 0),
-      burnDamage: path1 > 0 || path2 > 0 ? 0.65 + path2 * 1.08 + (increasedDamage ? 1.2 : 0) + (path1 >= 4 ? 1.5 : 0) + (path2 >= 4 ? 1.4 : 0) + (photon ? 7.2 + photonBurnBoost : 0) : 0,
-      burnDuration: path1 > 0 || path2 > 0 ? 1.2 + path1 * 0.5 + path2 * 0.34 + (plasma ? 1.1 : 0) + (path1 >= 4 ? 1 : 0) + (path1 >= 5 ? 1.8 : 0) : 0,
-      beamWidth: 8 + path1 * 1.6 + path2 * 1.3 + (plasma ? 4.2 : 0) + (path1 >= 4 ? 3.5 : 0) + (path2 >= 4 ? 2.6 : 0) + (photon ? 13 : 0),
+        ? Math.max(0.98 - path1 * 0.07 - path2 * 0.09, 0.42)
+        : Math.max(0.84 - path1 * 0.08 - path2 * 0.05 - (plasma ? 0.06 : 0) - (path2 >= 4 ? 0.06 : 0) - (path1 >= 5 ? 0.03 : 0), 0.09),
+      damage: 2.75 + path2 * 1.92 + (increasedDamage ? 2.9 : 0) + doubleBeamDamageBoost + (photon ? 24 : 0),
+      burnDamage: path1 > 0 || path2 > 0 ? 0.65 + path2 * 1.08 + (increasedDamage ? 1.2 : 0) + (path1 >= 4 ? 2.8 : 0) + (path2 >= 4 ? 2.4 : 0) + (photon ? 12 + photonBurnBoost : 0) : 0,
+      burnDuration: path1 > 0 || path2 > 0 ? 1.2 + path1 * 0.5 + path2 * 0.34 + (plasma ? 1.1 : 0) + (path1 >= 4 ? 1.4 : 0) + (path1 >= 5 ? 2.8 : 0) : 0,
+      beamWidth: 8 + path1 * 1.6 + path2 * 1.3 + (plasma ? 4.2 : 0) + (path1 >= 4 ? 4.8 : 0) + (path2 >= 4 ? 3.8 : 0) + (photon ? 16 : 0),
       beamColor: photon ? "#ffe35c" : plasma ? "#ffffff" : "#ff96b8",
       beamTtl: plasma ? 0.18 : photon ? 0.16 : 0.12,
       doubleBeam,
@@ -6286,20 +6651,20 @@ function towerStats(tower) {
     const bulletStorm = path1 >= 3;
     const wavelength = path2 >= 3;
     const goldenSpectrum = path2 >= 4;
-    const lines = path2 >= 5 ? 40 : wavelength ? 18 : Math.max(bulletStorm ? 5 : 3, 3 + path2);
+    const lines = path2 >= 5 ? 6 : wavelength ? 4 : Math.max(bulletStorm ? 4 : 3, 3 + Math.min(path2, 1));
     return finalizeStats({
-      range: CELL_SIZE * (3.05 + path2 * 0.14 + (path2 >= 4 ? 0.18 : 0) + (path2 >= 5 ? 0.28 : 0)),
+      range: CELL_SIZE * (2.85 + path2 * 0.1 + (path2 >= 4 ? 0.1 : 0) + (path2 >= 5 ? 0.12 : 0)),
       cooldown: bulletStorm
-        ? Math.max(0.19 - path1 * 0.038 - path2 * 0.03 - (path1 >= 4 ? 0.02 : 0), 0.024)
-        : Math.max(0.72 - path1 * 0.07 - path2 * 0.035 - (path1 >= 4 ? 0.05 : 0) - (path2 >= 4 ? 0.05 : 0), 0.12),
-      damage: 1.95 + path1 * 0.58 + path2 * 0.86 + (path2 >= 3 ? 2.2 : 0) + (path1 >= 4 ? 3 : 0) + (path1 >= 5 ? 7.6 : 0) + (path2 >= 4 ? 4 : 0) + (path2 >= 5 ? 8.8 : 0),
-      pellets: wavelength ? 20 : lines,
-      spread: wavelength ? Math.PI : Math.max(0.55 - path2 * 0.045 - (bulletStorm ? 0.04 : 0), 0.18),
-      pelletSpeed: 380 + path2 * 20 + (path1 >= 4 ? 30 : 0) + (path2 >= 4 ? 55 : 0) + (path2 >= 5 ? 35 : 0),
-      pelletLife: 0.24 + path2 * 0.01 + (path2 >= 4 ? 0.03 : 0) + (path2 >= 5 ? 0.03 : 0),
+        ? Math.max(0.42 - path1 * 0.04 - path2 * 0.018 - (path1 >= 4 ? 0.015 : 0) - (path1 >= 5 ? 0.02 : 0), 0.11)
+        : Math.max(0.82 - path1 * 0.048 - path2 * 0.028 - (path1 >= 4 ? 0.03 : 0) - (path2 >= 4 ? 0.035 : 0) - (path2 >= 5 ? 0.03 : 0), 0.18),
+      damage: 0.9 + path1 * 0.24 + path2 * 0.24 + (path2 >= 3 ? 0.42 : 0) + (path1 >= 4 ? 0.95 : 0) + (path1 >= 5 ? 2.1 : 0) + (path2 >= 4 ? 1.1 : 0) + (path2 >= 5 ? 2.4 : 0),
+      pellets: wavelength ? (path2 >= 5 ? 4 : 4) : (path1 >= 5 ? lines + 1 : lines),
+      spread: wavelength ? Math.PI * 0.9 : Math.max(0.62 - path2 * 0.04 - (bulletStorm ? 0.03 : 0), 0.22),
+      pelletSpeed: 332 + path2 * 14 + (path1 >= 4 ? 16 : 0) + (path2 >= 4 ? 26 : 0) + (path2 >= 5 ? 18 : 0),
+      pelletLife: 0.2 + path2 * 0.008 + (path2 >= 4 ? 0.015 : 0) + (path2 >= 5 ? 0.01 : 0),
       detectHidden: false,
       bulletStorm,
-      cannonCount: goldenSpectrum ? 3 : 1,
+      cannonCount: goldenSpectrum ? (path2 >= 5 ? 3 : 2) : 1,
       multiPriority: goldenSpectrum,
       cannonPriorities: path2 >= 4 ? ["first", "strong", "last"] : ["first", "weak", "random"]
     });
@@ -6312,21 +6677,21 @@ function towerStats(tower) {
     const aura = path2 >= 3;
     return finalizeStats({
       range: CELL_SIZE * (3.7 + path2 * 0.2 + (path1 >= 4 ? 0.15 : 0)),
-      cooldown: Math.max(1.04 - path1 * 0.09 - path2 * 0.03, 0.42),
-      damage: 1.1 + path1 * 0.42 + path2 * 0.24 + (path1 >= 4 ? 0.7 : 0) + (path1 >= 5 ? 1.95 : 0),
+      cooldown: Math.max(1.04 - path1 * 0.09 - path2 * 0.03 - (path1 >= 5 ? 0.06 : 0) - (path2 >= 5 ? 0.04 : 0), 0.32),
+      damage: 1.2 + path1 * 0.48 + path2 * 0.28 + (path1 >= 4 ? 1.4 : 0) + (path1 >= 5 ? 3.8 : 0),
       slow: Math.max(0.72 - path2 * 0.05 - (path2 >= 5 ? 0.06 : 0), 0.34),
       slowDuration: 1.15 + path1 * 0.22 + path2 * 0.18,
       detectHidden: path2 >= 4,
       permafrost,
       pulseRadius: CELL_SIZE * (2.55 + path1 * 0.16 + path2 * 0.08 + (path1 >= 4 ? 0.3 : 0) + (path1 >= 5 ? 0.4 : 0)),
-      pulseDamage: 0.9 + path1 * 0.32 + path2 * 0.22 + (permafrost ? 1.1 : 0) + (path1 >= 4 ? 0.85 : 0) + (path1 >= 5 ? 1.5 : 0),
-      pulseFreeze: permafrost ? 0.48 + (path1 - 3) * 0.12 + (path1 >= 4 ? 0.18 : 0) + (path1 >= 5 ? 0.3 : 0) : 0,
-      pulseCooldown: permafrost ? Math.max(2.2 - path1 * 0.28, 0.72) : Math.max(1.22 - path1 * 0.08 - path2 * 0.04, 0.54),
+      pulseDamage: 1.15 + path1 * 0.38 + path2 * 0.24 + (permafrost ? 1.35 : 0) + (path1 >= 4 ? 2.1 : 0) + (path1 >= 5 ? 4.2 : 0),
+      pulseFreeze: permafrost ? 0.48 + (path1 - 3) * 0.12 + (path1 >= 4 ? 0.28 : 0) + (path1 >= 5 ? 0.52 : 0) : 0,
+      pulseCooldown: permafrost ? Math.max(2.2 - path1 * 0.3 - (path1 >= 5 ? 0.18 : 0), 0.5) : Math.max(1.22 - path1 * 0.08 - path2 * 0.04, 0.46),
       aura,
-      auraRadius: CELL_SIZE * (2.2 + path2 * 0.16),
-      auraDamage: aura ? 0.42 + path2 * 0.2 + path1 * 0.1 + (path2 >= 4 ? 0.34 : 0) + (path2 >= 5 ? 0.72 : 0) : 0,
-      auraSlow: aura ? Math.max(0.62 - (path2 - 3) * 0.08 - (path2 >= 4 ? 0.08 : 0) - (path2 >= 5 ? 0.1 : 0), 0.16) : 1,
-      auraTick: aura ? (path2 >= 5 ? 0.12 : path2 >= 4 ? 0.16 : 0.22) : 0,
+      auraRadius: CELL_SIZE * (2.35 + path2 * 0.18),
+      auraDamage: aura ? 0.58 + path2 * 0.24 + path1 * 0.12 + (path2 >= 4 ? 0.9 : 0) + (path2 >= 5 ? 2.1 : 0) : 0,
+      auraSlow: aura ? Math.max(0.6 - (path2 - 3) * 0.09 - (path2 >= 4 ? 0.11 : 0) - (path2 >= 5 ? 0.17 : 0), 0.08) : 1,
+      auraTick: aura ? (path2 >= 5 ? 0.09 : path2 >= 4 ? 0.13 : 0.22) : 0,
       boltSpeed: 250
     });
   }
@@ -6341,29 +6706,29 @@ function towerStats(tower) {
         ? CELL_SIZE * (5.6 + path1 * 0.42 + (path1 >= 4 ? 0.45 : 0) + (path1 >= 5 ? 3.4 : 0))
         : CELL_SIZE * (4.5 + path1 * 0.12 + path2 * 0.16),
       cooldown: flamethrower
-        ? Math.max(0.2 - (path1 - 3) * 0.035, 0.06)
+        ? Math.max(0.2 - (path1 - 3) * 0.04 - (path1 >= 5 ? 0.02 : 0), 0.045)
         : blazingRing
-          ? Math.max(0.72 - (path2 - 3) * 0.1, 0.18)
+          ? Math.max(0.72 - (path2 - 3) * 0.12 - (path2 >= 5 ? 0.04 : 0), 0.14)
           : Math.max(0.8 - path1 * 0.04 - path2 * 0.05, 0.34),
       damage: flamethrower
-        ? 2.1 + path1 * 1.02 + (path1 >= 4 ? 3 : 0) + (path1 >= 5 ? 7.8 : 0)
-        : 2.8 + path1 * 0.62 + path2 * 0.76 + (path2 >= 4 ? 2.4 : 0) + (path2 >= 5 ? 4.9 : 0),
+        ? 2.1 + path1 * 1.02 + (path1 >= 4 ? 5.2 : 0) + (path1 >= 5 ? 13.6 : 0)
+        : 2.8 + path1 * 0.62 + path2 * 0.76 + (path2 >= 4 ? 4.4 : 0) + (path2 >= 5 ? 8.8 : 0),
       burst: blazingRing ? 1 : (path2 >= 2 ? 4 : 3),
       burstDelay: 0.07,
       projectileSpeed: 340 + path1 * 18 + path2 * 10,
-      splash: 28 + path1 * 4 + path2 * 8 + (path2 >= 4 ? 14 : 0) + (path2 >= 5 ? 18 : 0),
-      burnDamage: 1.9 + path1 * 1 + path2 * 0.86 + (path1 >= 4 ? 2.3 : 0) + (path1 >= 5 ? 6.1 : 0) + (path2 >= 4 ? 2.6 : 0) + (path2 >= 5 ? 6.5 : 0),
+      splash: 28 + path1 * 4 + path2 * 8 + (path2 >= 4 ? 24 : 0) + (path2 >= 5 ? 34 : 0),
+      burnDamage: 1.9 + path1 * 1 + path2 * 0.86 + (path1 >= 4 ? 4.1 : 0) + (path1 >= 5 ? 10.8 : 0) + (path2 >= 4 ? 4.6 : 0) + (path2 >= 5 ? 11.2 : 0),
       burnDuration: 1.8 + path1 * 0.36 + path2 * 0.28 + (path1 >= 4 ? 0.6 : 0) + (path1 >= 5 ? 1.4 : 0) + (path2 >= 4 ? 0.5 : 0) + (path2 >= 5 ? 1.1 : 0),
       detectHidden: false,
       flamethrower,
-      flameArc: flamethrower ? (path1 >= 5 ? 0.34 : 0.28) : 0,
+      flameArc: flamethrower ? (path1 >= 5 ? 0.4 : 0.31) : 0,
       flameTrail: path1 >= 5,
       trailRadius: path1 >= 5 ? CELL_SIZE * 1.2 : 0,
       trailTtl: path1 >= 5 ? 2.6 : 0,
       blazingRing,
       ringRadius: blazingRing ? CELL_SIZE * (2.4 + (path2 - 3) * 0.52 + (path2 >= 5 ? 0.48 : 0)) : 0,
       ringWidth: blazingRing ? (path2 >= 5 ? CELL_SIZE * 1.08 : path2 >= 4 ? CELL_SIZE * 0.9 : CELL_SIZE * 0.7) : 0,
-      ringEchoes: path2 >= 5 ? 3 : 1
+      ringEchoes: path2 >= 5 ? 4 : path2 >= 4 ? 2 : 1
     });
   }
 
@@ -6378,8 +6743,8 @@ function towerStats(tower) {
     const mangoes = path2 >= 4;
     const topPathCooldownBonus = (path1 >= 4 ? 0.22 : 0) + (path1 >= 5 ? 0.24 : 0);
     const bottomPathCooldownBonus = (path2 >= 4 ? 0.16 : 0) + (path2 >= 5 ? 0.2 : 0);
-    const baseCooldown = Math.max(2.15 - path1 * 0.14 - topPathCooldownBonus - bottomPathCooldownBonus, 1.05);
-    const reloadPenalty = (path1 >= 5 ? 0.52 : path1 >= 4 ? 0.12 : 0) + (path2 >= 4 ? 0.34 : 0) + (path2 >= 5 ? 0.18 : 0);
+    const baseCooldown = Math.max(2.15 - path1 * 0.14 - topPathCooldownBonus - bottomPathCooldownBonus, 0.92);
+    const reloadPenalty = (path1 >= 5 ? 0.42 : path1 >= 4 ? 0.08 : 0) + (path2 >= 4 ? 0.28 : 0) + (path2 >= 5 ? 0.14 : 0);
     const damage = mangoPudding
       ? 105
       : mangoes
@@ -6389,7 +6754,7 @@ function towerStats(tower) {
           : boiledEggs
             ? 10
             : 9.5;
-    const streamCooldown = path1 >= 5 ? 0.25 : Math.max(0.16 - Math.max(0, path1 - 3) * 0.01, 0.06);
+    const streamCooldown = path1 >= 5 ? 0.18 : Math.max(0.15 - Math.max(0, path1 - 3) * 0.012, 0.055);
     const magazineReloadStep = dozenEggs
       ? Math.max((baseCooldown + reloadPenalty) / 12, 0.08)
       : null;
@@ -6399,37 +6764,37 @@ function towerStats(tower) {
       cooldown: dozenEggs ? streamCooldown : baseCooldown + reloadPenalty,
       firingCooldown: streamCooldown,
       damage,
-      splash: Math.max(38, biggerEggs ? 66 + path2 * 11 + (eggPudding ? 12 : 0) + (path1 >= 4 ? 18 : 0) + (mangoPudding ? 38 : 0) : 52 + path2 * 9 + (path2 >= 3 ? 10 : 0) + (path2 >= 4 ? 12 : 0) + (path2 >= 5 ? 16 : 0)),
-      burst: path1 >= 5 ? 12 : path1 >= 4 ? 6 : path1 >= 3 ? 4 : 1,
-      burstDelay: path1 >= 5 ? 0.06 : path1 >= 4 ? 0.07 : path1 >= 3 ? 0.075 : 0,
-      holdDelay: 1,
+      splash: Math.max(38, biggerEggs ? 66 + path2 * 11 + (eggPudding ? 12 : 0) + (path1 >= 4 ? 28 : 0) + (mangoPudding ? 62 : 0) : 52 + path2 * 9 + (path2 >= 3 ? 10 : 0) + (path2 >= 4 ? 18 : 0) + (path2 >= 5 ? 28 : 0)),
+      burst: path1 >= 5 ? 18 : path1 >= 4 ? 8 : path1 >= 3 ? 4 : 1,
+      burstDelay: path1 >= 5 ? 0.045 : path1 >= 4 ? 0.06 : path1 >= 3 ? 0.075 : 0,
+      holdDelay: 0.5,
       burnDamage: boiledEggs ? 10 + path1 * 2.2 : 0,
       burnDuration: boiledEggs ? 4.8 : 0,
       detectHidden: path2 >= 3,
       shells: path2 >= 2,
-      shellDamage: path2 >= 2 ? 10 : 0,
+      shellDamage: path2 >= 5 ? 20 : path2 >= 4 ? 14 : path2 >= 2 ? 10 : 0,
       sticky: path2 >= 4,
       stickySlow: path2 >= 5 ? 0.28 : path2 >= 4 ? 0.42 : 1,
       stickyDuration: path2 >= 5 ? 4.4 : path2 >= 4 ? 2.8 : 0,
-      shockwaves: path2 >= 5 ? 2 : 1,
-      screenShake: path2 >= 5 ? 0.24 : 0,
-      screenShakeDuration: path2 >= 5 ? 0.1 : 0,
+      shockwaves: path2 >= 5 ? 3 : path2 >= 4 ? 2 : 1,
+      screenShake: path2 >= 5 ? 0.34 : 0,
+      screenShakeDuration: path2 >= 5 ? 0.16 : 0,
       projectileSize: path2 >= 5 ? 18 : path2 >= 3 ? 14 : 10,
       whiteoutDuration: path2 >= 5 ? 0.9 : 0,
       yolkColor: path2 >= 5 ? "#ffd11a" : path2 >= 4 ? "#ffcf33" : path2 >= 3 ? "#ffcc4a" : "#ffce54",
-      shieldMultiplier: path2 >= 5 ? 18 : path2 >= 4 ? 4.5 : 1,
+      shieldMultiplier: path2 >= 5 ? 28 : path2 >= 4 ? 8 : 1,
       inaccuracy: path1 >= 5 ? CELL_SIZE * 1.7 : path2 >= 5 ? CELL_SIZE * 1.3 : 0,
-      welfareHoming: true,
+      welfareHoming: false,
       welfareTurnRate: path1 >= 5 ? 11.5 : path1 >= 4 ? 9.5 : path1 >= 3 ? 6.8 : 5.2,
       welfareCruiseSpeed: path1 >= 5 ? 600 : path1 >= 4 ? 520 : path1 >= 3 ? 430 : 360,
       welfareApexHeight: path1 >= 5 ? 188 : path1 >= 4 ? 164 : path1 >= 3 ? 150 : 132,
       welfareSwerveStart: path1 >= 5 ? 52 : path1 >= 4 ? 42 : path1 >= 3 ? 30 : 18,
       alternatingPods: path1 >= 5,
       podReloadStep: magazineReloadStep,
-      syrupDamage: path2 >= 5 ? 2.4 : 0,
-      syrupRadius: path2 >= 5 ? CELL_SIZE * 2.6 : 0,
-      syrupTtl: path2 >= 5 ? 6.6 : 0,
-      syrupTowerBuff: path2 >= 5 ? 1.18 : 1
+      syrupDamage: path2 >= 5 ? 4.8 : 0,
+      syrupRadius: path2 >= 5 ? CELL_SIZE * 3 : path2 >= 4 ? CELL_SIZE * 2.2 : 0,
+      syrupTtl: path2 >= 5 ? 8.4 : 0,
+      syrupTowerBuff: path2 >= 5 ? 1.26 : 1
     });
   }
 
@@ -6441,16 +6806,16 @@ function towerStats(tower) {
       range: CELL_SIZE * (2 + path2 * 0.18 + (path2 >= 5 ? 0.22 : 0)),
       cooldown: Infinity,
       damage: 0,
-      waveCash: invested / 10 + (path1 >= 3 ? 8 : 0) + (path1 >= 4 ? 16 : 0) + (path1 >= 5 ? 42 : 0),
+      waveCash: invested / 10 + (path1 >= 3 ? 8 : 0) + (path1 >= 4 ? 42 : 0) + (path1 >= 5 ? 140 : 0),
       munitions: path2 >= 5,
       detectHiddenAura: path2 >= 4,
-      attackSpeedAura: path2 >= 5 ? 1.5 : path2 >= 4 ? 1.32 : path2 >= 3 ? 1.22 : path2 >= 2 ? 1.09 : 1,
+      attackSpeedAura: path2 >= 5 ? 1.72 : path2 >= 4 ? 1.42 : path2 >= 3 ? 1.2 : path2 >= 2 ? 1.08 : 1,
       helpMissile: path2 >= 5,
-      helpMissileCooldown: path2 >= 5 ? 3 : 8.8,
-      speed: path2 >= 5 ? 156 : 142,
-      acceleration: path2 >= 5 ? 620 : 560,
-      damage: path2 >= 5 ? 4.2 : 8.5,
-      splash: path2 >= 5 ? 14 : 28,
+      helpMissileCooldown: path2 >= 5 ? 1.9 : 8.8,
+      speed: path2 >= 5 ? 196 : 142,
+      acceleration: path2 >= 5 ? 760 : 560,
+      damage: path2 >= 5 ? 11.5 : 0,
+      splash: path2 >= 5 ? 28 : 0,
       homing: 9.5,
       shrapnel: false,
       clusters: false,
@@ -6464,11 +6829,11 @@ function towerStats(tower) {
     const path2 = tower.path2 || 0;
     return finalizeStats({
       range: CELL_SIZE * (2.75 + path2 * 0.18 + path1 * 0.08),
-      cooldown: Math.max(1 - path2 * 0.12 - (path2 >= 4 ? 0.08 : 0), 0.28),
-      damage: 0.3 + path2 * 0.14 + (path2 >= 3 ? 0.18 : 0) + (path2 >= 4 ? 0.28 : 0) + (path2 >= 5 ? 0.56 : 0),
-      acidDot: 1.75 + path2 * 0.62 + path1 * 0.28 + (path2 >= 4 ? 0.85 : 0) + (path2 >= 5 ? 2.25 : 0),
-      acidDuration: 2.9 + path1 * 0.42 + (path1 >= 3 ? 0.55 : 0) + (path1 >= 4 ? 0.7 : 0) + (path1 >= 5 ? 1.2 : 0),
-      acidAmp: 1.12 + path1 * 0.09 + (path1 >= 4 ? 0.18 : 0) + (path1 >= 5 ? 0.42 : 0),
+      cooldown: Math.max(0.94 - path2 * 0.12 - (path2 >= 4 ? 0.12 : 0) - (path2 >= 5 ? 0.06 : 0), 0.18),
+      damage: 0.36 + path2 * 0.16 + (path2 >= 3 ? 0.22 : 0) + (path2 >= 4 ? 0.78 : 0) + (path2 >= 5 ? 1.9 : 0),
+      acidDot: 2.1 + path2 * 0.78 + path1 * 0.34 + (path2 >= 4 ? 2.1 : 0) + (path2 >= 5 ? 5.6 : 0),
+      acidDuration: 2.9 + path1 * 0.42 + (path1 >= 3 ? 0.55 : 0) + (path1 >= 4 ? 1.2 : 0) + (path1 >= 5 ? 2.4 : 0),
+      acidAmp: 1.15 + path1 * 0.1 + (path1 >= 4 ? 0.42 : 0) + (path1 >= 5 ? 1.05 : 0),
       spraySlow: Math.max(0.94 - path2 * 0.04, 0.72),
       spraySlowDuration: 0.48 + path2 * 0.08,
       detectHidden: true
@@ -6484,21 +6849,21 @@ function towerStats(tower) {
     const path2Chains = [1, 1, 1, 3, 4, 8];
     return finalizeStats({
       range: CELL_SIZE * (2.55 + path2 * 0.08),
-      cooldown: electrocannon ? Math.max(1.12 - path1 * 0.05, 0.62) : Math.max(0.46 - path1 * 0.055 - (path1 >= 3 ? 0.09 : 0) - (path1 >= 4 ? 0.03 : 0), 0.1),
-      damage: (electrocannon ? 6.2 : 1.55) + path2 * 1.02 + (path2 >= 3 ? 0.7 : 0) + (path2 >= 4 ? 1.55 : 0) + (supercharge ? 2 : 0),
+      cooldown: electrocannon ? Math.max(1.12 - path1 * 0.06 - (path2 >= 5 ? 0.06 : 0), 0.46) : Math.max(0.46 - path1 * 0.055 - (path1 >= 3 ? 0.09 : 0) - (path1 >= 4 ? 0.05 : 0) - (path1 >= 5 ? 0.03 : 0), 0.08),
+      damage: (electrocannon ? 6.2 : 1.55) + path2 * 1.02 + (path2 >= 3 ? 0.7 : 0) + (path2 >= 4 ? 2.8 : 0) + (supercharge ? 4.8 : 0),
       chainCount: Math.max(path1Chains[path1], path2Chains[path2]),
       splash: electrocannon ? 34 : 0,
-      stun: 0.22 + path2 * 0.08 + (path1 >= 4 ? 0.12 : 0) + (path2 >= 5 ? 0.18 : 0),
+      stun: 0.22 + path2 * 0.08 + (path1 >= 4 ? 0.2 : 0) + (path2 >= 5 ? 0.28 : 0),
       chainSlow: path1 >= 4 ? 0.75 : 1,
       field: path2 >= 3,
-      fieldDamage: path2 >= 5 ? 1.25 : path2 >= 4 ? 0.62 : path2 >= 3 ? 0.34 : 0.2,
-      fieldStun: path2 >= 5 ? 0.22 : path2 >= 4 ? 0.14 : 0.06,
-      fieldCooldown: path2 >= 5 ? 0.24 : path2 >= 4 ? 0.38 : 0.7,
+      fieldDamage: path2 >= 5 ? 2.8 : path2 >= 4 ? 1.3 : path2 >= 3 ? 0.34 : 0.2,
+      fieldStun: path2 >= 5 ? 0.32 : path2 >= 4 ? 0.18 : 0.06,
+      fieldCooldown: path2 >= 5 ? 0.18 : path2 >= 4 ? 0.3 : 0.7,
       detectHidden: path2 >= 3,
       supercharge,
       electrocannon,
       fieldRadius: CELL_SIZE * (path2 >= 5 ? 3.2 : path2 >= 4 ? 2.55 : 2.1),
-      fieldZapCount: path2 >= 5 ? 3 : 1
+      fieldZapCount: path2 >= 5 ? 5 : path2 >= 4 ? 2 : 1
     });
   }
 
@@ -6509,19 +6874,19 @@ function towerStats(tower) {
     const blastCore = path1 >= 3;
     return finalizeStats({
       range: CELL_SIZE * (4.8 + path1 * 0.34 + (path1 >= 5 ? 0.5 : 0)),
-      cooldown: heavyDart ? Math.max(0.96 - (path2 - 3) * 0.1, 0.5) : Math.max(0.92 - path1 * 0.05 - (path1 >= 4 ? 0.08 : 0), 0.34),
-      damage: heavyDart ? 11 + path2 * 3.35 + (path2 >= 3 ? 2.6 : 0) + (path2 >= 4 ? 4.4 : 0) + (path2 >= 5 ? 11 : 0) : 4.6 + path2 * 1.55 + (path1 >= 3 ? 2 : 0) + (path1 >= 4 ? 1.7 : 0) + (path1 >= 5 ? 5 : 0),
-      splash: heavyDart ? 0 : blastCore ? (40 + path1 * 4 + 12 + (path1 >= 4 ? 10 : 0) + (path1 >= 5 ? 28 : 0)) / 1.5 : 0,
+      cooldown: heavyDart ? Math.max(0.96 - (path2 - 3) * 0.12 - (path2 >= 5 ? 0.04 : 0), 0.38) : Math.max(0.92 - path1 * 0.05 - (path1 >= 4 ? 0.12 : 0) - (path1 >= 5 ? 0.06 : 0), 0.24),
+      damage: heavyDart ? 11 + path2 * 3.35 + (path2 >= 3 ? 2.6 : 0) + (path2 >= 4 ? 7.4 : 0) + (path2 >= 5 ? 18 : 0) : 4.6 + path2 * 1.55 + (path1 >= 3 ? 2 : 0) + (path1 >= 4 ? 3.4 : 0) + (path1 >= 5 ? 10.2 : 0),
+      splash: heavyDart ? 0 : blastCore ? (40 + path1 * 4 + 12 + (path1 >= 4 ? 18 : 0) + (path1 >= 5 ? 42 : 0)) / 1.5 : 0,
       speed: heavyDart ? 520 + (path2 - 3) * 60 + (path2 >= 5 ? 80 : 0) : 120 + (path1 >= 3 ? 120 : 0) + (path1 >= 4 ? 40 : 0) + (path1 >= 5 ? 95 : 0),
       acceleration: heavyDart ? 0 : 520 + (path1 >= 3 ? 220 : 0) + (path1 >= 4 ? 120 : 0) + (path1 >= 5 ? 240 : 0),
-      burst: path1 >= 5 ? 10 : path1 >= 4 ? 3 : 1,
-      burstDelay: path1 >= 5 ? 0.1 : path1 >= 4 ? 0.25 : 0,
+      burst: path1 >= 5 ? 14 : path1 >= 4 ? 4 : 1,
+      burstDelay: path1 >= 5 ? 0.08 : path1 >= 4 ? 0.2 : 0,
       homing: heavyDart || !blastCore ? 0 : (path1 >= 5 ? 16.5 : path1 >= 4 ? 12.2 : 10.2),
       shrapnel: heavyDart ? false : (blastCore && path2 >= 3),
       clusters: heavyDart ? false : (blastCore && path2 >= 4),
       rain: heavyDart ? false : (blastCore && path2 >= 5),
       heavyDart,
-      pierce: heavyDart ? (path2 >= 5 ? 18 : path2 >= 4 ? 11 : 4) : 0
+      pierce: heavyDart ? (path2 >= 5 ? 26 : path2 >= 4 ? 15 : 4) : 0
     });
   }
 
@@ -6532,22 +6897,22 @@ function towerStats(tower) {
     const lifespan = 30 + (path2 >= 1 ? 15 : 0) + (path1 >= 4 ? 15 : 0) + (path1 >= 5 ? 35 : 0);
     return finalizeStats({
       range: CELL_SIZE * (2.95 + path1 * 0.08 + path2 * 0.08),
-      cooldown: Math.max(2.55 - path1 * 0.32 - (path1 >= 4 ? 0.24 : 0) - (path1 >= 5 ? 0.24 : 0), 0.52),
+      cooldown: Math.max(2.35 - path1 * 0.32 - (path1 >= 4 ? 0.34 : 0) - (path1 >= 5 ? 0.38 : 0), 0.34),
       damage: 1,
       trapRadius: 14 + tower.level * 2,
-      trapUses: path2 >= 5 ? 28 : path2 >= 4 ? 20 : path2 >= 2 ? 13 : 7,
+      trapUses: path2 >= 5 ? 54 : path2 >= 4 ? 32 : path2 >= 2 ? 14 : 7,
       trapLifetime: lifespan,
       sticky: path2 >= 3,
       slow: path2 >= 3 ? 0.55 : 1,
-      duration: path2 >= 3 ? 1.9 + path2 * 0.25 + (path2 >= 4 ? 0.5 : 0) + (path2 >= 5 ? 1.1 : 0) : 0,
+      duration: path2 >= 3 ? 1.9 + path2 * 0.25 + (path2 >= 4 ? 0.9 : 0) + (path2 >= 5 ? 1.9 : 0) : 0,
       mine: path2 >= 4,
       mango: path2 >= 5,
       turretMode,
-      turretCap: path1 >= 5 ? 28 : path1 >= 4 ? 16 : path1 >= 3 ? 8 : 0,
-      turretCooldown: Math.max(0.78 - (path1 >= 4 ? 0.12 : 0) - (path1 >= 5 ? 0.24 : 0), 0.16),
-      turretDamage: 2 + path2 * 0.65 + (path1 >= 3 ? 0.6 : 0) + (path1 >= 4 ? 1.15 : 0) + (path1 >= 5 ? 2.8 : 0),
-      turretRange: CELL_SIZE * (2.15 + path2 * 0.08 + (path1 >= 4 ? 0.28 : 0) + (path1 >= 5 ? 0.55 : 0)),
-      turretBarrels: path1 >= 5 ? 3 : path1 >= 4 ? 2 : 1
+      turretCap: path1 >= 5 ? 42 : path1 >= 4 ? 22 : path1 >= 3 ? 8 : 0,
+      turretCooldown: Math.max(0.78 - (path1 >= 4 ? 0.18 : 0) - (path1 >= 5 ? 0.3 : 0), 0.1),
+      turretDamage: 2.4 + path2 * 0.72 + (path1 >= 3 ? 0.8 : 0) + (path1 >= 4 ? 2.8 : 0) + (path1 >= 5 ? 6.8 : 0),
+      turretRange: CELL_SIZE * (2.15 + path2 * 0.08 + (path1 >= 4 ? 0.42 : 0) + (path1 >= 5 ? 0.8 : 0)),
+      turretBarrels: path1 >= 5 ? 4 : path1 >= 4 ? 2 : 1
     });
   }
 
@@ -6560,27 +6925,27 @@ function towerStats(tower) {
     const supportGuns = path2 >= 4 ? 2 : 1;
     return finalizeStats({
       range: baseRange,
-      cooldown: Math.max(0.52 - levelBonus * 0.035 - path2 * 0.04 - (path2 >= 4 ? 0.04 : 0) - (path1 >= 5 ? 0.14 : 0), 0.08),
+      cooldown: Math.max(0.52 - levelBonus * 0.035 - path2 * 0.04 - (path2 >= 4 ? 0.06 : 0) - (path1 >= 5 ? 0.16 : 0), 0.06),
       damage: 1 + levelBonus * 0.34,
       droneRange: CELL_SIZE * (1.5 + levelBonus * 0.08 + (path1 >= 2 ? 0.24 : 0)),
       droneSpeed: 238 + levelBonus * 12 + path2 * 34 + (path1 >= 4 ? 26 : 0) + (path1 >= 5 ? 58 : 0),
       detectHidden: path1 >= 1,
       bulletGuns: mainGuns,
-      bulletDamage: 1.05 + levelBonus * 0.3 + (path2 >= 4 ? 0.38 : 0) + (path2 >= 5 ? 0.86 : 0),
-      bulletPierce: path2 >= 2 ? 2 : 0,
+      bulletDamage: 1.05 + levelBonus * 0.3 + (path2 >= 4 ? 0.9 : 0) + (path2 >= 5 ? 2.1 : 0),
+      bulletPierce: path2 >= 5 ? 4 : path2 >= 4 ? 3 : path2 >= 2 ? 2 : 0,
       rocket: path1 >= 3,
-      rocketCooldown: path1 >= 5 ? 0.26 : path1 >= 4 ? 0.52 : 0.7,
-      rocketDamage: 3.2 + levelBonus * 0.5 + (path1 >= 3 ? 0.9 : 0) + (path1 >= 4 ? 1.8 : 0) + (path1 >= 5 ? 3.1 : 0),
-      rocketSplash: path1 >= 5 ? 52 : path1 >= 4 ? 38 : path1 >= 3 ? 28 : 24,
+      rocketCooldown: path1 >= 5 ? 0.18 : path1 >= 4 ? 0.42 : 0.7,
+      rocketDamage: 3.2 + levelBonus * 0.5 + (path1 >= 3 ? 0.9 : 0) + (path1 >= 4 ? 3.4 : 0) + (path1 >= 5 ? 6.6 : 0),
+      rocketSplash: path1 >= 5 ? 72 : path1 >= 4 ? 48 : path1 >= 3 ? 28 : 24,
       rocketSpeed: path1 >= 5 ? 240 : path1 >= 4 ? 170 : 132,
       rocketHoming: path1 >= 5 ? 15.5 : path1 >= 4 ? 13.2 : 11.4,
       supportCount,
-      supportGuns: path2 >= 5 ? 3 : supportGuns,
-      supportDamage: 0.38 + levelBonus * 0.16 + (path2 >= 3 ? 0.12 : 0) + (path2 >= 4 ? 0.2 : 0) + (path2 >= 5 ? 0.45 : 0),
-      supportRange: CELL_SIZE * 1.26,
-      supportCooldown: Math.max(0.98 - path2 * 0.04 - (path2 >= 4 ? 0.05 : 0), 0.34),
+      supportGuns: path2 >= 5 ? 4 : supportGuns,
+      supportDamage: 0.45 + levelBonus * 0.18 + (path2 >= 3 ? 0.16 : 0) + (path2 >= 4 ? 0.52 : 0) + (path2 >= 5 ? 1.4 : 0),
+      supportRange: CELL_SIZE * (path2 >= 5 ? 1.8 : 1.34),
+      supportCooldown: Math.max(0.92 - path2 * 0.05 - (path2 >= 4 ? 0.08 : 0) - (path2 >= 5 ? 0.06 : 0), 0.22),
       attackDrone: path1 >= 5,
-      attackDroneMissileVolley: path1 >= 5 ? 4 : 1
+      attackDroneMissileVolley: path1 >= 5 ? 6 : 1
     });
   }
 
@@ -6936,8 +7301,10 @@ function selectEnemyByPriority(candidates, priority = "first", cursorPoint = nul
   }
 
   const scored = [...candidates].sort((left, right) => {
+    const leftRemaining = enemyRemainingPathTiles(left);
+    const rightRemaining = enemyRemainingPathTiles(right);
     if (priority === "last") {
-      return left.progress - right.progress;
+      return rightRemaining - leftRemaining || left.progress - right.progress;
     }
 
     if (priority === "strong") {
@@ -6948,7 +7315,7 @@ function selectEnemyByPriority(candidates, priority = "first", cursorPoint = nul
       return left.hp - right.hp || left.maxHp - right.maxHp || right.progress - left.progress;
     }
 
-    return right.progress - left.progress;
+    return leftRemaining - rightRemaining || right.progress - left.progress;
   });
 
   return scored[0];
@@ -7252,7 +7619,7 @@ function fireTorchRing(tower, stats) {
 }
 
 function spawnDippyEgg(tower, target, stats) {
-  const scatter = stats.inaccuracy || 0;
+  const scatter = Math.max(CELL_SIZE * 0.45, stats.inaccuracy || 0);
   const scatterAngle = Math.random() * Math.PI * 2;
   const scatterDistance = Math.random() * scatter;
   const scatterX = Math.cos(scatterAngle) * scatterDistance;
@@ -7268,6 +7635,10 @@ function spawnDippyEgg(tower, target, stats) {
     targetX: target.x + scatterX,
     targetY: target.y + scatterY,
     holdDelay: stats.holdDelay,
+    ceilingPause: 0.5,
+    ceilingY: Math.max((stats.projectileSize || 10) + 8, 10),
+    dropTargetOffsetX: scatterX,
+    dropTargetOffsetY: scatterY,
     damage: stats.damage,
     splash: stats.splash,
     burnDamage: stats.burnDamage,
@@ -7295,8 +7666,9 @@ function spawnDippyEgg(tower, target, stats) {
     welfareSwerveStart: stats.welfareSwerveStart,
     podIndex: stats.alternatingPods ? (tower.dippyActivePod || 0) : 0,
     damageClasses: stats.sticky ? ["explosive", "kinetic", "chemical"] : ["explosive", "kinetic"],
-    speed: 1400,
-    arcDrift: (Math.random() - 0.5) * 26,
+    speed: 980,
+    dropSpeed: 780 + Math.random() * 90,
+    arcDrift: 0,
     roll: (Math.random() - 0.5) * 0.3,
     spin: 6 + Math.random() * 5,
     trailTimer: 0
@@ -8705,60 +9077,20 @@ function updateProjectiles(deltaTime) {
     if (projectile.kind === "dippyEgg") {
       if (!(projectile.risingComplete)) {
         projectile.roll += projectile.spin * deltaTime;
-        projectile.x += projectile.arcDrift * deltaTime;
         projectile.y -= 2200 * deltaTime;
         projectile.trailTimer = (projectile.trailTimer || 0) - deltaTime;
-      if (projectile.trailTimer <= 0) {
+        if (projectile.trailTimer <= 0) {
           addBurstParticles(projectile.x, projectile.y + 10, 2, "rgba(255, 239, 182, 0.55)", 18, 36, 0.08, 0.16);
           projectile.trailTimer = 0.04;
         }
-        const apexY = projectile.welfareHoming
-          ? Math.max(projectile.targetY - (projectile.welfareApexHeight || 150), 56)
-          : 0;
-        if (projectile.welfareHoming && projectile.y <= apexY + (projectile.welfareSwerveStart || 0)) {
-          const desiredDrift = Math.max(-220, Math.min(220, (projectile.targetX - projectile.x) * 4.4));
-          projectile.arcDrift += (desiredDrift - projectile.arcDrift) * Math.min(1, deltaTime * 6);
-          projectile.roll += projectile.spin * deltaTime * 0.35;
-        }
+        const apexY = projectile.ceilingY || 10;
         if (projectile.y <= apexY) {
           projectile.risingComplete = true;
           projectile.y = apexY;
-          projectile.hiddenOffscreen = !projectile.welfareHoming;
+          projectile.holdDelay = projectile.ceilingPause || projectile.holdDelay || 0.5;
+          projectile.hiddenOffscreen = true;
         }
         survivors.push(projectile);
-        continue;
-      }
-
-      if (projectile.welfareHoming) {
-        const target = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null;
-        projectile.falling = true;
-        projectile.hiddenOffscreen = false;
-        if (target) {
-          projectile.targetX = target.x;
-          projectile.targetY = target.y;
-        }
-        if (projectile.angle === undefined) {
-          projectile.angle = Math.PI / 2;
-        }
-        const desiredAngle = Math.atan2(projectile.targetY - projectile.y, projectile.targetX - projectile.x);
-        const angleDelta = Math.atan2(Math.sin(desiredAngle - projectile.angle), Math.cos(desiredAngle - projectile.angle));
-        const maxTurn = (projectile.welfareTurnRate || 7) * deltaTime;
-        projectile.angle += Math.max(-maxTurn, Math.min(maxTurn, angleDelta));
-        projectile.speed += (((projectile.welfareCruiseSpeed || 430) - projectile.speed) * Math.min(1, deltaTime * 4));
-        projectile.roll += projectile.spin * deltaTime * 1.5;
-        projectile.x += Math.cos(projectile.angle) * projectile.speed * deltaTime;
-        projectile.y += Math.sin(projectile.angle) * projectile.speed * deltaTime;
-        projectile.trailTimer = (projectile.trailTimer || 0) - deltaTime;
-        if (projectile.trailTimer <= 0) {
-          addBurstParticles(projectile.x, projectile.y - 2, 3, "rgba(255, 211, 118, 0.55)", 22, 46, 0.08, 0.18);
-          projectile.trailTimer = 0.03;
-        }
-        const impactEnemy = firstEnemyTouchingProjectile(projectile);
-        if (impactEnemy || Math.hypot(projectile.x - projectile.targetX, projectile.y - projectile.targetY) <= 18) {
-          explodeDippyEgg(projectile);
-        } else if (projectile.x > -40 && projectile.x < canvas.width + 40 && projectile.y > -40 && projectile.y < canvas.height + 40) {
-          survivors.push(projectile);
-        }
         continue;
       }
 
@@ -8768,22 +9100,21 @@ function updateProjectiles(deltaTime) {
         continue;
       }
 
-      const target = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null;
       if (!projectile.falling) {
         projectile.falling = true;
         projectile.hiddenOffscreen = false;
-        projectile.x = target ? target.x : projectile.targetX;
+        projectile.x = projectile.targetX;
         projectile.y = -24;
-        projectile.arcDrift *= 0.45;
       }
+      const target = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null;
       if (target) {
-        projectile.x += (target.x - projectile.x) * Math.min(1, deltaTime * 4);
-        projectile.targetY = target.y;
+        projectile.targetX = target.x + (projectile.dropTargetOffsetX || 0);
+        projectile.targetY = target.y + (projectile.dropTargetOffsetY || 0);
       }
 
       projectile.roll += projectile.spin * deltaTime * 1.5;
-      projectile.x += projectile.arcDrift * deltaTime;
-      projectile.y += projectile.speed * deltaTime;
+      projectile.x += (projectile.targetX - projectile.x) * Math.min(1, deltaTime * 4.6);
+      projectile.y += (projectile.dropSpeed || projectile.speed || 780) * deltaTime;
       projectile.trailTimer = (projectile.trailTimer || 0) - deltaTime;
       if (projectile.trailTimer <= 0) {
         addBurstParticles(projectile.x, projectile.y - 8, 3, "rgba(255, 211, 118, 0.55)", 22, 46, 0.08, 0.18);
@@ -8908,6 +9239,161 @@ function updateEffects(deltaTime) {
     .filter((effect) => effect.ttl > 0);
 }
 
+function clampCellToBoard(cell) {
+  return {
+    x: Math.max(0, Math.min(COLS - 1, cell.x)),
+    y: Math.max(0, Math.min(ROWS - 1, cell.y))
+  };
+}
+
+function canSpawnChildAt(cell) {
+  if (!cell || !inBounds(cell.x, cell.y)) {
+    return false;
+  }
+  if (isEndpoint(cell.x, cell.y)) {
+    return true;
+  }
+  return grid[cell.y][cell.x].blockId === null && !obstacleAt(cell.x, cell.y);
+}
+
+function isEnemyRouteCellBlocked(cell) {
+  if (!cell || !inBounds(cell.x, cell.y) || isEndpoint(cell.x, cell.y)) {
+    return false;
+  }
+  return grid[cell.y][cell.x].blockId !== null || obstacleAt(cell.x, cell.y);
+}
+
+function abortSummonedChildDetour(enemy) {
+  if (!enemy?.spawnDetourActive) {
+    return false;
+  }
+
+  const currentCell = clampCellToBoard({
+    x: Math.floor(enemy.x / CELL_SIZE),
+    y: Math.floor(enemy.y / CELL_SIZE)
+  });
+  const candidateCells = [
+    currentCell,
+    ...directions.map((direction) => clampCellToBoard({
+      x: currentCell.x + direction.dx,
+      y: currentCell.y + direction.dy
+    }))
+  ];
+
+  let fallbackRoute = [];
+  for (const cell of candidateCells) {
+    fallbackRoute = findPathFrom(cell);
+    if (fallbackRoute.length > 0) {
+      break;
+    }
+  }
+
+  if (fallbackRoute.length === 0) {
+    return false;
+  }
+
+  enemy.route = fallbackRoute;
+  enemy.progress = 0;
+  enemy.segmentOffset = 0;
+  enemy.spawnDetourActive = false;
+  enemy.spawnSourceX = null;
+  enemy.spawnSourceY = null;
+  enemy.spawnIntroTimer = 0;
+  enemy.spawnIntroDuration = 0;
+  return true;
+}
+
+function buildChildMergeRoute(startCell, portalIndex, maxDetourTiles = 5) {
+  if (!canSpawnChildAt(startCell)) {
+    return [];
+  }
+
+  const mainRoute = routes[portalIndex] || findPathFrom(activePortals()[portalIndex]);
+  if (!mainRoute || mainRoute.length === 0) {
+    return [];
+  }
+
+  const routeIndices = new Map();
+  for (let index = 0; index < mainRoute.length; index += 1) {
+    const point = mainRoute[index];
+    const key = `${point.x},${point.y}`;
+    if (!routeIndices.has(key)) {
+      routeIndices.set(key, index);
+    }
+  }
+
+  const startKey = `${startCell.x},${startCell.y}`;
+  if (routeIndices.has(startKey)) {
+    return mainRoute.slice(routeIndices.get(startKey));
+  }
+
+  const queue = [{ x: startCell.x, y: startCell.y, steps: 0 }];
+  const visited = new Set([startKey]);
+  const parents = new Map([[startKey, null]]);
+  let mergeKey = null;
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    const currentKey = `${current.x},${current.y}`;
+
+    if (current.steps > 0 && routeIndices.has(currentKey)) {
+      mergeKey = currentKey;
+      break;
+    }
+
+    if (current.steps >= maxDetourTiles) {
+      continue;
+    }
+
+    for (const direction of directions) {
+      const nextCell = { x: current.x + direction.dx, y: current.y + direction.dy };
+      const nextKey = `${nextCell.x},${nextCell.y}`;
+      if (visited.has(nextKey) || !canSpawnChildAt(nextCell)) {
+        continue;
+      }
+      visited.add(nextKey);
+      parents.set(nextKey, currentKey);
+      queue.push({ x: nextCell.x, y: nextCell.y, steps: current.steps + 1 });
+    }
+  }
+
+  if (!mergeKey) {
+    return [];
+  }
+
+  const localRoute = [];
+  let cursor = mergeKey;
+  while (cursor) {
+    const [x, y] = cursor.split(",").map(Number);
+    localRoute.push({ x, y });
+    cursor = parents.get(cursor);
+  }
+  localRoute.reverse();
+
+  const mergeIndex = routeIndices.get(mergeKey);
+  return localRoute.concat(mainRoute.slice(mergeIndex + 1));
+}
+
+function resolveChildSpawnPath(portalIndex, candidateCells, fallbackCell = null, maxDetourTiles = 5) {
+  const cellsToTry = [...candidateCells];
+  if (fallbackCell) {
+    cellsToTry.push(fallbackCell);
+  }
+
+  for (const candidate of cellsToTry) {
+    if (!candidate) {
+      continue;
+    }
+    const startCell = clampCellToBoard(candidate);
+    const route = buildChildMergeRoute(startCell, portalIndex, maxDetourTiles);
+    if (route.length > 0) {
+      return { startCell, route };
+    }
+  }
+
+  return null;
+}
+
 function spawnWaffleChildren(enemy, type, count, hpDivisor) {
   const nextTier = Math.max(1, (enemy.tier || 1) - 1);
   if (nextTier === enemy.tier || nextTier < 1) {
@@ -8930,37 +9416,26 @@ function spawnWaffleChildren(enemy, type, count, hpDivisor) {
 
   for (let index = 0; index < count; index += 1) {
     const direction = directionsForSpawn[index % directionsForSpawn.length];
-    const startCell = {
-      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
-      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
-    };
-    const route = findPathFrom(startCell);
-    const child = route.length > 0
-      ? createEnemy(type, {
-        portalIndex: enemy.portalIndex,
-        startCell,
-        route,
-        tier: nextTier,
-        reward: 0,
-        hp: Math.max(1, Math.round(enemy.maxHp / hpDivisor)),
-        speed: Math.max(18, enemy.speed + type.speedBonus),
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(enemy.maxArmorHp || 0, enemy.armorHp || 0) : 0,
-        shielded: enemy.shielded
-      })
-      : createEnemy(type, {
-        portalIndex: enemy.portalIndex,
-        tier: nextTier,
-        reward: 0,
-        hp: Math.max(1, Math.round(enemy.maxHp / hpDivisor)),
-        speed: Math.max(18, enemy.speed + type.speedBonus),
-        progress: enemy.progress,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(enemy.maxArmorHp || 0, enemy.armorHp || 0) : 0,
-        shielded: enemy.shielded
-      });
+    const spawnPath = resolveChildSpawnPath(enemy.portalIndex, [{
+      x: originCell.x + direction.x,
+      y: originCell.y + direction.y
+    }], originCell);
+    if (!spawnPath) {
+      continue;
+    }
+    const child = createEnemy(type, {
+      portalIndex: enemy.portalIndex,
+      startCell: spawnPath.startCell,
+      route: spawnPath.route,
+      tier: nextTier,
+      reward: 0,
+      hp: Math.max(1, Math.round(enemy.maxHp / hpDivisor)),
+      speed: Math.max(18, enemy.speed + type.speedBonus),
+      hidden: enemy.hidden,
+      armored: enemy.armored,
+      armorHp: enemy.armored ? Math.max(enemy.maxArmorHp || 0, enemy.armorHp || 0) : 0,
+      shielded: enemy.shielded
+    });
 
     if (child) {
       pushEnemy(prepareSummonedChild(child, enemy));
@@ -9037,33 +9512,24 @@ function spawnDiamondChildren(enemy) {
   ];
 
   for (const direction of directionsForSpawn) {
-    const startCell = {
-      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
-      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
-    };
-    const route = findPathFrom(startCell);
-    const child = route.length > 0
-      ? createEnemy(ENEMY_TYPES.diamond, {
-        portalIndex: enemy.portalIndex,
-        startCell,
-        route,
-        tier: nextTier,
-        reward: 0,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
-        shielded: enemy.shielded
-      })
-      : createEnemy(ENEMY_TYPES.diamond, {
-        portalIndex: enemy.portalIndex,
-        tier: nextTier,
-        reward: 0,
-        progress: enemy.progress,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
-        shielded: enemy.shielded
-      });
+    const spawnPath = resolveChildSpawnPath(enemy.portalIndex, [{
+      x: originCell.x + direction.x,
+      y: originCell.y + direction.y
+    }], originCell);
+    if (!spawnPath) {
+      continue;
+    }
+    const child = createEnemy(ENEMY_TYPES.diamond, {
+      portalIndex: enemy.portalIndex,
+      startCell: spawnPath.startCell,
+      route: spawnPath.route,
+      tier: nextTier,
+      reward: 0,
+      hidden: enemy.hidden,
+      armored: enemy.armored,
+      armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+      shielded: enemy.shielded
+    });
 
     if (child) {
       pushEnemy(prepareSummonedChild(child, enemy));
@@ -9088,33 +9554,24 @@ function spawnShieldChildren(enemy) {
   ];
 
   for (const direction of directionsForSpawn) {
-    const startCell = {
-      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
-      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
-    };
-    const route = findPathFrom(startCell);
-    const child = route.length > 0
-      ? createEnemy(ENEMY_TYPES.shield, {
-        portalIndex: enemy.portalIndex,
-        startCell,
-        route,
-        tier: nextTier,
-        reward: 0,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
-        shielded: true
-      })
-      : createEnemy(ENEMY_TYPES.shield, {
-        portalIndex: enemy.portalIndex,
-        tier: nextTier,
-        reward: 0,
-        progress: enemy.progress,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
-        shielded: true
-      });
+    const spawnPath = resolveChildSpawnPath(enemy.portalIndex, [{
+      x: originCell.x + direction.x,
+      y: originCell.y + direction.y
+    }], originCell);
+    if (!spawnPath) {
+      continue;
+    }
+    const child = createEnemy(ENEMY_TYPES.shield, {
+      portalIndex: enemy.portalIndex,
+      startCell: spawnPath.startCell,
+      route: spawnPath.route,
+      tier: nextTier,
+      reward: 0,
+      hidden: enemy.hidden,
+      armored: enemy.armored,
+      armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+      shielded: true
+    });
 
     if (child) {
       pushEnemy(prepareSummonedChild(child, enemy));
@@ -9144,33 +9601,24 @@ function spawnGenericTierChildren(enemy) {
   ];
 
   for (const direction of directionsForSpawn) {
-    const startCell = {
-      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
-      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
-    };
-    const route = findPathFrom(startCell);
-    const child = route.length > 0
-      ? createEnemy(enemyType, {
-        portalIndex: enemy.portalIndex,
-        startCell,
-        route,
-        tier: nextTier,
-        reward: 0,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
-        shielded: enemy.shielded
-      })
-      : createEnemy(enemyType, {
-        portalIndex: enemy.portalIndex,
-        tier: nextTier,
-        reward: 0,
-        progress: enemy.progress,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
-        shielded: enemy.shielded
-      });
+    const spawnPath = resolveChildSpawnPath(enemy.portalIndex, [{
+      x: originCell.x + direction.x,
+      y: originCell.y + direction.y
+    }], originCell);
+    if (!spawnPath) {
+      continue;
+    }
+    const child = createEnemy(enemyType, {
+      portalIndex: enemy.portalIndex,
+      startCell: spawnPath.startCell,
+      route: spawnPath.route,
+      tier: nextTier,
+      reward: 0,
+      hidden: enemy.hidden,
+      armored: enemy.armored,
+      armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+      shielded: enemy.shielded
+    });
 
     if (child) {
       pushEnemy(prepareSummonedChild(child, enemy));
@@ -9207,33 +9655,24 @@ function spawnSentinelChildren(enemy) {
     ];
 
   for (const direction of directionsForSpawn) {
-    const startCell = {
-      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
-      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
-    };
-    const route = findPathFrom(startCell);
-    const child = route.length > 0
-      ? createEnemy(ENEMY_TYPES.sentinel, {
-        portalIndex: enemy.portalIndex,
-        startCell,
-        route,
-        tier: nextTier,
-        reward: 0,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
-        shielded: enemy.shielded
-      })
-      : createEnemy(ENEMY_TYPES.sentinel, {
-        portalIndex: enemy.portalIndex,
-        tier: nextTier,
-        reward: 0,
-        progress: enemy.progress,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
-        shielded: enemy.shielded
-      });
+    const spawnPath = resolveChildSpawnPath(enemy.portalIndex, [{
+      x: originCell.x + direction.x,
+      y: originCell.y + direction.y
+    }], originCell);
+    if (!spawnPath) {
+      continue;
+    }
+    const child = createEnemy(ENEMY_TYPES.sentinel, {
+      portalIndex: enemy.portalIndex,
+      startCell: spawnPath.startCell,
+      route: spawnPath.route,
+      tier: nextTier,
+      reward: 0,
+      hidden: enemy.hidden,
+      armored: enemy.armored,
+      armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+      shielded: enemy.shielded
+    });
 
     if (child) {
       pushEnemy(prepareSummonedChild(child, enemy));
@@ -9268,15 +9707,57 @@ function spawnHydra(enemyType = ENEMY_TYPES.hydra, options = {}) {
   }
 }
 
+function spawnHydraShieldChild(enemy) {
+  if (!enemy || enemy.key !== "hydra" || enemy.hydraStage !== 3) {
+    return;
+  }
+
+  const originCell = {
+    x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x / CELL_SIZE))),
+    y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y / CELL_SIZE)))
+  };
+  const directionsForSpawn = [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 }
+  ];
+  const spawnPath = resolveChildSpawnPath(enemy.portalIndex, directionsForSpawn.map((direction) => ({
+    x: originCell.x + direction.x,
+    y: originCell.y + direction.y
+  })), originCell);
+  if (!spawnPath) {
+    return;
+  }
+
+  const child = createEnemy(ENEMY_TYPES.shield, {
+    portalIndex: enemy.portalIndex,
+    startCell: spawnPath.startCell,
+    route: spawnPath.route,
+    reward: 0,
+    hidden: false,
+    shielded: true,
+    hp: Math.max(1, Math.round(enemy.maxHp * 0.42)),
+    speed: Math.max(CELL_SIZE * 0.9, enemy.speed * 0.82)
+  });
+
+  if (child) {
+    pushEnemy(prepareSummonedChild(child, enemy));
+  }
+}
+
 function prepareSummonedChild(child, parent) {
   if (!child || !parent) {
     return child;
   }
   child.facingAngle = parent.facingAngle || 0;
+  child.x = parent.x;
+  child.y = parent.y;
   child.spawnSourceX = parent.x;
   child.spawnSourceY = parent.y;
   child.spawnIntroDuration = 0.26;
   child.spawnIntroTimer = 0.26;
+  child.spawnDetourActive = true;
   return child;
 }
 
@@ -9299,33 +9780,24 @@ function spawnSplitterChildren(enemy) {
   const directionsForSpawn = directionPairs[Math.floor(Math.random() * directionPairs.length)];
 
   for (const direction of directionsForSpawn) {
-    const startCell = {
-      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
-      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
-    };
-    const route = findPathFrom(startCell);
-    const child = route.length > 0
-      ? createEnemy(ENEMY_TYPES.splitter, {
-        portalIndex: enemy.portalIndex,
-        startCell,
-        route,
-        tier: nextTier,
-        reward: 0,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
-        shielded: enemy.shielded
-      })
-      : createEnemy(ENEMY_TYPES.splitter, {
-        portalIndex: enemy.portalIndex,
-        tier: nextTier,
-        reward: 0,
-        progress: enemy.progress,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
-        shielded: enemy.shielded
-      });
+    const spawnPath = resolveChildSpawnPath(enemy.portalIndex, [{
+      x: originCell.x + direction.x,
+      y: originCell.y + direction.y
+    }], originCell);
+    if (!spawnPath) {
+      continue;
+    }
+    const child = createEnemy(ENEMY_TYPES.splitter, {
+      portalIndex: enemy.portalIndex,
+      startCell: spawnPath.startCell,
+      route: spawnPath.route,
+      tier: nextTier,
+      reward: 0,
+      hidden: enemy.hidden,
+      armored: enemy.armored,
+      armorHp: enemy.armored ? Math.max(0, Math.round((enemy.maxArmorHp || enemy.armorHp || 0) * 0.5)) : 0,
+      shielded: enemy.shielded
+    });
 
     if (child) {
       pushEnemy(prepareSummonedChild(child, enemy));
@@ -9350,52 +9822,34 @@ function spawnPopcornChildren(enemy) {
   }
 
   for (const variant of variants) {
-    let startCell = originCell;
-    let route = findPathFrom(originCell);
+    const candidateCells = [];
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const angle = Math.random() * Math.PI * 2;
       const distance = Math.random() * 8;
-      const candidate = {
-        x: Math.max(0, Math.min(COLS - 1, Math.round(originCell.x + Math.cos(angle) * distance))),
-        y: Math.max(0, Math.min(ROWS - 1, Math.round(originCell.y + Math.sin(angle) * distance)))
-      };
-      const candidateRoute = findPathFrom(candidate);
-      if (candidateRoute.length > 0) {
-        startCell = candidate;
-        route = candidateRoute;
-        break;
-      }
+      candidateCells.push({
+        x: Math.round(originCell.x + Math.cos(angle) * distance),
+        y: Math.round(originCell.y + Math.sin(angle) * distance)
+      });
     }
-    const child = (route.length > 0
-      ? createEnemy(ENEMY_TYPES.kernel, {
-        portalIndex: enemy.portalIndex,
-        startCell,
-        route,
-        reward: 0,
-        hp: Math.max(1, Math.round(enemy.maxHp * variant.hpMult)),
-        speed: Math.max(enemy.speed * variant.speedMult, CELL_SIZE * 2.7),
-        sizeScale: 0.5,
-        color: variant.color,
-        kernelVariant: variant.key,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, enemy.armorHp || 0) : 0,
-        shielded: enemy.shielded
-      })
-      : createEnemy(ENEMY_TYPES.kernel, {
-        portalIndex: enemy.portalIndex,
-        progress: enemy.progress,
-        reward: 0,
-        hp: Math.max(1, Math.round(enemy.maxHp * variant.hpMult)),
-        speed: Math.max(enemy.speed * variant.speedMult, CELL_SIZE * 2.7),
-        sizeScale: 0.5,
-        color: variant.color,
-        kernelVariant: variant.key,
-        hidden: enemy.hidden,
-        armored: enemy.armored,
-        armorHp: enemy.armored ? Math.max(0, enemy.armorHp || 0) : 0,
-        shielded: enemy.shielded
-      }));
+    const spawnPath = resolveChildSpawnPath(enemy.portalIndex, candidateCells, originCell);
+    if (!spawnPath) {
+      continue;
+    }
+    const child = createEnemy(ENEMY_TYPES.kernel, {
+      portalIndex: enemy.portalIndex,
+      startCell: spawnPath.startCell,
+      route: spawnPath.route,
+      reward: 0,
+      hp: Math.max(1, Math.round(enemy.maxHp * variant.hpMult)),
+      speed: Math.max(enemy.speed * variant.speedMult, CELL_SIZE * 2.7),
+      sizeScale: 0.5,
+      color: variant.color,
+      kernelVariant: variant.key,
+      hidden: enemy.hidden,
+      armored: enemy.armored,
+      armorHp: enemy.armored ? Math.max(0, enemy.armorHp || 0) : 0,
+      shielded: enemy.shielded
+    });
 
     if (child) {
       const prepared = prepareSummonedChild(child, enemy);
@@ -9421,23 +9875,19 @@ function spawnIdineChildren(enemy) {
     const direction = directions[index];
     const childType = index < 4 ? ENEMY_TYPES.celun : ENEMY_TYPES.celris;
     const distance = index < 4 ? 2 : 3;
-    const startCell = {
-      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x * distance)),
-      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y * distance))
-    };
-    const route = findPathFrom(startCell);
-    const child = route.length > 0
-      ? createEnemy(childType, {
-        portalIndex: enemy.portalIndex,
-        startCell,
-        route,
-        reward: 0
-      })
-      : createEnemy(childType, {
-        portalIndex: enemy.portalIndex,
-        progress: enemy.progress,
-        reward: 0
-      });
+    const spawnPath = resolveChildSpawnPath(enemy.portalIndex, [{
+      x: originCell.x + direction.x * distance,
+      y: originCell.y + direction.y * distance
+    }], originCell);
+    if (!spawnPath) {
+      continue;
+    }
+    const child = createEnemy(childType, {
+      portalIndex: enemy.portalIndex,
+      startCell: spawnPath.startCell,
+      route: spawnPath.route,
+      reward: 0
+    });
     if (child) {
       pushEnemy(prepareSummonedChild(child, enemy));
     }
@@ -9459,23 +9909,19 @@ function spawnOrbChildren(enemy, primaryType, secondaryType) {
   for (let index = 0; index < childTypes.length; index += 1) {
     const childType = childTypes[index];
     const direction = directions[index];
-    const startCell = {
-      x: Math.max(0, Math.min(COLS - 1, originCell.x + direction.x)),
-      y: Math.max(0, Math.min(ROWS - 1, originCell.y + direction.y))
-    };
-    const route = findPathFrom(startCell);
-    const child = route.length > 0
-      ? createEnemy(childType, {
-        portalIndex: enemy.portalIndex,
-        startCell,
-        route,
-        reward: 0
-      })
-      : createEnemy(childType, {
-        portalIndex: enemy.portalIndex,
-        progress: enemy.progress,
-        reward: 0
-      });
+    const spawnPath = resolveChildSpawnPath(enemy.portalIndex, [{
+      x: originCell.x + direction.x,
+      y: originCell.y + direction.y
+    }], originCell);
+    if (!spawnPath) {
+      continue;
+    }
+    const child = createEnemy(childType, {
+      portalIndex: enemy.portalIndex,
+      startCell: spawnPath.startCell,
+      route: spawnPath.route,
+      reward: 0
+    });
     if (child) {
       pushEnemy(prepareSummonedChild(child, enemy));
     }
@@ -9491,6 +9937,8 @@ function purgeDefeatedEnemies() {
     } else {
       if (enemy.key === "idaen") {
         spawnMegaWaffleChildren(enemy);
+      } else if (enemy.key === "hydra" && enemy.hydraStage === 3) {
+        spawnHydraShieldChild(enemy);
       } else if (enemy.key === "idine") {
         spawnIdineChildren(enemy);
       } else if (enemy.key === "celun") {
@@ -9839,6 +10287,10 @@ function drawMapScenery() {
       ctx.fillStyle = "rgba(255, 205, 88, 0.08)";
       for (let x = 0; x < canvas.width; x += 96) {
         ctx.fillRect(x, 0, 24, canvas.height);
+      }
+      ctx.fillStyle = "rgba(105, 92, 82, 0.42)";
+      for (const cell of activeMap.noBuildCells || []) {
+        ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
       }
       for (const egg of eggSets) {
         ctx.fillStyle = egg.color;
@@ -11349,9 +11801,39 @@ function drawOpaqueShell() {
   ctx.strokeStyle = "#ffffff";
 }
 
+function drawEnemyStateOverlay(enemy) {
+  const radius = enemyStatusRadius(enemy) + 2;
+  if (enemy.hidden) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(214, 214, 214, 0.95)";
+    ctx.lineWidth = Math.max(1.8, 1.6 * (enemy.sizeScale || 1));
+    ctx.beginPath();
+    ctx.arc(enemy.x, enemy.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (enemy.armored && enemy.armorHp > 0 && !enemy.suppressArmorVisual) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(154, 160, 170, 0.96)";
+    ctx.lineWidth = Math.max(4, radius * 0.22);
+    ctx.beginPath();
+    ctx.arc(enemy.x, enemy.y, radius + 2.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 function drawEnemies() {
   for (const enemy of enemies) {
+    ctx.save();
+    if (enemy.hidden) {
+      ctx.globalAlpha = 0;
+    }
     drawEnemyShape(enemy);
+    ctx.restore();
+    drawEnemyStateOverlay(enemy);
     drawEnemyStatusParticles(enemy);
     const barWidth = enemy.key === "sentinel" && (enemy.tier || 1) >= 3 ? 34 : 24;
     const overhealLimit = Math.max(enemy.overhealLimit || 0, 0);
@@ -11577,14 +12059,6 @@ function drawEnemyShape(enemy) {
     ctx.fill();
   }
 
-  if (enemy.armored && enemy.armorHp > 0 && !enemy.suppressArmorVisual) {
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, radius + 4, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
   if ((enemy.shellHp || 0) > 0) {
     drawOpaqueShell();
     ctx.beginPath();
@@ -11654,11 +12128,6 @@ function drawHeavyEnemy(enemy) {
     ctx.strokeStyle = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
     ctx.lineWidth = 1.5;
     ctx.strokeRect(-width / 2 - 3, -height / 2 - 3, width + 6, height + 6);
-  }
-  if (enemy.armored && enemy.armorHp > 0 && !enemy.suppressArmorVisual) {
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(-width / 2 - 4, -height / 2 - 4, width + 8, height + 8);
   }
   ctx.restore();
 }
@@ -12219,12 +12688,6 @@ function drawWaffleEnemy(enemy) {
     ctx.strokeRect(left - 2, top - 2, totalSize + 4, totalSize + 4);
   }
 
-  if (enemy.armored && enemy.armorHp > 0 && !enemy.suppressArmorVisual) {
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(left - 4, top - 4, totalSize + 8, totalSize + 8);
-  }
-
   if (enemy.shielded && enemy.shieldHp > 0) {
     const shieldRadius = enemy.shieldRadius || totalSize * 0.72 + 10;
     const shieldAlpha = 0.18 + 0.22 * Math.min(1, enemy.shieldHp / Math.max(enemy.maxShieldHp || enemy.shieldHp || 1, 1));
@@ -12329,11 +12792,6 @@ function drawIdaenEnemy(enemy) {
     ctx.strokeStyle = enemy.shielded ? "rgba(120, 196, 255, 0.9)" : "rgba(214, 233, 255, 0.85)";
     ctx.lineWidth = 1.5;
     ctx.strokeRect(-totalSize / 2 - 4, -totalSize / 2 - 4, totalSize + 8, totalSize + 8);
-  }
-  if (enemy.armored && enemy.armorHp > 0 && !enemy.suppressArmorVisual) {
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(-totalSize / 2 - 6, -totalSize / 2 - 6, totalSize + 12, totalSize + 12);
   }
   ctx.restore();
 }
@@ -12906,6 +13364,7 @@ function resetGame() {
   cheatBuffer = [];
   outpostWalllessQuestFailed = false;
   outpostQuestBlocksPlaced = 0;
+  autoWaveUnlocked = false;
   autoWaveTimer = 0;
   armedAbility = null;
   scrollVelocityX = 0;
@@ -12987,7 +13446,7 @@ function updateGame(deltaTime) {
   updateProjectiles(simDeltaTime);
   updateEffects(simDeltaTime);
   purgeDefeatedEnemies();
-  if (autoWaveEnabled && allRoutesOpen(routes) && (!wave || wave.complete)) {
+  if (autoWaveEnabled && autoWaveUnlocked && allRoutesOpen(routes) && (!wave || wave.complete)) {
     autoWaveTimer = Math.max(0, autoWaveTimer - simDeltaTime);
     if (autoWaveTimer === 0) {
       spawnWave();
@@ -13319,7 +13778,7 @@ mapOptions.addEventListener("click", withUiGuard("Map button", (event) => {
 }));
 
 rotateButton.addEventListener("click", rotateActivePiece);
-waveButton.addEventListener("click", spawnWave);
+waveButton.addEventListener("click", () => spawnWave(true));
 autoWaveToggle?.addEventListener("change", () => {
   autoWaveEnabled = autoWaveToggle.checked;
   autoWaveTimer = autoWaveEnabled ? 0.45 : 0;

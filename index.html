@@ -110,14 +110,6 @@
   </div>
 
   <main class="app-shell">
-    <section class="hero">
-      <p class="eyebrow">Block Defence</p>
-      <h1>Rotate polyomino walls and mount towers on top.</h1>
-      <p class="intro">
-        Place connected polyomino pieces, rotate them into the lane, build towers directly on those blocks, and upgrade them to hold the line.
-      </p>
-    </section>
-
     <section class="workspace">
       <aside class="controls">
         <div class="panel" data-panel="tools">
@@ -133,7 +125,6 @@
           <div class="actions compact">
             <button id="rotateButton">Rotate Block</button>
           </div>
-          <p class="hint">Blocks cost cash, but each wave gives you one free polyomino. Press <strong>R</strong> or use rotate. Towers must be placed on the polyomino blocks.</p>
           <p class="next-piece" id="nextPieceText">Next block: waiting</p>
           <p class="hint" id="selectionText">Selected: Tesla</p>
           <p class="hint" id="upgradeText">Upgrade: max 5</p>
@@ -216,7 +207,7 @@
         </div>
         <div class="play-area">
           <div class="board-frame">
-            <canvas id="board" width="952" height="560" aria-label="Tower defense board"></canvas>
+            <canvas id="board" width="952" height="672" aria-label="Tower defense board"></canvas>
           </div>
           <div class="panel towers-strip" data-panel="towers">
             <div class="panel-head">
