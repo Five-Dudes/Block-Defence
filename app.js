@@ -75,7 +75,7 @@ const closeTowerPopupButton = document.getElementById("closeTowerPopupButton");
 const tutorialList = document.getElementById("tutorialList");
 const tutorialHint = document.getElementById("tutorialHint");
 const TARGET_PRIORITIES = ["first", "last", "strong", "weak", "hidden", "random", "cursor"];
-const PATH_TOWER_TYPES = new Set(["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "dippy", "support", "gate"]);
+const PATH_TOWER_TYPES = new Set(["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "fireball", "dippy", "support", "crossbow", "gate"]);
 const TARGET_LABELS = {
   first: "First",
   last: "Last",
@@ -88,9 +88,15 @@ const TARGET_LABELS = {
 
 document.body.dataset.appBootStage = "constants";
 
-const COLS = 30;
-const ROWS = 18;
+const COLS = 34;
+const ROWS = 20;
 const CELL_SIZE = 28;
+const CENTER_COL = Math.floor(COLS / 2);
+const CENTER_ROW = Math.floor(ROWS / 2);
+const LEGACY_CENTER_COL = 15;
+const LEGACY_CENTER_ROW = 9;
+const BOARD_CENTER_SHIFT_X = CENTER_COL - LEGACY_CENTER_COL;
+const BOARD_CENTER_SHIFT_Y = CENTER_ROW - LEGACY_CENTER_ROW;
 const BASE_CANVAS_WIDTH = COLS * CELL_SIZE;
 const BASE_CANVAS_HEIGHT = ROWS * CELL_SIZE;
 const START_MONEY = 50;
@@ -98,74 +104,81 @@ const START_LIVES = 100;
 const DASH_PERIOD = 16;
 const BLOCK_COST = 5;
 const TOWER_BASE_COST = {
-  tesla: 30,
-  missile: 38,
-  trapper: 28,
-  laser: 60,
-  shotgun: 22,
-  freezer: 34,
-  drone: 34,
-  fireball: 48,
-  dippy: 100,
-  support: 42,
-  crossbow: 28,
-  gate: 56
+  tesla: 44,
+  missile: 58,
+  trapper: 31,
+  laser: 55,
+  shotgun: 36,
+  freezer: 35,
+  drone: 49,
+  fireball: 63,
+  dippy: 84,
+  support: 47,
+  crossbow: 27,
+  gate: 46
 };
 const UPGRADE_COSTS = {
   tesla: {
-    path1: [8, 14, 24, 80, 240],
-    path2: [8, 14, 24, 80, 240]
+    path1: [10, 52, 44, 164, 300],
+    path2: [22, 44, 288, 392, 720]
   },
   missile: {
-    path1: [10, 16, 28, 90, 270],
-    path2: [10, 16, 30, 96, 288]
+    path1: [10, 24, 92, 244, 640],
+    path2: [32, 36, 324, 420, 1120]
   },
   drone: {
-    path1: [9, 15, 26, 84, 252],
-    path2: [9, 15, 27, 90, 270]
+    path1: [12, 52, 128, 236, 680],
+    path2: [14, 26, 112, 224, 620]
   },
   trapper: {
-    path1: [7, 12, 20, 64, 192],
-    path2: [7, 12, 20, 64, 192]
+    path1: [10, 18, 88, 176, 420],
+    path2: [12, 20, 64, 168, 360]
   },
   laser: {
-    path1: [14, 24, 40, 132, 396],
-    path2: [14, 24, 40, 132, 396]
+    path1: [14, 28, 96, 228, 520],
+    path2: [18, 56, 132, 248, 760]
   },
   shotgun: {
-    path1: [8, 14, 24, 80, 240],
-    path2: [8, 14, 24, 80, 240]
+    path1: [12, 22, 108, 232, 640],
+    path2: [12, 28, 124, 220, 760]
   },
   freezer: {
-    path1: [8, 13, 22, 72, 216],
-    path2: [8, 13, 22, 72, 216]
+    path1: [12, 26, 94, 214, 560],
+    path2: [10, 24, 88, 196, 500]
   },
-  fireball: [10, 16, 26, 86],
+  fireball: {
+    path1: [16, 30, 126, 248, 720],
+    path2: [14, 24, 108, 228, 620]
+  },
   dippy: {
-    path1: [32, 48, 76, 420, 1260],
-    path2: [30, 46, 74, 410, 1230]
+    path1: [34, 62, 168, 320, 940],
+    path2: [28, 74, 156, 300, 880]
   },
   support: {
-    path1: [30, 70, 130, 360, 1080],
-    path2: [10, 18, 30, 96, 288]
+    path1: [22, 48, 118, 240, 700],
+    path2: [16, 42, 110, 228, 660]
+  },
+  crossbow: {
+    path1: [14, 20, 66, 94, 230],
+    path2: [16, 34, 112, 180, 430]
   },
   gate: {
-    path1: [12, 20, 34, 102, 306],
-    path2: [12, 18, 30, 96, 288]
+    path1: [12, 30, 84, 176, 520],
+    path2: [14, 26, 124, 212, 620]
   }
 };
 const TOWER_INFO = {
   tesla: { name: "Tesla", color: "#92d5ff", description: "Tesla chains lightning between nearby enemies and briefly stuns what it hits." },
   missile: { name: "Cannon", color: "#ffae57", description: "Cannon fires heavier explosive shots that deal strong splash damage in an area." },
   trapper: { name: "Trap Setter", color: "#89d37a", description: "Trap Setter seeds temporary traps, mines, or wall turrets depending on its upgrade path." },
-  laser: { name: "Laser", color: "#ff7ca8", description: "Laser locks onto a target, then burns a piercing beam through the lane and beyond tower range." },
-  shotgun: { name: "Shotgun", color: "#ffd34d", description: "Shotgun fires short yellow line blasts and can branch into Bullet Storm or Wavelength." },
+  laser: { name: "Laser", color: "#ff7ca8", description: "Laser starts as a single-target burning beam, then branches into plasma or infinite-pierce crystal upgrades." },
+  shotgun: { name: "Shotgun", color: "#ffd34d", description: "Shotgun fires short yellow line blasts and can branch into Bullet Storm or the Triple Cannon Wavelength path." },
   freezer: { name: "Freezer", color: "#b5ebff", description: "Freezer launches chilling shots that slow targets, then branches into Permafrost pulses or a constant slowing aura." },
-  fireball: { name: "Fireball", color: "#ff8b4d", description: "Torch tower. Needs a 2x2 space and throws fast bursts of burning fireballs." },
+  fireball: { name: "Torch", color: "#ff8b4d", description: "Torch tower. Needs a 2x2 space and can branch into a long-ranged flamethrower or a blazing ring." },
   drone: { name: "Drone", color: "#7de3d6", description: "Drone commands mobile gunships that chase targets inside tower coverage and can branch into support or assault roles." },
   dippy: { name: "Dippy", color: "#fff1b8", description: "Dippy is an egg. A very powerful egg." },
   support: { name: "Support", color: "#c9b6ff", description: "Support hub boosts nearby towers and can branch into income generation or an ammo supplier aura." },
-  crossbow: { name: "Crossbow", color: "#8b5d33", description: "Outpost crossbow tower. Fires slower bolts and can be upgraded into a heavier fort-defense platform." },
+  crossbow: { name: "Crossbow", color: "#8b5d33", description: "Outpost crossbow tower. Branches into a fast repeater path or a heavy ballista path." },
   gate: { name: "Acid", color: "#91e59d", description: "Acid coats enemies in corrosive spray. Direct hits are light, but the damage over time and acid weakening build up fast." }
 };
 const ENEMY_TYPES = {
@@ -439,14 +452,14 @@ const ENEMY_TYPES = {
     reward: 70,
     armor: 8,
     armored: true,
-    description: "Adapter is a fast attacker boss that constantly launches spread-out escorts and primes a reactive shield that blocks the next hit, then surges nearby enemies."
+    description: "Adapter is a fast attacker boss that constantly launches spread-out escorts and primes a reactive shield that blocks the next hit, then grants itself armour and surges nearby enemies."
   }
 };
 const DIFFICULTIES = {
   easy: { name: "Easy", money: 60, lives: 140, hp: 0.85, reward: 1.15, interval: 1.08, enemyCount: 1 },
   standard: { name: "Standard", money: 50, lives: 100, hp: 1, reward: 1, interval: 1 },
   hard: { name: "Hard", money: 40, lives: 50, hp: 1.28, reward: 0.9, interval: 0.88, enemyCount: 1 },
-  brutal: { name: "Brutal", money: 50, lives: 25, hp: 1.28, reward: 0.5, interval: 0.88, enemyCount: 2 },
+  brutal: { name: "Brutal", money: 50, lives: 28, hp: 1.16, reward: 0.65, interval: 0.94, enemyCount: 1.55 },
   sandbox: { name: "Sandbox", money: 999999, lives: 999999, hp: 1, reward: 1, interval: 1, enemyCount: 1 }
 };
 
@@ -480,10 +493,18 @@ function cellsFromPoints(points = []) {
   return points.map(([x, y]) => ({ x, y }));
 }
 
+function shiftCells(cells = [], dx = 0, dy = 0) {
+  return cells.map((cell) => ({ x: cell.x + dx, y: cell.y + dy }));
+}
+
+function shiftRects(rects = [], dx = 0, dy = 0) {
+  return rects.map((rect) => ({ ...rect, x: rect.x + dx, y: rect.y + dy }));
+}
+
 const MAPS = {
   meadow: {
     name: "Classic",
-    description: "Single portal and open grassland with no rocks or sight blockers.",
+    description: "Single portal and open beige field with no rocks or sight blockers.",
     scenery: "meadow",
     goal: { x: COLS - 1, y: Math.floor(ROWS / 2) },
     portals: [{ x: 0, y: Math.floor(ROWS / 2) }],
@@ -499,7 +520,7 @@ const MAPS = {
   },
   ruins: {
     name: "Sunken Ruins",
-    description: "Three portals breach a flooded ruin field. Islands break sight lines, and blocks must extend outward from islands or existing walls.",
+    description: "Three portals breach a flooded ruin field. Islands act as fixed build platforms, and blocks must extend outward from islands or existing walls.",
     scenery: "ruins",
     goal: { x: COLS - 1, y: Math.floor(ROWS / 2) },
     portals: [{ x: 0, y: 5 }, { x: 0, y: 9 }, { x: 0, y: 13 }],
@@ -518,7 +539,7 @@ const MAPS = {
     name: "Mango Pass",
     description: "Two portals attack from opposite edges while the base sits in the middle beneath mango haze and deep yellow ditches cut through the fields.",
     scenery: "mango",
-    goal: { x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2) },
+    goal: { x: CENTER_COL, y: CENTER_ROW },
     portals: [{ x: 0, y: 4 }, { x: COLS - 1, y: 10 }],
     obstacles: [{ x: 8, y: 5 }, { x: 8, y: 9 }, { x: 12, y: 2 }, { x: 13, y: 12 }, { x: 17, y: 4 }, { x: 17, y: 10 }],
     noBuildCells: uniqueCells([
@@ -589,7 +610,7 @@ const MAPS = {
   },
   acidcaves: {
     name: "Acid Caves",
-    description: "A glowing cave system with corrosive pools and narrow bends that break long lines of sight.",
+    description: "A lightless acid cavern lit by toxic streams and crystal growths. One winding lane cuts through the corrosive pools.",
     scenery: "ruins",
     goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
     portals: [{ x: 1, y: 4 }, { x: 1, y: 13 }],
@@ -608,7 +629,7 @@ const MAPS = {
   },
   shoals: {
     name: "Shoals",
-    description: "Build out from scattered islands in shallow water. Blocks must stay anchored to islands or already placed blocks.",
+    description: "Build out from scattered islands in shallow water. Islands act as fixed build platforms, and blocks must stay anchored to islands or already placed blocks.",
     scenery: "shoals",
     goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
     portals: [{ x: 1, y: 3 }, { x: 1, y: 12 }],
@@ -626,12 +647,12 @@ const MAPS = {
     name: "Outpost",
     description: "Four portals assault a broken 5x5 fort ring around the base. This map doubles enemies and halves cash gain.",
     scenery: "fortification",
-    goal: { x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2) },
+    goal: { x: CENTER_COL, y: CENTER_ROW },
     portals: [
-      { x: Math.floor(COLS / 2), y: 0 },
-      { x: COLS - 1, y: Math.floor(ROWS / 2) },
-      { x: Math.floor(COLS / 2), y: ROWS - 1 },
-      { x: 0, y: Math.floor(ROWS / 2) }
+      { x: CENTER_COL, y: 0 },
+      { x: COLS - 1, y: CENTER_ROW },
+      { x: CENTER_COL, y: ROWS - 1 },
+      { x: 0, y: CENTER_ROW }
     ],
     obstacles: [],
     enemyCount: 2,
@@ -650,66 +671,67 @@ const MAPS = {
     description: "Twin eggy 3x3 castle towers guard three middle entrances while three portals press in from the left through bright cream ramparts.",
     scenery: "fortification",
     goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
-    portals: [{ x: 0, y: 4 }, { x: 0, y: 9 }, { x: 0, y: 14 }],
-    obstacles: [
+    portals: [{ x: 0, y: CENTER_ROW - 5 }, { x: 0, y: CENTER_ROW }, { x: 0, y: CENTER_ROW + 5 }],
+    obstacles: shiftCells([
       { x: 18, y: 3 }, { x: 19, y: 3 }, { x: 20, y: 3 },
       { x: 18, y: 4 }, { x: 19, y: 4 }, { x: 20, y: 4 },
       { x: 18, y: 5 }, { x: 19, y: 5 }, { x: 20, y: 5 },
       { x: 18, y: 11 }, { x: 19, y: 11 }, { x: 20, y: 11 },
       { x: 18, y: 12 }, { x: 19, y: 12 }, { x: 20, y: 12 },
       { x: 18, y: 13 }, { x: 19, y: 13 }, { x: 20, y: 13 }
-    ],
+    ], BOARD_CENTER_SHIFT_X, BOARD_CENTER_SHIFT_Y),
     towerSurfaces: "obstacles"
   },
   cliffs: {
     name: "Cliffs",
     description: "An organic cliff splits the map down the center. The right side is higher ground, the left side is lower, and each side has its own base at the bottom.",
     scenery: "cliffs",
-    goal: { x: 11, y: ROWS - 2 },
-    goals: [{ x: 11, y: ROWS - 2 }, { x: 18, y: ROWS - 2 }],
+    goal: { x: CENTER_COL - 4, y: ROWS - 2 },
+    goals: [{ x: CENTER_COL - 4, y: ROWS - 2 }, { x: CENTER_COL + 3, y: ROWS - 2 }],
     portals: [{ x: 4, y: 1 }, { x: 24, y: 1 }],
-    obstacles: [
+    obstacles: shiftCells([
       { x: 1, y: 3 }, { x: 2, y: 3 }, { x: 3, y: 3 }, { x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 5 },
       { x: 5, y: 6 }, { x: 6, y: 7 }, { x: 7, y: 7 }, { x: 8, y: 8 }, { x: 9, y: 9 },
       { x: 4, y: 11 }, { x: 5, y: 12 }, { x: 6, y: 12 }, { x: 7, y: 13 }, { x: 8, y: 14 }, { x: 10, y: 15 },
       { x: 26, y: 3 }, { x: 27, y: 3 }, { x: 25, y: 4 }, { x: 26, y: 4 }, { x: 24, y: 5 }, { x: 25, y: 5 },
       { x: 23, y: 7 }, { x: 22, y: 8 }, { x: 21, y: 8 }, { x: 20, y: 9 }, { x: 19, y: 10 },
       { x: 24, y: 12 }, { x: 23, y: 13 }, { x: 22, y: 14 }, { x: 21, y: 14 }, { x: 20, y: 15 }, { x: 18, y: 16 }
-    ],
-    noBuildCells: cellsFromPoints([
+    ], BOARD_CENTER_SHIFT_X, BOARD_CENTER_SHIFT_Y),
+    noBuildCells: shiftCells(cellsFromPoints([
       [14, 0], [14, 1], [15, 2], [15, 3], [14, 4], [14, 5], [13, 6], [13, 7], [14, 8],
       [15, 9], [15, 10], [16, 11], [16, 12], [15, 13], [15, 14], [14, 15], [14, 16], [14, 17]
-    ])
+    ]), BOARD_CENTER_SHIFT_X, BOARD_CENTER_SHIFT_Y)
   },
   graveyard: {
     name: "Graveyard",
     description: "Triple enemies. The base sits in the middle while enemies emerge evenly from the edges and path into a central build zone.",
     scenery: "graveyard",
-    goal: { x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2) },
+    goal: { x: CENTER_COL, y: CENTER_ROW },
     portals: [
-      { x: Math.floor(COLS / 2), y: 0 },
-      { x: COLS - 1, y: Math.floor(ROWS / 2) },
-      { x: Math.floor(COLS / 2), y: ROWS - 1 },
-      { x: 0, y: Math.floor(ROWS / 2) }
+      { x: CENTER_COL, y: 0 },
+      { x: COLS - 1, y: CENTER_ROW },
+      { x: CENTER_COL, y: ROWS - 1 },
+      { x: 0, y: CENTER_ROW }
     ],
     hidePortals: true,
     hideRoutes: true,
-    buildZone: { x: 10, y: 6, width: 11, height: 7 },
+    buildZone: { x: CENTER_COL - 5, y: CENTER_ROW - 3, width: 11, height: 7 },
     obstacles: [],
     enemyCount: 3,
     reward: 1 / 3
   },
   freezingmountains: {
     name: "Freezing Mountains",
-    description: "A bitter mountain pass where sudden cold snaps freeze one of your towers until the next round.",
+    description: "A blinding frozen pass with one narrow approach. From wave 6 onward, sudden cold snaps can freeze one of your towers until the next round.",
     scenery: "cliffs",
     goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
-    portals: [{ x: 0, y: 4 }, { x: 0, y: 13 }],
+    portals: [{ x: 0, y: CENTER_ROW }],
     obstacles: uniqueCells([
-      ...cellsFromRects([{ x: 7, y: 2, width: 2, height: 4 }]),
-      ...cellsFromRects([{ x: 13, y: 6, width: 3, height: 2 }]),
-      ...cellsFromRects([{ x: 18, y: 11, width: 2, height: 4 }]),
-      ...cellsFromRects([{ x: 23, y: 4, width: 2, height: 3 }])
+      ...cellsFromRects([{ x: 6, y: 2, width: 3, height: 3 }]),
+      ...cellsFromRects([{ x: 10, y: 13, width: 3, height: 2 }]),
+      ...cellsFromRects([{ x: 15, y: 5, width: 4, height: 2 }]),
+      ...cellsFromRects([{ x: 21, y: 11, width: 3, height: 3 }]),
+      ...cellsFromRects([{ x: 25, y: 4, width: 2, height: 4 }])
     ]),
     freezeHazard: true,
     freezeChance: 0.35
@@ -724,7 +746,40 @@ const directions = [
   { dx: 0, dy: 1 },
   { dx: 0, dy: -1 }
 ];
-const tetrominoes = [
+const polyominoes = [
+  {
+    name: "Monomino",
+    color: "#6d9ef8",
+    offsets: [
+      { x: 0, y: 0 }
+    ]
+  },
+  {
+    name: "Domino",
+    color: "#4ebd83",
+    offsets: [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 }
+    ]
+  },
+  {
+    name: "Tri Bar",
+    color: "#5bb6d9",
+    offsets: [
+      { x: -1, y: 0 },
+      { x: 0, y: 0 },
+      { x: 1, y: 0 }
+    ]
+  },
+  {
+    name: "Tri Corner",
+    color: "#c86ddb",
+    offsets: [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 0, y: 1 }
+    ]
+  },
   {
     name: "I Beam",
     color: "#4574d8",
@@ -794,6 +849,50 @@ const tetrominoes = [
       { x: 0, y: 1 },
       { x: 1, y: 1 }
     ]
+  },
+  {
+    name: "X Bastion",
+    color: "#5fb8ff",
+    offsets: [
+      { x: 0, y: -1 },
+      { x: -1, y: 0 },
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 0, y: 1 }
+    ]
+  },
+  {
+    name: "U Keep",
+    color: "#57c674",
+    offsets: [
+      { x: -1, y: 0 },
+      { x: 1, y: 0 },
+      { x: -1, y: 1 },
+      { x: 0, y: 1 },
+      { x: 1, y: 1 }
+    ]
+  },
+  {
+    name: "P Block",
+    color: "#e16060",
+    offsets: [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+      { x: 1, y: 1 },
+      { x: 0, y: 2 }
+    ]
+  },
+  {
+    name: "Long L",
+    color: "#8f71f2",
+    offsets: [
+      { x: -1, y: 0 },
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: -1, y: 1 }
+    ]
   }
 ];
 
@@ -807,7 +906,7 @@ let selectedDifficulty = "standard";
 let selectedMap = "meadow";
 let activeMap = MAPS[selectedMap];
 let money = START_MONEY;
-let freeBlocks = 1;
+let freeBlocks = 3;
 let currentBlockCost = BLOCK_COST;
 let lives = START_LIVES;
 let waveNumber = 0;
@@ -845,7 +944,14 @@ let infiniteMode = false;
 let cheatBuffer = [];
 let crossbowUnlocked = false;
 let dippyUnlocked = false;
+let freezerUnlocked = false;
 let fireballUnlocked = false;
+let gateUnlocked = false;
+let cheatUnlockAll = false;
+let outpostTowerUnlockCompleted = false;
+let dippyCastleUnlockCompleted = false;
+let furnaceUnlockCompleted = false;
+let acidCavesUnlockCompleted = false;
 let outpostWalllessQuestFailed = false;
 let outpostQuestBlocksPlaced = 0;
 let spawnPortalCursor = 0;
@@ -901,15 +1007,30 @@ function persistMenuState() {
 function persistProgressionState() {
   try {
     window.localStorage?.setItem(PROGRESSION_STORAGE_KEY, JSON.stringify({
+      cheatUnlockAll,
+      outpostTowerUnlockCompleted,
+      dippyCastleUnlockCompleted,
+      furnaceUnlockCompleted,
+      acidCavesUnlockCompleted,
       crossbowUnlocked,
       dippyUnlocked,
+      freezerUnlocked,
       fireballUnlocked,
+      gateUnlocked,
       tutorialDismissed,
       introTutorialSeen
     }));
   } catch (error) {
     // Ignore storage failures so the run can continue.
   }
+}
+
+function syncTowerUnlockState() {
+  crossbowUnlocked = cheatUnlockAll || outpostTowerUnlockCompleted;
+  dippyUnlocked = cheatUnlockAll || dippyCastleUnlockCompleted;
+  freezerUnlocked = true;
+  fireballUnlocked = cheatUnlockAll || furnaceUnlockCompleted;
+  gateUnlocked = cheatUnlockAll || acidCavesUnlockCompleted;
 }
 
 function restoreProgressionState() {
@@ -919,11 +1040,14 @@ function restoreProgressionState() {
       return;
     }
     const parsed = JSON.parse(raw);
-    crossbowUnlocked = Boolean(parsed?.crossbowUnlocked);
-    dippyUnlocked = Boolean(parsed?.dippyUnlocked);
-    fireballUnlocked = Boolean(parsed?.fireballUnlocked);
+    cheatUnlockAll = Boolean(parsed?.cheatUnlockAll);
+    outpostTowerUnlockCompleted = Boolean(parsed?.outpostTowerUnlockCompleted);
+    dippyCastleUnlockCompleted = Boolean(parsed?.dippyCastleUnlockCompleted);
+    furnaceUnlockCompleted = Boolean(parsed?.furnaceUnlockCompleted);
+    acidCavesUnlockCompleted = Boolean(parsed?.acidCavesUnlockCompleted);
     tutorialDismissed = Boolean(parsed?.tutorialDismissed);
     introTutorialSeen = Boolean(parsed?.introTutorialSeen);
+    syncTowerUnlockState();
   } catch (error) {
     // Ignore malformed saves and fall back to defaults.
   }
@@ -1326,6 +1450,34 @@ function rewardMultiplier() {
   return DIFFICULTIES[selectedDifficulty].reward * (activeMap.reward || 1);
 }
 
+function brutalWaveCountScale(round = waveNumber) {
+  if (selectedDifficulty !== "brutal") {
+    return 1;
+  }
+  if (round >= 70) {
+    return 0.82;
+  }
+  if (round >= 45) {
+    return 0.86;
+  }
+  if (round >= 25) {
+    return 0.9;
+  }
+  return 0.94;
+}
+
+function brutalWaveIntervalFloor() {
+  return selectedDifficulty === "brutal" ? 0.64 : 0.56;
+}
+
+function brutalBossHpScale() {
+  return selectedDifficulty === "brutal" ? 0.82 : 1;
+}
+
+function brutalBossSpeedScale() {
+  return selectedDifficulty === "brutal" ? 0.94 : 1;
+}
+
 function startingMoney() {
   return DIFFICULTIES[selectedDifficulty].money;
 }
@@ -1345,6 +1497,15 @@ function towerNearFurnaceHeat(cells) {
   const radius = activeMap.heatRadius || 0;
   return cells.some((cell) =>
     core.some((hotCell) => Math.hypot(hotCell.x - cell.x, hotCell.y - cell.y) <= radius)
+  );
+}
+
+function furnaceLavaPitAt(x, y) {
+  if (!isFurnaceMap()) {
+    return false;
+  }
+  return (activeMap.lavaGrates || []).some((grate) =>
+    x >= grate.x && x < grate.x + grate.width && y >= grate.y && y < grate.y + grate.height
   );
 }
 
@@ -1370,6 +1531,19 @@ function cellAllowsTowerSurface(x, y) {
 
 function towerPlacedOnIsland(tower) {
   return mapUsesIslandPlacement() && Boolean(tower?.footprintCells?.some((cell) => islandAt(cell.x, cell.y)));
+}
+
+function obstacleBlocksSight(x, y) {
+  if (!obstacleAt(x, y)) {
+    return false;
+  }
+  if (isEndpoint(x, y)) {
+    return false;
+  }
+  if (islandAt(x, y)) {
+    return false;
+  }
+  return true;
 }
 
 function cliffDivideXForRow(row) {
@@ -1442,7 +1616,7 @@ function rotateOffset(offset, turns) {
 }
 
 function createRandomPiece(mapKey = null) {
-  const shape = tetrominoes[Math.floor(Math.random() * tetrominoes.length)];
+  const shape = polyominoes[Math.floor(Math.random() * polyominoes.length)];
   const turns = Math.floor(Math.random() * 4);
 
   return {
@@ -1450,6 +1624,63 @@ function createRandomPiece(mapKey = null) {
     color: shape.color,
     offsets: shape.offsets.map((offset) => rotateOffset(offset, turns))
   };
+}
+
+function isTowerUnlocked(type) {
+  if (type === "crossbow") {
+    return crossbowUnlocked;
+  }
+  if (type === "dippy") {
+    return dippyUnlocked;
+  }
+  if (type === "freezer") {
+    return true;
+  }
+  if (type === "fireball") {
+    return fireballUnlocked;
+  }
+  if (type === "gate") {
+    return gateUnlocked;
+  }
+  return true;
+}
+
+function towerUnlockHint(type) {
+  return `${TOWER_INFO[type].name} is locked. ${towerUnlockRequirement(type)}`;
+}
+
+function towerUnlockRequirement(type) {
+  if (type === "crossbow") {
+    return "Beat Wave 50 on Outpost in Standard or harder without placing any blocks to unlock it.";
+  }
+  if (type === "dippy") {
+    return "Beat Wave 50 on Dippy Castle in Standard or harder to unlock it.";
+  }
+  if (type === "fireball") {
+    return "Beat Wave 50 on Furnace in Standard or harder to unlock it.";
+  }
+  if (type === "gate") {
+    return "Beat Wave 50 on Acid Caves in Standard or harder to unlock it.";
+  }
+  return "Unlock requirement unknown.";
+}
+
+function enemyDiscoveryId(enemyKey, tier = 1) {
+  const normalizedTier = Math.max(1, tier || 1);
+  return `${enemyKey}:${normalizedTier}`;
+}
+
+function markEnemyDiscovered(enemyKey, tier = 1) {
+  const maxTier = enemyUsesTiers(enemyKey) || enemyKey === "sentinel" || enemyKey === "splitter"
+    ? Math.max(1, Math.min(maxTierForEnemy(enemyKey), tier || 1))
+    : 1;
+  for (let knownTier = 1; knownTier <= maxTier; knownTier += 1) {
+    discoveredEnemies.add(enemyDiscoveryId(enemyKey, knownTier));
+  }
+}
+
+function hasEnemyDiscovery(enemyKey, tier = 1) {
+  return discoveredEnemies.has(enemyDiscoveryId(enemyKey, tier));
 }
 
 function setMessage(text, duration = 1.6) {
@@ -1497,7 +1728,7 @@ function enemyIntroMessage(enemyKey) {
     splitter: "Their first layer is not the whole problem, so keep enough follow-up damage ready for the splits.",
     biscuit: "Shortbread sprint even faster than attackers and slam the base for their remaining health.",
     idaen: "I-daen is the boss, and his summon phases flood the map.",
-    adapter: "Adapter is the attacker boss. It often launches spread-out attacker waves and regularly primes a shield that blocks the next hit, then heals and speeds nearby enemies when it triggers."
+    adapter: "Adapter is the attacker boss. It often launches spread-out attacker waves and regularly primes a shield that blocks the next hit, then gains armour while healing and speeding nearby enemies."
   };
   return `${enemy.name} spotted. ${enemy.description}${advice[enemyKey] ? ` ${advice[enemyKey]}` : ""}`;
 }
@@ -1660,7 +1891,7 @@ function queueOpeningTutorial() {
     {
       kind: "tutorial",
       title: "Welcome To Block Defence",
-      body: "Blocks shape the route.\n\nPlace tetromino walls to steer enemies, but never seal every path."
+      body: "Blocks shape the route.\n\nPlace polyomino walls to steer enemies, but never seal every path."
     },
     {
       kind: "tutorial",
@@ -1768,12 +1999,23 @@ function renderAlmanac() {
   }
 
   almanacTitle.textContent = "Almanac";
-  for (const key of ALMANAC_TOWER_TYPES) {
+  const orderedTowers = [...ALMANAC_TOWER_TYPES].sort((left, right) => {
+    const leftUnlocked = isTowerUnlocked(left);
+    const rightUnlocked = isTowerUnlocked(right);
+    if (leftUnlocked === rightUnlocked) {
+      return ALMANAC_TOWER_TYPES.indexOf(left) - ALMANAC_TOWER_TYPES.indexOf(right);
+    }
+    return leftUnlocked ? -1 : 1;
+  });
+  for (const key of orderedTowers) {
     const tower = TOWER_INFO[key];
+    const unlocked = isTowerUnlocked(key);
     const entry = document.createElement("article");
-    entry.className = `almanac-entry clickable${selectedAlmanacTower === key ? " active" : ""}`;
+    entry.className = `almanac-entry clickable${unlocked ? "" : " locked"}${selectedAlmanacTower === key ? " active" : ""}`;
     entry.dataset.almanacTower = key;
-    entry.innerHTML = `<h3>${tower.name}</h3><p>Cost: ${towerCost(key)}</p><p>${tower.description}</p>`;
+    entry.innerHTML = unlocked
+      ? `<h3>${tower.name}</h3><p>Cost: ${towerCost(key)}</p><p>${tower.description}</p>`
+      : `<h3>Locked Tower</h3><p>${towerUnlockRequirement(key)}</p>`;
     almanacGrid.appendChild(entry);
   }
   renderTowerAlmanacDetail(selectedAlmanacTower);
@@ -1845,7 +2087,7 @@ function enemyAlmanacEntries() {
 }
 
 function enemyAlmanacKnown(entry) {
-  return discoveredEnemies.has(entry.parentKey || entry.key);
+  return hasEnemyDiscovery(entry.parentKey || entry.key, entry.parentKey ? 1 : (entry.tier || 1));
 }
 
 function enemyAlmanacPrimaryEnemy(entry) {
@@ -1871,7 +2113,8 @@ function enemySpecialAbilities(enemy, entry = null) {
   if (enemy.key === "adapter") {
     specials.push("Often launches spread-out attacker waves");
     specials.push("Primes a shield that blocks the next hit");
-    specials.push("When the shield pops, nearby enemies heal and gain a brief speed boost");
+    specials.push("After the shield pops, Adapter gains armour until it is broken");
+    specials.push("Nearby enemies can be overhealed by 100 and gain a brief speed boost");
   }
   if (enemy.key === "splitter") {
     specials.push("Has 10 tiers");
@@ -2000,7 +2243,7 @@ function enemyAlmanacStats(entry) {
     const isSkrey = entry.tier >= 3;
     return {
       hp: Math.round(((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp) * (isSkrey ? 7.8 : isOverwatch ? 2.6 : 1)),
-      speed: ((((30 + round * 2 + enemy.speedBonus + (isSkrey ? -10 : isOverwatch ? 30 : 0)) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1))) / CELL_SIZE,
+      speed: ((((30 + round * 2 + enemy.speedBonus + (isSkrey ? 24 : isOverwatch ? 30 : 0)) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1))) / CELL_SIZE,
       reward: Math.max(1, Math.round(enemy.reward * (isSkrey ? 4.2 : isOverwatch ? 2.2 : 1))),
       extras: [
         isSkrey ? "Drops 4 Overwatches" : isOverwatch ? "Drops 8 Sentinels" : "",
@@ -2264,6 +2507,10 @@ function renderEnemyAlmanacDetail(id) {
     almanacDetail.innerHTML = "";
     return;
   }
+  if (!enemyAlmanacKnown(entry)) {
+    almanacDetail.innerHTML = `<h3>Unknown Enemy</h3><p>Encounter this enemy in a run to reveal its image, stats, and abilities.</p>`;
+    return;
+  }
   const enemy = enemyAlmanacPrimaryEnemy(entry);
   const stats = enemyAlmanacStats(entry);
   const specials = enemySpecialAbilities(enemy, entry);
@@ -2305,7 +2552,7 @@ function renderEnemyAlmanacDetail(id) {
     </div>
     <p><strong>Health:</strong> ${formatNumber(stats.hp)} | <strong>Speed:</strong> ${formatNumber(stats.speed)} cells/s | <strong>Reward:</strong> ${formatNumber(stats.reward)}</p>
     <p><strong>Effects:</strong> ${effects.length ? effects.join(", ") : "None"}</p>
-    ${stats.extras.length ? `<p><strong>Variant:</strong> ${stats.extras.join(", ")}</p>` : ""}
+    ${stats.extras.length ? `<p><strong>Details:</strong> ${stats.extras.join(", ")}</p>` : ""}
     ${specials.length ? `<p><strong>Special:</strong> ${specials.join(", ")}</p>` : ""}
     ${renderEnemyFamilyVariantBlock(entry)}`;
 }
@@ -2337,6 +2584,22 @@ function genericEnemyTierForWave(round = waveNumber) {
   if (round >= 24) {
     return 2;
   }
+  return 1;
+}
+
+function rolledTierForWave(enemyKey, round = waveNumber) {
+  const maxTier = maxTierForEnemy(enemyKey);
+  const thirdWave = firstWaveForEnemyTier(enemyKey, 3);
+  const secondWave = firstWaveForEnemyTier(enemyKey, 2);
+
+  if (maxTier >= 3 && round >= thirdWave && Math.random() < Math.min(0.18 + (round - thirdWave) * 0.012, 0.58)) {
+    return 3;
+  }
+
+  if (maxTier >= 2 && round >= secondWave && Math.random() < Math.min(0.14 + (round - secondWave) * 0.03, 0.72)) {
+    return 2;
+  }
+
   return 1;
 }
 
@@ -2472,8 +2735,46 @@ function startGame() {
   openOverlay(null);
   if (!isSandboxMode()) {
     queueOpeningTutorial();
+    queueFreezingMountainsTutorial();
     presentQueuedTutorialPopup();
   }
+}
+
+function queueFreezingMountainsTutorial() {
+  if (!isFreezingMountainsMap() || tutorialDismissed || isSandboxMode()) {
+    return;
+  }
+  queueTutorialPopup(
+    "freezing-mountains-intro",
+    "Freezing Mountains Hazard",
+    "This map has a cold snap hazard.\n\nFrom Wave 6 onward, one of your towers can freeze solid at the start of a wave until the next round. Frozen towers stop firing, appear fully encased in ice, and can be defrosted on the following round."
+  );
+}
+
+function roundedRectPath(context, x, y, width, height, radius) {
+  const safeRadius = Math.max(0, Math.min(radius || 0, Math.abs(width) / 2, Math.abs(height) / 2));
+  context.beginPath();
+  if (typeof context.roundRect === "function") {
+    context.roundRect(x, y, width, height, safeRadius);
+    return;
+  }
+  context.moveTo(x + safeRadius, y);
+  context.lineTo(x + width - safeRadius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  context.lineTo(x + width, y + height - safeRadius);
+  context.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  context.lineTo(x + safeRadius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  context.lineTo(x, y + safeRadius);
+  context.quadraticCurveTo(x, y, x + safeRadius, y);
+  context.closePath();
+}
+
+function towerUpgradeCount(tower) {
+  if (!tower) {
+    return 0;
+  }
+  return isPathTower(tower) ? (tower.path1 || 0) + (tower.path2 || 0) : Math.max(0, (tower.level || 1) - 1);
 }
 
 function pauseGame() {
@@ -2708,92 +3009,46 @@ function sandboxEnemyWaveLabel(enemyKey) {
   return `Wave ${sandboxEarliestWaveForEnemy(enemyKey)}`;
 }
 
-function sandboxEarliestWaveForEnemy(enemyKey) {
-  switch (enemyKey) {
-    case "fast":
-      return 1;
-    case "pentagon":
-      return 3;
-    case "splitter":
-      return 5;
-    case "health":
-      return 9;
-    case "hexagon":
-      return 6;
-    case "diamond":
-      return 7;
-    case "waffle16":
-      return 12;
-    case "biscuit":
-      return 24;
-    case "life":
-      return 28;
-    case "heavy":
-      return 22;
-    case "popcorn":
-      return 34;
-    case "kernel":
-      return 34;
-    case "sentinel":
-      return 26;
-    case "attacker":
-      return 36;
-    case "hydra":
-      return 40;
-    case "idine":
-    case "celun":
-    case "celris":
-    case "cel":
-    case "lun":
-    case "ris":
-      return 62;
-    case "idaen":
-      return 25;
-    case "adapter":
-      return 60;
-    default:
-      return 1;
+function firstWaveForEnemyTier(enemyKey, tier = 1) {
+  if (enemyKey === "splitter") {
+    return Math.min(100, 5 + (Math.max(1, tier) - 1) * 11);
   }
+
+  const tierWaves = {
+    fast: [1, 15, 46],
+    pentagon: [3, 16, 46],
+    hexagon: [6, 19, 48],
+    diamond: [7, 15, 30],
+    health: [9, 18, 32],
+    waffle16: [12, 20, 30],
+    heavy: [22, 25, 48],
+    biscuit: [24, 24, 48],
+    sentinel: [26, 34, 52],
+    life: [28, 42, 58],
+    popcorn: [34],
+    kernel: [34],
+    attacker: [36, 48, 64],
+    hydra: [40],
+    idine: [62],
+    celun: [62],
+    celris: [62],
+    cel: [62],
+    lun: [62],
+    ris: [62],
+    idaen: [25],
+    adapter: [60]
+  };
+
+  const waves = tierWaves[enemyKey] || [1];
+  return waves[Math.max(0, Math.min(waves.length - 1, Math.max(1, tier) - 1))];
+}
+
+function sandboxEarliestWaveForEnemy(enemyKey) {
+  return firstWaveForEnemyTier(enemyKey, 1);
 }
 
 function sandboxWaveForEnemyTier(enemyKey, tier) {
-  if (enemyKey === "splitter") {
-    return `Wave ${Math.min(100, 5 + (tier - 1) * 11)}`;
-  }
-  if (enemyKey === "health") {
-    return tier >= 3 ? "Wave 32" : tier >= 2 ? "Wave 18" : "Wave 9";
-  }
-  if (enemyKey === "life") {
-    return tier >= 3 ? "Wave 58" : tier >= 2 ? "Wave 42" : "Wave 28";
-  }
-  if (enemyKey === "sentinel") {
-    return tier >= 3 ? "Wave 52" : tier >= 2 ? "Wave 34" : "Wave 26";
-  }
-  if (enemyKey === "diamond") {
-    return tier >= 3 ? "Wave 30" : tier >= 2 ? "Wave 14" : "Wave 7";
-  }
-  if (enemyKey === "waffle16") {
-    return tier >= 3 ? "Wave 30" : tier >= 2 ? "Wave 14" : "Wave 12";
-  }
-  if (enemyKey === "attacker") {
-    return tier >= 3 ? "Wave 30" : tier >= 2 ? "Wave 14" : "Wave 36";
-  }
-  if (enemyKey === "popcorn") {
-    return "Wave 34";
-  }
-  if (enemyKey === "kernel") {
-    return "Wave 34";
-  }
-  if (enemyKey === "idine") {
-    return "Wave 62";
-  }
-  if (enemyKey === "celun" || enemyKey === "celris") {
-    return "Wave 62";
-  }
-  if (enemyKey === "cel" || enemyKey === "lun" || enemyKey === "ris") {
-    return "Wave 62";
-  }
-  return tier >= 3 ? "Wave 30" : tier >= 2 ? "Wave 14" : `Wave ${sandboxEarliestWaveForEnemy(enemyKey)}`;
+  return `Wave ${firstWaveForEnemyTier(enemyKey, tier)}`;
 }
 
 function updateSandboxPortalOptions() {
@@ -2972,16 +3227,8 @@ function ensureDippyAmmoOrder(tower, slotCount) {
 }
 
 function setTowerType(nextType) {
-  if (nextType === "crossbow" && !crossbowUnlocked) {
-    setMessage("Crossbow is locked. Beat Hard wave 50 or Brutal wave 25 on Outpost without placing any blocks to unlock it.", 2.4);
-    return;
-  }
-  if (nextType === "dippy" && !dippyUnlocked) {
-    setMessage("Dippy is locked. Beat Wave 50 on Dippy Castle in Standard or harder to unlock it.", 2.4);
-    return;
-  }
-  if (nextType === "fireball" && !fireballUnlocked) {
-    setMessage("Fireball is locked. Beat Wave 50 on Furnace in Standard or harder to unlock it.", 2.4);
+  if (!isTowerUnlocked(nextType)) {
+    setMessage(towerUnlockHint(nextType), 2.4);
     return;
   }
 
@@ -3005,10 +3252,7 @@ function setTowerType(nextType) {
 function updateTowerButtons() {
   for (const button of towerGrid.querySelectorAll("button[data-tower-type]")) {
     const type = button.dataset.towerType;
-    const lockedCrossbow = type === "crossbow" && !crossbowUnlocked;
-    const lockedDippy = type === "dippy" && !dippyUnlocked;
-    const lockedFireball = type === "fireball" && !fireballUnlocked;
-    button.hidden = lockedCrossbow || lockedDippy || lockedFireball;
+    button.hidden = !isTowerUnlocked(type);
     button.disabled = false;
     button.textContent = `${TOWER_INFO[type].name} (${towerCost(type)})`;
   }
@@ -3243,6 +3487,10 @@ function canPlacePiece(originX, originY) {
       return false;
     }
 
+    if (furnaceLavaPitAt(cell.x, cell.y)) {
+      return false;
+    }
+
     if (noBuildAt(cell.x, cell.y) && !cellsFitInsideDitch(cells)) {
       return false;
     }
@@ -3260,13 +3508,7 @@ function canPlacePiece(originX, originY) {
 }
 
 function canPlaceTowerAt(x, y) {
-  if (selectedTowerType === "crossbow" && !crossbowUnlocked) {
-    return false;
-  }
-  if (selectedTowerType === "dippy" && !dippyUnlocked) {
-    return false;
-  }
-  if (selectedTowerType === "fireball" && !fireballUnlocked) {
+  if (!isTowerUnlocked(selectedTowerType)) {
     return false;
   }
 
@@ -3285,7 +3527,7 @@ function canPlaceTowerAt(x, y) {
 
     const state = grid[cell.y][cell.x];
     const hasSurface = state.blockId !== null || islandAt(cell.x, cell.y) || cellAllowsTowerSurface(cell.x, cell.y);
-    if (!hasSurface || state.towerId !== null) {
+    if (!hasSurface || state.towerId !== null || furnaceLavaPitAt(cell.x, cell.y)) {
       return false;
     }
   }
@@ -3301,6 +3543,8 @@ function placePiece(originX, originY) {
   if (!canPlacePiece(originX, originY)) {
     setMessage(isFactoryMap()
       ? "That placement is invalid. Factory blocks cannot cross quarter seams or enter the open gap."
+      : isFurnaceMap() && placedCells(originX, originY).some((cell) => furnaceLavaPitAt(cell.x, cell.y))
+        ? "You cannot place blocks on top of the lava pits."
       : isCliffsMap() && !cellsStayOnSingleCliffSide(placedCells(originX, originY))
         ? "That block has to stay fully on one side of the cliff."
       : mapUsesIslandPlacement() && !cellsTouchAnchoredLand(placedCells(originX, originY))
@@ -3336,7 +3580,7 @@ function placePiece(originX, originY) {
     freeBlocks -= 1;
   } else {
     money -= currentBlockCost;
-    currentBlockCost *= 2;
+    currentBlockCost += BLOCK_COST;
   }
   if (selectedMap === "outpost") {
     outpostQuestBlocksPlaced += 1;
@@ -3377,6 +3621,7 @@ function addPresetTower(type, x, y, overrides = {}) {
     path1: 0,
     path2: 0,
     targetPriority: "first",
+    cannonPriorities: ["first", "strong", "last"],
     spent: overrides.spent ?? 0,
     x,
     y,
@@ -3579,15 +3824,16 @@ function maybeUnlockCrossbowQuest() {
   const unlockedByQuest = selectedMap === "outpost"
     && !outpostWalllessQuestFailed
     && outpostQuestBlocksPlaced === 0
-    && (
-      (selectedDifficulty === "brutal" && waveNumber >= 25)
-      || (selectedDifficulty === "hard" && waveNumber >= 50)
-    );
-  if (unlockedByQuest && !crossbowUnlocked) {
-    crossbowUnlocked = true;
+    && isStandardOrHarderDifficulty()
+    && waveNumber >= 50;
+  if (unlockedByQuest && !outpostTowerUnlockCompleted) {
+    outpostTowerUnlockCompleted = true;
+    syncTowerUnlockState();
     persistProgressionState();
-    setMessage("Secret unlocked: Crossbows now cost 14 cash in future runs.", 3.2);
+    setMessage("Unlocked: Crossbow is now available.", 3.2);
     updateHud();
+    updateTowerButtons();
+    renderAlmanac();
   }
 }
 
@@ -3596,17 +3842,29 @@ function maybeUnlockMapRewards() {
     return;
   }
 
-  if (selectedMap === "furnace" && !fireballUnlocked) {
-    fireballUnlocked = true;
+  if (selectedMap === "acidcaves" && !acidCavesUnlockCompleted) {
+    acidCavesUnlockCompleted = true;
+    syncTowerUnlockState();
     persistProgressionState();
-    setMessage("Unlocked: Fireball tower is now available.", 3);
+    setMessage("Unlocked: Acid tower is now available.", 3);
     updateTowerButtons();
     renderAlmanac();
     return;
   }
 
-  if (selectedMap === "dippycastle" && !dippyUnlocked) {
-    dippyUnlocked = true;
+  if (selectedMap === "furnace" && !furnaceUnlockCompleted) {
+    furnaceUnlockCompleted = true;
+    syncTowerUnlockState();
+    persistProgressionState();
+    setMessage("Unlocked: Torch tower is now available.", 3);
+    updateTowerButtons();
+    renderAlmanac();
+    return;
+  }
+
+  if (selectedMap === "dippycastle" && !dippyCastleUnlockCompleted) {
+    dippyCastleUnlockCompleted = true;
+    syncTowerUnlockState();
     persistProgressionState();
     setMessage("Unlocked: Dippy is now available.", 3);
     updateTowerButtons();
@@ -3615,7 +3873,7 @@ function maybeUnlockMapRewards() {
 }
 
 function freezeRandomMountainTower() {
-  if (!isFreezingMountainsMap() || towers.length === 0) {
+  if (!isFreezingMountainsMap() || towers.length === 0 || waveNumber < 6) {
     return;
   }
   const freezeChance = activeMap.freezeChance || 0.35;
@@ -3657,6 +3915,7 @@ function mockTower(type, overrides = {}) {
     path1: 0,
     path2: 0,
     targetPriority: "first",
+    cannonPriorities: ["first", "strong", "last"],
     spent: towerCost(type),
     x: 0,
     y: 0,
@@ -3677,10 +3936,6 @@ function mockTower(type, overrides = {}) {
 function upgradeCost(tower, path = null) {
   if (typeof tower === "number") {
     return 4 + tower * 3;
-  }
-
-  if (tower.type === "crossbow") {
-    return [12, 18, 28][Math.max(0, tower.level - 1)] || 28;
   }
 
   if (PATH_TOWER_TYPES.has(tower.type) && path !== null) {
@@ -3739,7 +3994,7 @@ function laserPathDescription(path, tier) {
     2: {
       1: "Path 2 T1: Focused Crystals. Higher beam damage.",
       2: "Path 2 T2: Refracted Barrel. More range and burn duration.",
-      3: "Path 2 T3: Increased Damage. Sharper beam output and heavier burn.",
+      3: "Path 2 T3: Increased Damage. Sharper beam output, heavier burn, and infinite pierce.",
       4: "Path 2 T4: Double Beam. Splits into twin beams, or massively boosts Photon Beam damage.",
       5: "Path 2 T5: Photon Beam. Charges and releases one huge rounded beam that incinerates the lane."
     }
@@ -3754,15 +4009,15 @@ function shotgunPathDescription(path, tier) {
       1: "Path 1 T1: Faster Pump. Reloads faster.",
       2: "Path 1 T2: Hot Buck. More damage.",
       3: "Path 1 T3: Bullet Storm. Quite expensive, much faster firing shotgun.",
-      4: "Path 1 T4: Shell Cascade. Even faster firing.",
-      5: "Path 1 T5: Brass Hurricane. Extreme shotgun fire rate and heavy spread damage."
+      4: "Path 1 T4: Shell Cascade. Even faster firing with much heavier blasts.",
+      5: "Path 1 T5: Brass Hurricane. Bullet Storm reaches absurd fire rate with brutal close-range damage."
     },
     2: {
       1: "Path 2 T1: Signal Splitter. Fires 4 yellow lines.",
       2: "Path 2 T2: Harmonic Fan. Fires 5 yellow lines.",
       3: "Path 2 T3: Broadwave. Fires 18 yellow lines in a 180 degree spread.",
-      4: "Path 2 T4: Golden Spectrum. Keeps the huge half-circle burst and hits harder.",
-      5: "Path 2 T5: Wavelength V. Massive 18-line spread with even stronger shots."
+      4: "Path 2 T4: Golden Spectrum. Becomes a Triple Cannon with three independent target priorities.",
+      5: "Path 2 T5: Wavelength V. Each cannon unleashes its own 40-line spread."
     }
   };
 
@@ -3811,6 +4066,27 @@ function dippyPathDescription(path, tier) {
   return descriptions[path][tier];
 }
 
+function crossbowPathDescription(path, tier) {
+  const descriptions = {
+    1: {
+      1: "Path 1 T1: Faster Windlass. Reloads faster.",
+      2: "Path 1 T2: Tempered String. Faster reload and slightly stronger bolts.",
+      3: "Path 1 T3: Repeater Rig. Fires much faster with tighter cycling.",
+      4: "Path 1 T4: Split Limbs. Faster firing and one point of pierce.",
+      5: "Path 1 T5: Arrow Storm. Fortress repeater with extreme attack speed and piercing bolts."
+    },
+    2: {
+      1: "Path 2 T1: Longer Stock. More range and stronger bolts.",
+      2: "Path 2 T2: Bodkin Tips. More damage and one point of pierce.",
+      3: "Path 2 T3: Ballista Frame. Heavy bolts with bigger range and more pierce.",
+      4: "Path 2 T4: Siege Draw. Much heavier bolts with even more pierce.",
+      5: "Path 2 T5: Citadel Ballista. Massive long-range bolts that punch through whole lines."
+    }
+  };
+
+  return descriptions[path][tier];
+}
+
 function supportPathDescription(path, tier) {
   const descriptions = {
     1: {
@@ -3825,7 +4101,7 @@ function supportPathDescription(path, tier) {
       2: "Path 2 T2: Better Logistics. Nearby towers attack faster.",
       3: "Path 2 T3: Rapid Distribution. Nearby towers attack even faster.",
       4: "Path 2 T4: Telescope. Nearby towers attack faster and can also see hidden enemies.",
-      5: "Path 2 T5: Extra Munitions Supplier. Nearby towers gain explosive anti-armour attacks and the hub fires passive support missiles."
+      5: "Path 2 T5: Extra Munitions Supplier. Nearby towers gain explosive anti-armour attacks and the hub fires small support rockets every 3 seconds."
     }
   };
 
@@ -3917,8 +4193,8 @@ function canUpgradeMissilePath(tower, path) {
 function dronePathDescription(path, tier) {
   const descriptions = {
     1: {
-      1: "Path 1 T1: Second Gun. Fires two shots at a time.",
-      2: "Path 1 T2: Advanced Tracking. More range and hidden detection.",
+      1: "Path 1 T1: Advanced Tracking. More range and hidden detection.",
+      2: "Path 1 T2: Second Gun. Fires two shots at a time.",
       3: "Path 1 T3: Rocket. Fires two bullets and a rocket.",
       4: "Path 1 T4: Increased Gunpowder. Rocket explosion grows and hits harder.",
       5: "Path 1 T5: Attack Drone. Hunts inside allied ranges and launches four delayed-homing missiles in a heavy volley."
@@ -3928,7 +4204,7 @@ function dronePathDescription(path, tier) {
       2: "Path 2 T2: Sharper Bullets. Bullets pierce twice.",
       3: "Path 2 T3: Extra Support. Gains 2 extra support drones.",
       4: "Path 2 T4: Additional Weapons. Main drone gets four guns, supports get two.",
-      5: "Path 2 T5: Drone Commander. Gains 2 more support drones and 1.5x range."
+      5: "Path 2 T5: Drone Commander. Gains 2 more support drones and much stronger escort fire."
     }
   };
 
@@ -3947,6 +4223,27 @@ function upgradeNameForTower(type, path, tier) {
 
 function canUpgradeDronePath(tower, path) {
   return canUpgradeTeslaPath(tower, path);
+}
+
+function fireballPathDescription(path, tier) {
+  const descriptions = {
+    1: {
+      1: "Path 1 T1: Draft Hood. Longer reach and hotter direct flames.",
+      2: "Path 1 T2: Pressurised Fuel. Faster fire with stronger burns.",
+      3: "Path 1 T3: Longflame. Replaces fireballs with a long-ranged flamethrower stream.",
+      4: "Path 1 T4: Incinerator Lance. Flamethrower reaches much farther and tears through crowds.",
+      5: "Path 1 T5: Dragon Hearth. The flame stream gains dramatic range and leaves a blazing trail that keeps burning the lane."
+    },
+    2: {
+      1: "Path 2 T1: Ember Core. Stronger blast radius and hotter explosions.",
+      2: "Path 2 T2: Cinder Feed. Faster bursts and bigger ignitions.",
+      3: "Path 2 T3: Blazing Ring. Each shot erupts a burning ring around the Torch.",
+      4: "Path 2 T4: Sun Collar. The ring grows wider and hits much harder.",
+      5: "Path 2 T5: Corona Furnace. The ring becomes a double solar halo with crushing burn damage."
+    }
+  };
+
+  return descriptions[path][tier];
 }
 
 function canUpgradeTrapperPath(tower, path) {
@@ -3969,7 +4266,15 @@ function canUpgradeSupportPath(tower, path) {
   return canUpgradeTeslaPath(tower, path);
 }
 
+function canUpgradeCrossbowPath(tower, path) {
+  return canUpgradeTeslaPath(tower, path);
+}
+
 function pathDescriptionForTower(tower, path, tier) {
+  if (tower.type === "crossbow") {
+    return crossbowPathDescription(path, tier);
+  }
+
   if (tower.type === "tesla") {
     return teslaPathDescription(path, tier);
   }
@@ -3992,6 +4297,10 @@ function pathDescriptionForTower(tower, path, tier) {
 
   if (tower.type === "freezer") {
     return freezerPathDescription(path, tier);
+  }
+
+  if (tower.type === "fireball") {
+    return fireballPathDescription(path, tier);
   }
 
   if (tower.type === "dippy") {
@@ -4025,6 +4334,10 @@ function towerDisplayName(towerOrType) {
 }
 
 function canUpgradeTowerPath(tower, path) {
+  if (tower.type === "crossbow") {
+    return canUpgradeCrossbowPath(tower, path);
+  }
+
   if (tower.type === "tesla") {
     return canUpgradeTeslaPath(tower, path);
   }
@@ -4047,6 +4360,10 @@ function canUpgradeTowerPath(tower, path) {
 
   if (tower.type === "freezer") {
     return canUpgradeFreezerPath(tower, path);
+  }
+
+  if (tower.type === "fireball") {
+    return canUpgradeTeslaPath(tower, path);
   }
 
   if (tower.type === "dippy") {
@@ -4072,8 +4389,9 @@ function formatRange(value) {
   return formatNumber(value / CELL_SIZE);
 }
 
-function towerStatSummary(type, overrides = {}) {
-  const tower = mockTower(type, overrides);
+function towerStatSummary(typeOrTower, overrides = {}) {
+  const tower = typeof typeOrTower === "string" ? mockTower(typeOrTower, overrides) : typeOrTower;
+  const type = tower.type;
   const stats = towerStats(tower);
   const armoredProbe = { armored: true, armorHp: 4, hidden: false };
   const hitsArmored = canTowerDamageEnemy(tower, armoredProbe, stats);
@@ -4084,6 +4402,72 @@ function towerStatSummary(type, overrides = {}) {
     : stats.cooldown;
   const damage = type === "trapper" && stats.turretMode ? stats.turretDamage : type === "drone" ? Math.max(stats.bulletDamage, stats.rocket ? stats.rocketDamage : 0) : stats.damage;
   const range = type === "trapper" && stats.turretMode ? stats.turretRange : stats.range;
+  const aps = Number.isFinite(cooldown) && cooldown > 0 ? 1 / cooldown : 0;
+  const safeDivide = (amount, interval) => Number.isFinite(interval) && interval > 0 ? amount / interval : 0;
+  let dps = Number.isFinite(cooldown) && cooldown > 0 ? damage / cooldown : 0;
+
+  if (type === "crossbow") {
+    dps = safeDivide(stats.damage, stats.cooldown) * (1 + (stats.boltPierce || 0) * 0.12);
+  } else if (type === "tesla") {
+    dps = safeDivide(stats.damage, stats.cooldown) * Math.max(1, 1 + ((stats.chainCount || 1) - 1) * 0.45);
+    dps += safeDivide((stats.fieldDamage || 0) * Math.max(stats.fieldZapCount || 1, 1), stats.fieldCooldown || Infinity);
+    if (stats.splash > 0) {
+      dps *= 1.18;
+    }
+  } else if (type === "missile") {
+    dps = safeDivide(stats.damage * Math.max(stats.burst || 1, 1), stats.cooldown);
+    if (stats.splash > 0) {
+      dps *= 1.3;
+    }
+    if (stats.homing > 0) {
+      dps *= 1.04;
+    }
+    if (stats.pierce > 0) {
+      dps *= 1 + Math.min(stats.pierce, 18) * 0.05;
+    }
+  } else if (type === "trapper") {
+    dps = stats.turretMode
+      ? safeDivide(stats.turretDamage * Math.max(stats.turretBarrels || 1, 1), stats.turretCooldown)
+      : safeDivide((stats.damage || 1) + Math.max(stats.trapUses || 0, 0) * 0.1, stats.cooldown);
+  } else if (type === "laser") {
+    dps = safeDivide(stats.damage * (stats.doubleBeam ? 2 : 1), stats.cooldown) + (stats.burnDamage || 0) * 0.55;
+    if (stats.infinitePierce) {
+      dps *= 1.16;
+    }
+  } else if (type === "shotgun") {
+    dps = safeDivide(stats.damage * Math.max(stats.pellets || 1, 1) * Math.max(stats.cannonCount || 1, 1), stats.cooldown);
+  } else if (type === "freezer") {
+    dps = safeDivide(stats.damage, stats.cooldown)
+      + safeDivide(stats.pulseDamage || 0, stats.pulseCooldown || Infinity)
+      + safeDivide(stats.auraDamage || 0, stats.auraTick || Infinity);
+  } else if (type === "drone") {
+    dps = safeDivide((stats.bulletDamage || 0) * Math.max(stats.bulletGuns || 1, 1), stats.cooldown);
+    if (stats.rocket) {
+      dps += safeDivide(stats.rocketDamage || 0, stats.rocketCooldown || Infinity);
+    }
+    if ((stats.supportCount || 0) > 0) {
+      dps += safeDivide((stats.supportDamage || 0) * Math.max(stats.supportGuns || 1, 1) * stats.supportCount, stats.supportCooldown || Infinity);
+    }
+  } else if (type === "fireball") {
+    const burstCount = stats.flamethrower ? 1 : Math.max(stats.burst || 1, 1);
+    dps = safeDivide(stats.damage * burstCount, stats.cooldown) + (stats.burnDamage || 0) * 0.5;
+    if (stats.splash > 0) {
+      dps *= 1.18;
+    }
+    if (stats.blazingRing) {
+      dps *= 1.1 + Math.max((stats.ringEchoes || 1) - 1, 0) * 0.08;
+    }
+  } else if (type === "dippy") {
+    dps = safeDivide(stats.damage * Math.max(stats.burst || 1, 1), stats.cooldown) + (stats.burnDamage || 0) * 0.4 + (stats.syrupDamage || 0) * 0.6;
+    if (stats.splash > 0) {
+      dps *= 1.2;
+    }
+  } else if (type === "support") {
+    dps = stats.helpMissile ? safeDivide(stats.damage, stats.helpMissileCooldown || Infinity) * 1.15 : 0;
+  } else if (type === "gate") {
+    dps = safeDivide(stats.damage, stats.cooldown) + (stats.acidDot || 0) * 0.95;
+  }
+
   const extras = [];
 
   if (stats.detectHidden) {
@@ -4100,6 +4484,10 @@ function towerStatSummary(type, overrides = {}) {
   if (type === "shotgun") {
     extras.push(`Lines ${stats.pellets}`);
     extras.push(`Spread ${formatNumber(stats.spread)}`);
+    if (stats.multiPriority) {
+      extras.push(`Cannons ${stats.cannonCount}`);
+      extras.push(`Priorities ${(tower.cannonPriorities || stats.cannonPriorities).join("/")}`);
+    }
   }
   if (type === "tesla" && stats.chainCount) {
     extras.push(`Chains ${stats.chainCount}`);
@@ -4125,9 +4513,24 @@ function towerStatSummary(type, overrides = {}) {
     }
   }
   if (type === "fireball") {
-    extras.push(`Burst ${stats.burst}`);
-    extras.push(`Splash ${formatNumber(stats.splash)}`);
-    extras.push(`Burn ${formatNumber(stats.burnDamage)}/s for ${formatNumber(stats.burnDuration)}s`);
+    if (stats.flamethrower) {
+      extras.push(`Flame arc ${formatNumber(stats.flameArc * 57.3)}deg`);
+      extras.push(`Burn ${formatNumber(stats.burnDamage)}/s for ${formatNumber(stats.burnDuration)}s`);
+      if (stats.flameTrail) {
+        extras.push("Leaves a burning trail");
+      }
+    } else if (stats.blazingRing) {
+      extras.push(`Ring radius ${formatRange(stats.ringRadius)}`);
+      extras.push(`Ring width ${formatRange(stats.ringWidth)}`);
+      extras.push(`Burn ${formatNumber(stats.burnDamage)}/s for ${formatNumber(stats.burnDuration)}s`);
+      if ((stats.ringEchoes || 1) > 1) {
+        extras.push(`Halo echoes ${stats.ringEchoes}`);
+      }
+    } else {
+      extras.push(`Burst ${stats.burst}`);
+      extras.push(`Splash ${formatNumber(stats.splash)}`);
+      extras.push(`Burn ${formatNumber(stats.burnDamage)}/s for ${formatNumber(stats.burnDuration)}s`);
+    }
     extras.push("Needs 2x2 space");
   }
   if (type === "drone" && stats.supportCount) {
@@ -4135,6 +4538,9 @@ function towerStatSummary(type, overrides = {}) {
     extras.push(`Mini drone damage ${formatNumber(stats.supportDamage)}`);
     extras.push(`Mini drone guns ${stats.supportGuns}`);
     extras.push(`Mini drone range ${formatRange(stats.supportRange)}`);
+  }
+  if (type === "drone") {
+    extras.push(`Drone leash ${formatRange(stats.range)}`);
   }
   if (type === "crossbow" && stats.attackSpeedMultiplier > 1) {
     extras.push(`Attack speed x${formatNumber(stats.attackSpeedMultiplier)}`);
@@ -4208,6 +4614,7 @@ function towerStatSummary(type, overrides = {}) {
   }
   if (type === "laser" && stats.beamWidth) {
     extras.push(`Beam width ${formatNumber(stats.beamWidth)}`);
+    extras.push(stats.infinitePierce ? "Infinite pierce" : "Single-target beam");
   }
   if (type === "missile" && stats.burst > 1) {
     extras.push(`Burst ${stats.burst} rockets, reload ${formatNumber(stats.cooldown)}s`);
@@ -4226,6 +4633,8 @@ function towerStatSummary(type, overrides = {}) {
     damage,
     cooldown,
     range,
+    aps,
+    dps,
     extras,
     hitsArmored
   };
@@ -4233,8 +4642,63 @@ function towerStatSummary(type, overrides = {}) {
 
 function renderTowerStatsBlock(label, summary) {
   const extras = summary.extras.length ? `<p>${summary.extras.join(" | ")}</p>` : "";
-  const cooldownText = Number.isFinite(summary.cooldown) ? `${formatNumber(summary.cooldown)}s` : "Passive";
-  return `<div><strong>${label}</strong><p>Damage: ${formatNumber(summary.damage)} | Cooldown: ${cooldownText} | Range: ${formatRange(summary.range)}</p>${extras}</div>`;
+  const apsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? `${formatNumber(summary.aps)}` : "Passive";
+  const dpsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? ` | DPS: ${formatNumber(summary.dps)}` : "";
+  return `<div><strong>${label}</strong><p>Damage: ${formatNumber(summary.damage)} | APS: ${apsText} | Range: ${formatRange(summary.range)}${dpsText}</p>${extras}</div>`;
+}
+
+function formatSignedChange(value, suffix = "") {
+  if (Math.abs(value) < 0.0001) {
+    return `+0${suffix}`;
+  }
+  return `${value > 0 ? "+" : ""}${formatNumber(value)}${suffix}`;
+}
+
+function summarizeTowerIncrease(previous, next) {
+  const parts = [];
+  if (Math.abs(next.damage - previous.damage) >= 0.0001) {
+    parts.push(`Damage ${formatSignedChange(next.damage - previous.damage)}`);
+  }
+  if (Math.abs((next.aps || 0) - (previous.aps || 0)) >= 0.0001) {
+    parts.push(`APS ${formatSignedChange((next.aps || 0) - (previous.aps || 0))}`);
+  }
+  if (Number.isFinite(previous.range) && Number.isFinite(next.range) && Math.abs(next.range - previous.range) >= 0.0001) {
+    parts.push(`Range ${formatSignedChange((next.range - previous.range) / CELL_SIZE, " tiles")}`);
+  }
+  if (Math.abs((next.dps || 0) - (previous.dps || 0)) >= 0.0001) {
+    parts.push(`DPS ${formatSignedChange((next.dps || 0) - (previous.dps || 0))}`);
+  }
+  const previousExtras = new Set(previous.extras);
+  const nextExtras = new Set(next.extras);
+  const addedExtras = [...nextExtras].filter((entry) => !previousExtras.has(entry));
+  if (addedExtras.length > 0) {
+    parts.push(`Adds ${addedExtras.join(", ")}`);
+  }
+  return parts.join(" | ");
+}
+
+function renderInlineTowerStats(summary) {
+  const apsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? `${formatNumber(summary.aps)}` : "Passive";
+  const dpsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? ` | DPS: ${formatNumber(summary.dps)}` : "";
+  const extras = summary.extras.length ? ` | ${summary.extras.join(" | ")}` : "";
+  return `Damage: ${formatNumber(summary.damage)} | APS: ${apsText} | Range: ${formatRange(summary.range)}${dpsText}${extras}`;
+}
+
+function formatPreviewDelta(value, suffix = "") {
+  if (Math.abs(value) < 0.0001) {
+    return `<span style="color:#7dbb6f">+0${suffix}</span>`;
+  }
+  const positive = value >= 0;
+  return `<span style="color:${positive ? "#7dbb6f" : "#d9534f"}">${positive ? "+" : ""}${formatNumber(value)}${suffix}</span>`;
+}
+
+function renderTowerStatsPreview(current, preview) {
+  const apsDelta = Number.isFinite(current.cooldown) && Number.isFinite(preview.cooldown)
+    ? formatPreviewDelta((preview.aps || 0) - (current.aps || 0))
+    : "";
+  const dpsDelta = formatPreviewDelta((preview.dps || 0) - (current.dps || 0));
+  const rangeDelta = formatPreviewDelta((preview.range - current.range) / CELL_SIZE, " tiles");
+  return `Damage: ${formatNumber(current.damage)} ${formatPreviewDelta(preview.damage - current.damage)} | APS: ${Number.isFinite(current.cooldown) ? `${formatNumber(current.aps)}` : "Passive"} ${apsDelta} | Range: ${formatRange(current.range)} ${rangeDelta} | DPS: ${formatNumber(current.dps)} ${dpsDelta}`;
 }
 
 function towerCapabilityBadges(type, overrides = {}) {
@@ -4268,7 +4732,7 @@ function armoredUnlockText(type) {
   }
 
   if (type === "fireball") {
-    return "Hits armoured from level 1 with explosive fireballs.";
+    return "Hits armoured from level 1 with explosive flames, ring bursts, or torch shells.";
   }
 
   if (type === "dippy") {
@@ -4290,13 +4754,17 @@ function pathUpgradeSummary(type, path) {
   const entries = [];
 
   for (let tier = 1; tier <= 5; tier += 1) {
+    const previousOverrides = path === 1
+      ? { path1: Math.max(0, tier - 1), path2: 0, level: tier }
+      : { path1: 0, path2: Math.max(0, tier - 1), level: tier };
     const overrides = path === 1
       ? { path1: tier, path2: 0, level: 1 + tier }
       : { path1: 0, path2: tier, level: 1 + tier };
+    const previousSummary = towerStatSummary(type, previousOverrides);
     const summary = towerStatSummary(type, overrides);
-    const cooldownText = Number.isFinite(summary.cooldown) ? `${formatNumber(summary.cooldown)}s` : "Passive";
+    const deltaText = summarizeTowerIncrease(previousSummary, summary);
     const cost = UPGRADE_COSTS[type]?.[`path${path}`]?.[tier - 1];
-    entries.push(`<p><strong>${upgradeNameForTower(type, path, tier)}${towerCapabilityBadges(type, overrides)}</strong>${cost ? ` (${cost})` : ""}: Damage ${formatNumber(summary.damage)}, Cooldown ${cooldownText}, Range ${formatRange(summary.range)}${summary.extras.length ? `, ${summary.extras.join(", ")}` : ""}</p>`);
+    entries.push(`<p><strong>${upgradeNameForTower(type, path, tier)}${towerCapabilityBadges(type, overrides)}</strong>${cost ? ` (${cost})` : ""}: ${deltaText || "No stat change"}</p>`);
   }
 
   return entries.join("");
@@ -4306,24 +4774,16 @@ function linearUpgradeSummary(type, maxLevel) {
   const entries = [];
 
   for (let level = 2; level <= maxLevel; level += 1) {
+    const previousSummary = towerStatSummary(type, { level: level - 1 });
     const summary = towerStatSummary(type, { level });
-    const cooldownText = Number.isFinite(summary.cooldown) ? `${formatNumber(summary.cooldown)}s` : "Passive";
-    entries.push(`<p><strong>${linearUpgradeName(type, level)}${towerCapabilityBadges(type, { level })}</strong>: Damage ${formatNumber(summary.damage)}, Cooldown ${cooldownText}, Range ${formatRange(summary.range)}${summary.extras.length ? `, ${summary.extras.join(", ")}` : ""}</p>`);
+    const deltaText = summarizeTowerIncrease(previousSummary, summary);
+    entries.push(`<p><strong>${linearUpgradeName(type, level)}${towerCapabilityBadges(type, { level })}</strong>: ${deltaText || "No stat change"}</p>`);
   }
 
   return entries.join("");
 }
 
 function linearUpgradeName(type, level) {
-  if (type === "crossbow") {
-    const names = {
-      2: "Twin Limbs",
-      3: "Bodkin Rack",
-      4: "Ballista Frame"
-    };
-    return names[level] || `Level ${level}`;
-  }
-
   if (type === "gate") {
     const names = {
       2: "Stronger Pump",
@@ -4339,8 +4799,15 @@ function linearUpgradeName(type, level) {
 
 function renderTowerAlmanacDetail(type) {
   const info = TOWER_INFO[type];
+  if (!isTowerUnlocked(type)) {
+    almanacDetail.innerHTML = `<h3>Locked Tower</h3><p>${towerUnlockRequirement(type)}</p>`;
+    return;
+  }
   const baseSummary = towerStatSummary(type);
-  let detail = `<h3>${info.name}</h3><p>${info.description}</p><p><strong>Armoured:</strong> ${armoredUnlockText(type)}</p>${renderTowerStatsBlock(`Base${towerCapabilityBadges(type)}`, baseSummary)}`;
+  const unlockNote = ["crossbow", "dippy", "fireball", "gate"].includes(type)
+    ? `<p><strong>Unlock:</strong> ${towerUnlockRequirement(type)}</p>`
+    : "";
+  let detail = `<h3>${info.name}</h3><p>${info.description}</p>${unlockNote}<p><strong>Armoured:</strong> ${armoredUnlockText(type)}</p>${renderTowerStatsBlock(`Upgrade 0${towerCapabilityBadges(type)}`, baseSummary)}`;
 
   if (isPathTower(type)) {
     detail += `<h4>Path 1</h4>${pathUpgradeSummary(type, 1)}`;
@@ -4380,6 +4847,18 @@ function appendPriorityButton(container, tower) {
   container.appendChild(button);
 }
 
+function appendShotgunPriorityButtons(container, tower) {
+  const priorities = tower.cannonPriorities || ["first", "strong", "last"];
+  for (let slot = 0; slot < 3; slot += 1) {
+    const button = document.createElement("button");
+    button.className = "tower-upgrade secondary";
+    button.dataset.cannonPriorityTowerId = tower.id;
+    button.dataset.cannonPrioritySlot = String(slot);
+    button.textContent = `Cannon ${slot + 1}: ${TARGET_LABELS[priorities[slot] || "first"]}`;
+    container.appendChild(button);
+  }
+}
+
 function towerCanDetectHidden(tower) {
   return towerHasHiddenDetection(tower, towerStats(tower));
 }
@@ -4400,6 +4879,15 @@ function normalizeTowerPriority(tower) {
   const allowed = availablePrioritiesForTower(tower);
   if (!allowed.includes(tower.targetPriority)) {
     tower.targetPriority = "first";
+  }
+  if (tower.type === "shotgun") {
+    const defaults = ["first", "strong", "last"];
+    tower.cannonPriorities = Array.isArray(tower.cannonPriorities) ? tower.cannonPriorities.slice(0, 3) : defaults.slice();
+    for (let slot = 0; slot < 3; slot += 1) {
+      if (!allowed.includes(tower.cannonPriorities[slot])) {
+        tower.cannonPriorities[slot] = defaults[slot];
+      }
+    }
   }
 }
 
@@ -4435,16 +4923,17 @@ function openTowerPopup(tower) {
   towerPopupTitle.textContent = towerDisplayName(tower);
 
   normalizeTowerPriority(tower);
-
-  if (isPathTower(tower)) {
-    towerPopupSummary.textContent = tower.type === "support"
-      ? `${towerDisplayName(tower)} Lv ${tower.level}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5. ${towerCapabilityText(tower)}`
-      : `${towerDisplayName(tower)} Lv ${tower.level}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5. Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}. ${towerCapabilityText(tower)}`;
-  } else {
-    towerPopupSummary.textContent = tower.type === "support"
-      ? `${TOWER_INFO[tower.type].description} Level ${tower.level}/${maxTowerLevel(tower)}. ${towerCapabilityText(tower)}`
-      : `${TOWER_INFO[tower.type].description} Level ${tower.level}/${maxTowerLevel(tower)}. Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}. ${towerCapabilityText(tower)}`;
-  }
+  const currentSummary = towerStatSummary(tower);
+  const upgradeCount = towerUpgradeCount(tower);
+  const defaultPopupSummary = isPathTower(tower)
+    ? (() => {
+      const extraPriorityText = tower.type === "shotgun" && (tower.path2 || 0) >= 4
+        ? ` Cannon priorities: ${(tower.cannonPriorities || ["first", "strong", "last"]).map((priority) => TARGET_LABELS[priority] || TARGET_LABELS.first).join(" / ")}.`
+        : "";
+      return `<strong>Upgrade ${upgradeCount}</strong><br>${renderInlineTowerStats(currentSummary)}<br>${towerDisplayName(tower)}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5.${tower.type === "support" ? "" : ` Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}.`}${extraPriorityText} ${towerCapabilityText(tower)}`;
+    })()
+    : `<strong>Upgrade ${upgradeCount}</strong><br>${renderInlineTowerStats(currentSummary)}<br>${TOWER_INFO[tower.type].description} ${tower.type === "support" ? "" : `Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}. `}${towerCapabilityText(tower)}`;
+  towerPopupSummary.innerHTML = defaultPopupSummary;
 
   towerPopupActions.innerHTML = "";
   const upgradesLocked = Boolean(tower.upgradeLocked);
@@ -4467,6 +4956,16 @@ function openTowerPopup(tower) {
       ? `${path1Text} (${upgradeCost(tower, 1)})`
       : "Path 1 maxed";
     button1.disabled = upgradesLocked || !canPath1;
+    if (!button1.disabled) {
+      const previewTower = { ...tower, path1: tower.path1 + 1, level: 1 + tower.path1 + 1 + tower.path2 };
+      const previewSummary = towerStatSummary(previewTower);
+      button1.addEventListener("mouseenter", () => {
+        towerPopupSummary.innerHTML = `<strong>Next Upgrade</strong><br>${renderTowerStatsPreview(currentSummary, previewSummary)}<br>${path1Text}`;
+      });
+      button1.addEventListener("mouseleave", () => {
+        towerPopupSummary.innerHTML = defaultPopupSummary;
+      });
+    }
     towerPopupActions.appendChild(button1);
 
     const button2 = document.createElement("button");
@@ -4479,9 +4978,23 @@ function openTowerPopup(tower) {
       ? `${path2Text} (${upgradeCost(tower, 2)})`
       : "Path 2 maxed";
     button2.disabled = upgradesLocked || !canPath2;
+    if (!button2.disabled) {
+      const previewTower = { ...tower, path2: tower.path2 + 1, level: 1 + tower.path1 + tower.path2 + 1 };
+      const previewSummary = towerStatSummary(previewTower);
+      button2.addEventListener("mouseenter", () => {
+        towerPopupSummary.innerHTML = `<strong>Next Upgrade</strong><br>${renderTowerStatsPreview(currentSummary, previewSummary)}<br>${path2Text}`;
+      });
+      button2.addEventListener("mouseleave", () => {
+        towerPopupSummary.innerHTML = defaultPopupSummary;
+      });
+    }
     towerPopupActions.appendChild(button2);
     if (tower.type !== "support") {
-      appendPriorityButton(towerPopupActions, tower);
+      if (tower.type === "shotgun" && (tower.path2 || 0) >= 4) {
+        appendShotgunPriorityButtons(towerPopupActions, tower);
+      } else {
+        appendPriorityButton(towerPopupActions, tower);
+      }
     }
     if (canDefrost) {
       const defrostButton = document.createElement("button");
@@ -4504,6 +5017,16 @@ function openTowerPopup(tower) {
       ? "Max upgraded"
       : `${nextLinearName} (${upgradeCost(tower)})`;
   upgradeButton.disabled = upgradesLocked || tower.level >= maxTowerLevel(tower);
+  if (!upgradeButton.disabled) {
+    const previewTower = { ...tower, level: tower.level + 1 };
+    const previewSummary = towerStatSummary(previewTower);
+    upgradeButton.addEventListener("mouseenter", () => {
+      towerPopupSummary.innerHTML = `<strong>Next Upgrade</strong><br>${renderTowerStatsPreview(currentSummary, previewSummary)}<br>${nextLinearName}`;
+    });
+    upgradeButton.addEventListener("mouseleave", () => {
+      towerPopupSummary.innerHTML = defaultPopupSummary;
+    });
+  }
   towerPopupActions.appendChild(upgradeButton);
   if (tower.type !== "support") {
     appendPriorityButton(towerPopupActions, tower);
@@ -4539,6 +5062,8 @@ function placeTower(x, y) {
     setMessage(
       isFurnaceMap() && towerNearFurnaceHeat(towerPlacementCells(selectedTowerType, x, y))
         ? "That spot is too hot. Towers cannot be placed near the furnace core."
+        : isFurnaceMap() && towerPlacementCells(selectedTowerType, x, y).some((cell) => furnaceLavaPitAt(cell.x, cell.y))
+        ? "You cannot place towers on top of the lava pits."
         : selectedTowerType === "dippy" || selectedTowerType === "fireball"
         ? `${TOWER_INFO[selectedTowerType].name} needs a clear 2x2 block space.`
         : selectedTowerType === "gate"
@@ -4564,6 +5089,7 @@ function placeTower(x, y) {
     path1: 0,
     path2: 0,
     targetPriority: "first",
+    cannonPriorities: ["first", "strong", "last"],
     spent: cost,
     x,
     y,
@@ -4630,33 +5156,6 @@ function upgradeTower(x, y, path = null) {
     return false;
   }
 
-  if (tower.type === "crossbow") {
-    if (tower.level >= 4) {
-      setMessage("That crossbow is already fully upgraded.");
-      return false;
-    }
-
-    const cost = upgradeCost(tower);
-    const nextLevel = tower.level + 1;
-
-    if (money < cost) {
-      setMessage("Not enough money to upgrade that tower.");
-      return false;
-    }
-
-    tower.level += 1;
-    money -= cost;
-    tower.spent = (tower.spent || 0) + cost;
-    selectedTowerId = tower.id;
-    tutorialProgress.upgradedTower = true;
-    renderTutorial();
-    queueNextTutorialStep();
-    queueNextTutorialStep();
-    setMessage(`Crossbow upgraded to ${linearUpgradeName("crossbow", nextLevel)}.`, 1.2);
-    openTowerPopup(tower);
-    return true;
-  }
-
   if (isPathTower(tower) && path !== null) {
     const canUpgradePath = canUpgradeTowerPath(tower, path);
     if (!canUpgradePath) {
@@ -4690,7 +5189,7 @@ function upgradeTower(x, y, path = null) {
   selectedTowerId = tower.id;
   tutorialProgress.upgradedTower = true;
   renderTutorial();
-    setMessage(`${towerDisplayName(tower)} upgraded to level ${tower.level}.`, 1.2);
+  setMessage(`${towerDisplayName(tower)} upgraded to Upgrade ${towerUpgradeCount(tower)}.`, 1.2);
   openTowerPopup(tower);
   return true;
 }
@@ -4780,7 +5279,7 @@ function applyTool(x, y) {
     openTowerPopup(clickedTower);
   } else if (grid[y][x].blockId !== null) {
     const block = blocks.get(grid[y][x].blockId);
-    towerDescription.textContent = `${block.name} tetromino. Solid wall tile for tower placement.`;
+    towerDescription.textContent = `${block.name} polyomino. Solid wall tile for tower placement.`;
     closeTowerPopup();
   } else {
     closeTowerPopup();
@@ -4873,9 +5372,12 @@ function createEnemy(enemyType, options = {}) {
     : resolvedEnemyType.key === "sentinel"
       ? Math.max(1, Math.round(resolvedEnemyType.reward * (tier >= 3 ? 4.2 : tier >= 2 ? 2.2 : 1) * rewardMultiplier()))
     : Math.max(1, Math.round(resolvedEnemyType.reward * waffleRewardMultiplier * rewardMultiplier() * (tierConfig?.rewardMultiplier || 1))));
+  const sentinelTierSpeedBonus = resolvedEnemyType.key === "sentinel"
+    ? (tier >= 3 ? 24 : tier >= 2 ? 30 : 0)
+    : 0;
   const speed = options.speed ?? (resolvedEnemyType.key === "heavy"
     ? CELL_SIZE * 0.5 * (activeMap.enemySpeed || 1)
-    : (((30 + waveNumber * 2 + (resolvedEnemyType.speedBonus + waffleSpeedBonus + (resolvedEnemyType.key === "sentinel" ? (tier >= 3 ? -10 : tier >= 2 ? 30 : 0) : 0))) / DIFFICULTIES[selectedDifficulty].interval) * (tierConfig?.speedMultiplier || 1) * (activeMap.enemySpeed || 1)));
+    : (((30 + waveNumber * 2 + (resolvedEnemyType.speedBonus + waffleSpeedBonus + sentinelTierSpeedBonus)) / DIFFICULTIES[selectedDifficulty].interval) * (tierConfig?.speedMultiplier || 1) * (activeMap.enemySpeed || 1)));
   const regenRate = options.regenRate ?? (resolvedEnemyType.key === "health"
     ? (tier >= 3 ? 1.1 : tier === 2 ? 0.75 : 0.45)
     : resolvedEnemyType.key === "life"
@@ -4958,6 +5460,7 @@ function createEnemy(enemyType, options = {}) {
     healPower,
     healInterval,
     healTimer: 0,
+    overhealLimit: options.overhealLimit || 0,
     popcornKernel: Boolean(options.popcornKernel),
     kernelVariant: options.kernelVariant || "normal",
     allowedDamageClasses: options.allowedDamageClasses || resolvedEnemyType.allowedDamageClasses || null,
@@ -4986,7 +5489,7 @@ function pushEnemy(enemy) {
   }
 
   const firstEncounter = !introducedEnemyKeys.has(enemy.key);
-  discoveredEnemies.add(enemy.key);
+  markEnemyDiscovered(enemy.key, enemy.tier || 1);
   if (firstEncounter) {
     introducedEnemyKeys.add(enemy.key);
   }
@@ -5054,7 +5557,7 @@ function stunTowersNear(x, y, radius, duration) {
 
 function spawnIdaenSummons(enemy) {
   const summonWave = enemy.summonWave || waveNumber;
-  const summonCount = 25;
+  const summonCount = selectedDifficulty === "brutal" ? 20 : 25;
   const waffleType = ENEMY_TYPES.waffle16;
   const usedCells = new Set();
 
@@ -5080,7 +5583,9 @@ function spawnIdaenSummons(enemy) {
   }
 
   if (summonWave >= 75) {
-    const biscuitCount = summonWave >= 100 ? 3 : 2;
+    const biscuitCount = selectedDifficulty === "brutal"
+      ? (summonWave >= 100 ? 2 : 1)
+      : (summonWave >= 100 ? 3 : 2);
     for (let index = 0; index < biscuitCount; index += 1) {
       const cell = spawnBossSummonCell(enemy, 5, usedCells);
       if (!cell) {
@@ -5108,8 +5613,8 @@ function spawnIdaenBoss() {
   const boss = createEnemy(ENEMY_TYPES.idaen, {
     portalIndex: Math.floor(Math.random() * activePortals().length),
     reward: Math.max(20, Math.round(ENEMY_TYPES.idaen.reward * rewardMultiplier())),
-    hp: Math.round((180 + bossStage * 170) * 8.4 * 4 * DIFFICULTIES[selectedDifficulty].hp),
-    speed: Math.max(10, (13 + bossStage * 2.2) / DIFFICULTIES[selectedDifficulty].interval),
+    hp: Math.round((180 + bossStage * 170) * 8.4 * 4 * DIFFICULTIES[selectedDifficulty].hp * brutalBossHpScale()),
+    speed: Math.max(10, ((13 + bossStage * 2.2) / DIFFICULTIES[selectedDifficulty].interval) * brutalBossSpeedScale()),
     waffleSquares: 64,
     summonWave: waveNumber
   });
@@ -5126,7 +5631,7 @@ function spawnIdaenBoss() {
 }
 
 function spawnAdapterEscorts(enemy) {
-  const escortCount = 5;
+  const escortCount = selectedDifficulty === "brutal" ? 4 : 5;
   for (let index = 0; index < escortCount; index += 1) {
     const escort = createEnemy(ENEMY_TYPES.attacker, {
       portalIndex: enemy.portalIndex,
@@ -5155,9 +5660,8 @@ function spawnAdapterBoss() {
   const boss = createEnemy(ENEMY_TYPES.adapter, {
     portalIndex: Math.floor(Math.random() * activePortals().length),
     reward: Math.max(24, Math.round(ENEMY_TYPES.adapter.reward * rewardMultiplier())),
-    hp: Math.round((260 + waveNumber * 34) * 10.5 * 4 * DIFFICULTIES[selectedDifficulty].hp),
-    speed: Math.max(10, (20 + waveNumber * 0.24) / DIFFICULTIES[selectedDifficulty].interval),
-    armorHp: ENEMY_TYPES.adapter.armor + Math.max(0, Math.floor((waveNumber - 30) / 10)),
+    hp: Math.round((260 + waveNumber * 34) * 10.5 * 4 * DIFFICULTIES[selectedDifficulty].hp * brutalBossHpScale()),
+    speed: Math.max(10, ((20 + waveNumber * 0.24) / DIFFICULTIES[selectedDifficulty].interval) * brutalBossSpeedScale()),
     hidden: false,
     adapterBlockReady: true,
     adapterSummonTimer: 3.8,
@@ -5179,11 +5683,15 @@ function triggerAdapterPulse(enemy) {
   addPulse(enemy.x, enemy.y, radius * 0.66, "rgba(180, 120, 255, 0.22)");
 
   for (const target of enemies) {
-    if (target.hp <= 0 || Math.hypot(target.x - enemy.x, target.y - enemy.y) > radius) {
+    if (target.id === enemy.id || target.hp <= 0 || Math.hypot(target.x - enemy.x, target.y - enemy.y) > radius) {
       continue;
     }
-    target.hp = Math.min(target.maxHp, target.hp + target.maxHp * 0.18);
+    target.overhealLimit = Math.max(target.overhealLimit || 0, 100);
+    const healCap = target.maxHp + target.overhealLimit;
+    target.hp = Math.min(healCap, target.hp + target.maxHp * 0.18);
     target.healthBarLagHp = Math.max(target.healthBarLagHp || target.hp, target.hp);
+    target.healthBarTint = "#f0cc46";
+    target.healthBarTintTimer = Math.max(target.healthBarTintTimer || 0, 0.32);
     target.speedBoostFactor = Math.max(target.speedBoostFactor || 1, 1.45);
     target.speedBoostTimer = Math.max(target.speedBoostTimer || 0, 2.6);
   }
@@ -5246,19 +5754,19 @@ function spawnWave() {
   waveNumber = Math.max(1, waveNumber);
   resetSpawnPortalOrder();
   wave = {
-    count: Math.max(3, Math.round((1.25 + waveNumber * 0.62 + Math.floor(waveNumber / 6) * 0.18) * enemyCountMultiplier())),
+    count: Math.max(3, Math.round((1.25 + waveNumber * 0.62 + Math.floor(waveNumber / 6) * 0.18) * enemyCountMultiplier() * brutalWaveCountScale())),
     spawned: 0,
     timer: 0,
-    interval: Math.max(1.08 - waveNumber * 0.015, 0.56),
+    interval: Math.max(1.08 - waveNumber * 0.015, brutalWaveIntervalFloor()),
     complete: false
   };
   if (waveNumber === 74) {
-    wave.count = Math.max(wave.count, Math.round(54 * enemyCountMultiplier()));
-    wave.interval = Math.min(wave.interval, 0.14);
+    wave.count = Math.max(wave.count, Math.round((selectedDifficulty === "brutal" ? 42 : 54) * enemyCountMultiplier() * brutalWaveCountScale()));
+    wave.interval = Math.min(wave.interval, selectedDifficulty === "brutal" ? 0.2 : 0.14);
   }
   if (waveNumber === 58) {
-    wave.count = Math.max(wave.count, Math.round(16 * enemyCountMultiplier()));
-    wave.interval = Math.min(wave.interval, 0.68);
+    wave.count = Math.max(wave.count, Math.round((selectedDifficulty === "brutal" ? 12 : 16) * enemyCountMultiplier() * brutalWaveCountScale()));
+    wave.interval = Math.min(wave.interval, selectedDifficulty === "brutal" ? 0.76 : 0.68);
   }
   autoWaveTimer = 0;
   maybeUnlockCrossbowQuest();
@@ -5350,13 +5858,11 @@ function spawnSandboxEnemyFromControls() {
         ? pushEnemy(createEnemy(enemyType, {
           portalIndex,
           hidden,
-          armored,
           shielded,
           shelled,
           tier,
           hp: Math.round((260 + summonWave * 34) * 10.5 * 4 * DIFFICULTIES[selectedDifficulty].hp),
           speed: Math.max(10, (20 + summonWave * 0.24) / DIFFICULTIES[selectedDifficulty].interval),
-          armorHp: ENEMY_TYPES.adapter.armor + Math.max(0, Math.floor((summonWave - 30) / 10)),
           adapterBlockReady: true,
           adapterSummonTimer: 3.8,
           adapterGuardCooldown: 4.8,
@@ -5471,18 +5977,22 @@ function spawnEnemy() {
 
   const enemy = createEnemy(enemyType, {
     tier: enemyType.key === "diamond"
-      ? diamondTierForWave()
+      ? rolledTierForWave("diamond")
       : enemyType.key === "sentinel"
-        ? (waveNumber >= 52 ? 3 : waveNumber >= 34 ? 2 : 1)
+        ? rolledTierForWave("sentinel")
       : enemyType.key === "health"
-        ? genericEnemyTierForWave()
+        ? rolledTierForWave("health")
       : enemyType.key === "life"
-        ? genericEnemyTierForWave()
+        ? rolledTierForWave("life")
       : enemyType.key === "popcorn"
         ? 1
       : enemyType.key === "splitter"
         ? splitterTierForWave()
-      : genericEnemyTierForWave(),
+      : enemyType.key === "attacker"
+        ? rolledTierForWave("attacker")
+      : enemyType.key === "waffle16"
+        ? rolledTierForWave("waffle16")
+      : rolledTierForWave(enemyType.key),
     hidden: attackerHidden || (enemyType.key.startsWith("waffle") ? waffleMods.hidden : hidden),
     armored: enemyArmored,
     armorHp: attackerArmored
@@ -5525,7 +6035,7 @@ function updateWave(deltaTime) {
         addFloatingText(entry.tower.centerX, entry.tower.centerY - 12, `+$${entry.amount}`, "#ffe27a", 1.15);
       }
     }
-    freeBlocks = 1;
+    freeBlocks = 0;
     currentBlockCost = BLOCK_COST;
     if (isFactoryMap()) {
       advanceFactoryQuarter();
@@ -5654,11 +6164,14 @@ function updateEnemies(deltaTime) {
         enemy.adapterSummonTimer = 5.6;
         spawnAdapterEscorts(enemy);
       }
-      if (!enemy.adapterBlockReady && enemy.adapterGuardCooldown === 0) {
-        enemy.adapterBlockReady = true;
-        enemy.adapterGuardCooldown = 5.8;
-        addPulse(enemy.x, enemy.y, CELL_SIZE * 1.6, "rgba(255, 232, 168, 0.26)");
-      }
+    if (!enemy.adapterBlockReady && enemy.adapterGuardCooldown === 0) {
+      enemy.adapterBlockReady = true;
+      enemy.adapterGuardCooldown = 5.8;
+      enemy.armored = false;
+      enemy.armorHp = 0;
+      enemy.maxArmorHp = 0;
+      addPulse(enemy.x, enemy.y, CELL_SIZE * 1.6, "rgba(255, 232, 168, 0.26)");
+    }
     }
 
     const stunFactor = enemy.stunTimer > 0 || enemy.phaseTimer > 0 ? 0 : 1;
@@ -5715,29 +6228,28 @@ function updateEnemies(deltaTime) {
 
 function towerStats(tower) {
   const levelBonus = tower.level - 1;
-  const finalizeStats = (stats) => {
-    if (towerPlacedOnIsland(tower) && Number.isFinite(stats.range)) {
-      return {
-        ...stats,
-        range: stats.range + CELL_SIZE,
-        islandRangeBonus: true
-      };
-    }
-    return stats;
-  };
+  const finalizeStats = (stats) => stats;
 
   if (tower.type === "crossbow") {
-    const level = tower.level || 1;
-    const attackSpeedMultiplier = level >= 4 ? 4 : level >= 2 ? 2 : 1;
+    const path1 = tower.path1 || 0;
+    const path2 = tower.path2 || 0;
+    const repeater = path1 >= 3;
+    const ballista = path2 >= 3;
     return finalizeStats({
-      range: CELL_SIZE * 4.15,
-      cooldown: (level >= 3 ? 0.72 : 0.86) / attackSpeedMultiplier,
-      damage: [0.72, 1.05, 1.55, 2.15][level - 1] || 2.15,
-      boltSpeed: 520,
-      boltHoming: 1.25,
+      range: CELL_SIZE * (4.55 + path2 * 0.28 + (ballista ? 0.55 : 0) + (path2 >= 5 ? 0.7 : 0)),
+      cooldown: repeater
+        ? Math.max(0.34 - (path1 - 3) * 0.06 - path2 * 0.01, 0.16)
+        : Math.max(0.72 - path1 * 0.09 - path2 * 0.02, 0.28),
+      damage: ballista
+        ? 3.2 + path2 * 1.65 + path1 * 0.28 + (path2 >= 4 ? 2.8 : 0) + (path2 >= 5 ? 6.8 : 0)
+        : 1.4 + path1 * 0.5 + path2 * 0.22 + (path1 >= 3 ? 0.85 : 0) + (path1 >= 4 ? 1.25 : 0) + (path1 >= 5 ? 2.1 : 0),
+      boltSpeed: ballista ? 660 : 560,
+      boltHoming: ballista ? 0.3 : 1.25,
       detectHidden: true,
-      attackSpeedMultiplier,
-      boltPierce: level >= 3 ? level - 2 : 0
+      attackSpeedMultiplier: 1,
+      boltPierce: ballista
+        ? (path2 >= 5 ? 7 : path2 >= 4 ? 5 : 3)
+        : (path1 >= 5 ? 2 : path1 >= 4 || path2 >= 2 ? 1 : 0)
     });
   }
 
@@ -5748,22 +6260,23 @@ function towerStats(tower) {
     const increasedDamage = path2 >= 3;
     const photon = path2 >= 5;
     const doubleBeam = path2 >= 4 && !photon;
-    const doubleBeamDamageBoost = path2 >= 4 ? (photon ? 9.5 : 2.2) : 0;
-    const photonBurnBoost = path2 >= 4 && photon ? 2.8 : 0;
+    const doubleBeamDamageBoost = path2 >= 4 ? (photon ? 18 : 4.6) : 0;
+    const photonBurnBoost = path2 >= 4 && photon ? 4.2 : 0;
     return finalizeStats({
-      range: CELL_SIZE * (4.9 + path2 * 0.16 + path1 * 0.04 + (plasma ? 0.28 : 0) + (photon ? 0.18 : 0)),
+      range: CELL_SIZE * (4.85 + path2 * 0.22 + path1 * 0.08 + (plasma ? 0.42 : 0) + (path2 >= 4 ? 0.38 : 0) + (photon ? 0.58 : 0)),
       cooldown: photon
-        ? Math.max(0.94 - path1 * 0.03 - path2 * 0.05, 0.56)
-        : Math.max(0.9 - path1 * 0.06 - path2 * 0.045 - (plasma ? 0.04 : 0), 0.18),
-      damage: 2.5 + path2 * 1.45 + (increasedDamage ? 2 : 0) + doubleBeamDamageBoost + (photon ? 8.5 : 0),
-      burnDamage: path1 > 0 || path2 > 0 ? 0.8 + path2 * 0.95 + (increasedDamage ? 0.85 : 0) + (path1 >= 4 ? 0.8 : 0) + (photon ? 3.8 + photonBurnBoost : 0) : 0,
-      burnDuration: path1 > 0 || path2 > 0 ? 1.5 + path1 * 0.42 + path2 * 0.3 + (plasma ? 0.8 : 0) + (path1 >= 4 ? 0.7 : 0) + (path1 >= 5 ? 1 : 0) : 0,
-      beamWidth: 12 + path1 * 1.8 + path2 * 1.4 + (plasma ? 4.5 : 0) + (path1 >= 4 ? 2 : 0) + (photon ? 7 : 0),
+        ? Math.max(1.02 - path1 * 0.06 - path2 * 0.08, 0.56)
+        : Math.max(0.84 - path1 * 0.08 - path2 * 0.05 - (plasma ? 0.06 : 0) - (path2 >= 4 ? 0.05 : 0), 0.12),
+      damage: 2.75 + path2 * 1.92 + (increasedDamage ? 2.9 : 0) + doubleBeamDamageBoost + (photon ? 16 : 0),
+      burnDamage: path1 > 0 || path2 > 0 ? 0.65 + path2 * 1.08 + (increasedDamage ? 1.2 : 0) + (path1 >= 4 ? 1.5 : 0) + (path2 >= 4 ? 1.4 : 0) + (photon ? 7.2 + photonBurnBoost : 0) : 0,
+      burnDuration: path1 > 0 || path2 > 0 ? 1.2 + path1 * 0.5 + path2 * 0.34 + (plasma ? 1.1 : 0) + (path1 >= 4 ? 1 : 0) + (path1 >= 5 ? 1.8 : 0) : 0,
+      beamWidth: 8 + path1 * 1.6 + path2 * 1.3 + (plasma ? 4.2 : 0) + (path1 >= 4 ? 3.5 : 0) + (path2 >= 4 ? 2.6 : 0) + (photon ? 13 : 0),
       beamColor: photon ? "#ffe35c" : plasma ? "#ffffff" : "#ff96b8",
       beamTtl: plasma ? 0.18 : photon ? 0.16 : 0.12,
       doubleBeam,
-      beamSeparation: doubleBeam ? 12 : 0,
-      photonBlast: photon
+      beamSeparation: doubleBeam ? 15 : 0,
+      photonBlast: photon,
+      infinitePierce: increasedDamage
     });
   }
 
@@ -5772,19 +6285,23 @@ function towerStats(tower) {
     const path2 = tower.path2 || 0;
     const bulletStorm = path1 >= 3;
     const wavelength = path2 >= 3;
-    const lines = wavelength ? 18 : Math.max(bulletStorm ? 5 : 3, 3 + path2);
+    const goldenSpectrum = path2 >= 4;
+    const lines = path2 >= 5 ? 40 : wavelength ? 18 : Math.max(bulletStorm ? 5 : 3, 3 + path2);
     return finalizeStats({
-      range: CELL_SIZE * (2.95 + path2 * 0.14),
+      range: CELL_SIZE * (3.05 + path2 * 0.14 + (path2 >= 4 ? 0.18 : 0) + (path2 >= 5 ? 0.28 : 0)),
       cooldown: bulletStorm
-        ? Math.max(0.2 - path1 * 0.03 - path2 * 0.025, 0.04)
-        : Math.max(0.76 - path1 * 0.07 - path2 * 0.035 - (path1 >= 4 ? 0.05 : 0), 0.18),
-      damage: 1.8 + path1 * 0.4 + path2 * 0.62 + (path2 >= 3 ? 2.1 : 0) + (path1 >= 4 ? 1.1 : 0) + (path2 >= 4 ? 1.8 : 0) + (path2 >= 5 ? 3.2 : 0),
+        ? Math.max(0.19 - path1 * 0.038 - path2 * 0.03 - (path1 >= 4 ? 0.02 : 0), 0.024)
+        : Math.max(0.72 - path1 * 0.07 - path2 * 0.035 - (path1 >= 4 ? 0.05 : 0) - (path2 >= 4 ? 0.05 : 0), 0.12),
+      damage: 1.95 + path1 * 0.58 + path2 * 0.86 + (path2 >= 3 ? 2.2 : 0) + (path1 >= 4 ? 3 : 0) + (path1 >= 5 ? 7.6 : 0) + (path2 >= 4 ? 4 : 0) + (path2 >= 5 ? 8.8 : 0),
       pellets: wavelength ? 20 : lines,
       spread: wavelength ? Math.PI : Math.max(0.55 - path2 * 0.045 - (bulletStorm ? 0.04 : 0), 0.18),
-      pelletSpeed: 380 + path2 * 20 + (path1 >= 4 ? 30 : 0) + (path2 >= 4 ? 40 : 0),
-      pelletLife: 0.24 + path2 * 0.01,
+      pelletSpeed: 380 + path2 * 20 + (path1 >= 4 ? 30 : 0) + (path2 >= 4 ? 55 : 0) + (path2 >= 5 ? 35 : 0),
+      pelletLife: 0.24 + path2 * 0.01 + (path2 >= 4 ? 0.03 : 0) + (path2 >= 5 ? 0.03 : 0),
       detectHidden: false,
-      bulletStorm
+      bulletStorm,
+      cannonCount: goldenSpectrum ? 3 : 1,
+      multiPriority: goldenSpectrum,
+      cannonPriorities: path2 >= 4 ? ["first", "strong", "last"] : ["first", "weak", "random"]
     });
   }
 
@@ -5794,20 +6311,20 @@ function towerStats(tower) {
     const permafrost = path1 >= 3;
     const aura = path2 >= 3;
     return finalizeStats({
-      range: CELL_SIZE * (3.5 + path2 * 0.2 + (path1 >= 4 ? 0.15 : 0)),
-      cooldown: Math.max(1.12 - path1 * 0.09 - path2 * 0.03, 0.42),
-      damage: 0.7 + path1 * 0.35 + path2 * 0.18 + (path1 >= 4 ? 0.45 : 0) + (path1 >= 5 ? 1.4 : 0),
+      range: CELL_SIZE * (3.7 + path2 * 0.2 + (path1 >= 4 ? 0.15 : 0)),
+      cooldown: Math.max(1.04 - path1 * 0.09 - path2 * 0.03, 0.42),
+      damage: 1.1 + path1 * 0.42 + path2 * 0.24 + (path1 >= 4 ? 0.7 : 0) + (path1 >= 5 ? 1.95 : 0),
       slow: Math.max(0.72 - path2 * 0.05 - (path2 >= 5 ? 0.06 : 0), 0.34),
       slowDuration: 1.15 + path1 * 0.22 + path2 * 0.18,
       detectHidden: path2 >= 4,
       permafrost,
       pulseRadius: CELL_SIZE * (2.55 + path1 * 0.16 + path2 * 0.08 + (path1 >= 4 ? 0.3 : 0) + (path1 >= 5 ? 0.4 : 0)),
-      pulseDamage: 0.75 + path1 * 0.26 + path2 * 0.18 + (permafrost ? 0.95 : 0) + (path1 >= 4 ? 0.6 : 0) + (path1 >= 5 ? 1.1 : 0),
+      pulseDamage: 0.9 + path1 * 0.32 + path2 * 0.22 + (permafrost ? 1.1 : 0) + (path1 >= 4 ? 0.85 : 0) + (path1 >= 5 ? 1.5 : 0),
       pulseFreeze: permafrost ? 0.48 + (path1 - 3) * 0.12 + (path1 >= 4 ? 0.18 : 0) + (path1 >= 5 ? 0.3 : 0) : 0,
       pulseCooldown: permafrost ? Math.max(2.2 - path1 * 0.28, 0.72) : Math.max(1.22 - path1 * 0.08 - path2 * 0.04, 0.54),
       aura,
       auraRadius: CELL_SIZE * (2.2 + path2 * 0.16),
-      auraDamage: aura ? 0.34 + path2 * 0.18 + path1 * 0.08 + (path2 >= 4 ? 0.28 : 0) + (path2 >= 5 ? 0.55 : 0) : 0,
+      auraDamage: aura ? 0.42 + path2 * 0.2 + path1 * 0.1 + (path2 >= 4 ? 0.34 : 0) + (path2 >= 5 ? 0.72 : 0) : 0,
       auraSlow: aura ? Math.max(0.62 - (path2 - 3) * 0.08 - (path2 >= 4 ? 0.08 : 0) - (path2 >= 5 ? 0.1 : 0), 0.16) : 1,
       auraTick: aura ? (path2 >= 5 ? 0.12 : path2 >= 4 ? 0.16 : 0.22) : 0,
       boltSpeed: 250
@@ -5815,18 +6332,38 @@ function towerStats(tower) {
   }
 
   if (tower.type === "fireball") {
-    const level = tower.level || 1;
+    const path1 = tower.path1 || 0;
+    const path2 = tower.path2 || 0;
+    const flamethrower = path1 >= 3;
+    const blazingRing = path2 >= 3;
     return finalizeStats({
-      range: CELL_SIZE * 4.35,
-      cooldown: [0.86, 0.78, 0.68, 0.58, 0.48][level - 1] || 0.48,
-      damage: [2.2, 3.1, 4.2, 5.6, 7.4][level - 1] || 7.4,
-      burst: level >= 5 ? 5 : level >= 3 ? 4 : 3,
-      burstDelay: level >= 5 ? 0.055 : level >= 3 ? 0.07 : 0.085,
-      projectileSpeed: 330 + level * 18,
-      splash: 22 + level * 6,
-      burnDamage: 1.4 + level * 0.7,
-      burnDuration: 1.6 + level * 0.34,
-      detectHidden: false
+      range: flamethrower
+        ? CELL_SIZE * (5.6 + path1 * 0.42 + (path1 >= 4 ? 0.45 : 0) + (path1 >= 5 ? 3.4 : 0))
+        : CELL_SIZE * (4.5 + path1 * 0.12 + path2 * 0.16),
+      cooldown: flamethrower
+        ? Math.max(0.2 - (path1 - 3) * 0.035, 0.06)
+        : blazingRing
+          ? Math.max(0.72 - (path2 - 3) * 0.1, 0.18)
+          : Math.max(0.8 - path1 * 0.04 - path2 * 0.05, 0.34),
+      damage: flamethrower
+        ? 2.1 + path1 * 1.02 + (path1 >= 4 ? 3 : 0) + (path1 >= 5 ? 7.8 : 0)
+        : 2.8 + path1 * 0.62 + path2 * 0.76 + (path2 >= 4 ? 2.4 : 0) + (path2 >= 5 ? 4.9 : 0),
+      burst: blazingRing ? 1 : (path2 >= 2 ? 4 : 3),
+      burstDelay: 0.07,
+      projectileSpeed: 340 + path1 * 18 + path2 * 10,
+      splash: 28 + path1 * 4 + path2 * 8 + (path2 >= 4 ? 14 : 0) + (path2 >= 5 ? 18 : 0),
+      burnDamage: 1.9 + path1 * 1 + path2 * 0.86 + (path1 >= 4 ? 2.3 : 0) + (path1 >= 5 ? 6.1 : 0) + (path2 >= 4 ? 2.6 : 0) + (path2 >= 5 ? 6.5 : 0),
+      burnDuration: 1.8 + path1 * 0.36 + path2 * 0.28 + (path1 >= 4 ? 0.6 : 0) + (path1 >= 5 ? 1.4 : 0) + (path2 >= 4 ? 0.5 : 0) + (path2 >= 5 ? 1.1 : 0),
+      detectHidden: false,
+      flamethrower,
+      flameArc: flamethrower ? (path1 >= 5 ? 0.34 : 0.28) : 0,
+      flameTrail: path1 >= 5,
+      trailRadius: path1 >= 5 ? CELL_SIZE * 1.2 : 0,
+      trailTtl: path1 >= 5 ? 2.6 : 0,
+      blazingRing,
+      ringRadius: blazingRing ? CELL_SIZE * (2.4 + (path2 - 3) * 0.52 + (path2 >= 5 ? 0.48 : 0)) : 0,
+      ringWidth: blazingRing ? (path2 >= 5 ? CELL_SIZE * 1.08 : path2 >= 4 ? CELL_SIZE * 0.9 : CELL_SIZE * 0.7) : 0,
+      ringEchoes: path2 >= 5 ? 3 : 1
     });
   }
 
@@ -5841,32 +6378,32 @@ function towerStats(tower) {
     const mangoes = path2 >= 4;
     const topPathCooldownBonus = (path1 >= 4 ? 0.22 : 0) + (path1 >= 5 ? 0.24 : 0);
     const bottomPathCooldownBonus = (path2 >= 4 ? 0.16 : 0) + (path2 >= 5 ? 0.2 : 0);
-    const baseCooldown = Math.max(2.7 - path1 * 0.12 - topPathCooldownBonus - bottomPathCooldownBonus, 1.25);
+    const baseCooldown = Math.max(2.15 - path1 * 0.14 - topPathCooldownBonus - bottomPathCooldownBonus, 1.05);
     const reloadPenalty = (path1 >= 5 ? 0.52 : path1 >= 4 ? 0.12 : 0) + (path2 >= 4 ? 0.34 : 0) + (path2 >= 5 ? 0.18 : 0);
     const damage = mangoPudding
       ? 105
       : mangoes
-        ? 20
+        ? 24
         : eggPudding
-          ? 16
+          ? 18
           : boiledEggs
-            ? 8
-            : 7;
+            ? 10
+            : 9.5;
     const streamCooldown = path1 >= 5 ? 0.25 : Math.max(0.16 - Math.max(0, path1 - 3) * 0.01, 0.06);
     const magazineReloadStep = dozenEggs
       ? Math.max((baseCooldown + reloadPenalty) / 12, 0.08)
       : null;
     return finalizeStats({
-      range: CELL_SIZE * (11.4 + path2 * 0.28),
+      range: CELL_SIZE * (11.9 + path2 * 0.32),
       minRange: CELL_SIZE * (dozenEggs ? 2.5 : 3.5),
       cooldown: dozenEggs ? streamCooldown : baseCooldown + reloadPenalty,
       firingCooldown: streamCooldown,
       damage,
-      splash: Math.max(32, biggerEggs ? 58 + path2 * 10 + (eggPudding ? 10 : 0) + (path1 >= 4 ? 16 : 0) + (mangoPudding ? 34 : 0) : 44 + path2 * 8 + (path2 >= 3 ? 8 : 0) + (path2 >= 4 ? 10 : 0) + (path2 >= 5 ? 14 : 0)),
+      splash: Math.max(38, biggerEggs ? 66 + path2 * 11 + (eggPudding ? 12 : 0) + (path1 >= 4 ? 18 : 0) + (mangoPudding ? 38 : 0) : 52 + path2 * 9 + (path2 >= 3 ? 10 : 0) + (path2 >= 4 ? 12 : 0) + (path2 >= 5 ? 16 : 0)),
       burst: path1 >= 5 ? 12 : path1 >= 4 ? 6 : path1 >= 3 ? 4 : 1,
       burstDelay: path1 >= 5 ? 0.06 : path1 >= 4 ? 0.07 : path1 >= 3 ? 0.075 : 0,
       holdDelay: 1,
-      burnDamage: boiledEggs ? 9 + path1 * 2.1 : 0,
+      burnDamage: boiledEggs ? 10 + path1 * 2.2 : 0,
       burnDuration: boiledEggs ? 4.8 : 0,
       detectHidden: path2 >= 3,
       shells: path2 >= 2,
@@ -5882,11 +6419,11 @@ function towerStats(tower) {
       yolkColor: path2 >= 5 ? "#ffd11a" : path2 >= 4 ? "#ffcf33" : path2 >= 3 ? "#ffcc4a" : "#ffce54",
       shieldMultiplier: path2 >= 5 ? 18 : path2 >= 4 ? 4.5 : 1,
       inaccuracy: path1 >= 5 ? CELL_SIZE * 1.7 : path2 >= 5 ? CELL_SIZE * 1.3 : 0,
-      welfareHoming: path1 >= 3,
-      welfareTurnRate: path1 >= 5 ? 11.5 : path1 >= 4 ? 9.5 : 6.8,
-      welfareCruiseSpeed: path1 >= 5 ? 600 : path1 >= 4 ? 520 : 430,
-      welfareApexHeight: path1 >= 5 ? 188 : path1 >= 4 ? 164 : 150,
-      welfareSwerveStart: path1 >= 5 ? 52 : path1 >= 4 ? 42 : path1 >= 3 ? 30 : 0,
+      welfareHoming: true,
+      welfareTurnRate: path1 >= 5 ? 11.5 : path1 >= 4 ? 9.5 : path1 >= 3 ? 6.8 : 5.2,
+      welfareCruiseSpeed: path1 >= 5 ? 600 : path1 >= 4 ? 520 : path1 >= 3 ? 430 : 360,
+      welfareApexHeight: path1 >= 5 ? 188 : path1 >= 4 ? 164 : path1 >= 3 ? 150 : 132,
+      welfareSwerveStart: path1 >= 5 ? 52 : path1 >= 4 ? 42 : path1 >= 3 ? 30 : 18,
       alternatingPods: path1 >= 5,
       podReloadStep: magazineReloadStep,
       syrupDamage: path2 >= 5 ? 2.4 : 0,
@@ -5901,24 +6438,24 @@ function towerStats(tower) {
     const path2 = tower.path2 || 0;
     const invested = UPGRADE_COSTS.support.path1.slice(0, path1).reduce((total, cost) => total + cost, 0);
     return finalizeStats({
-      range: CELL_SIZE * (1.9 + path2 * 0.18 + (path2 >= 5 ? 0.22 : 0)),
+      range: CELL_SIZE * (2 + path2 * 0.18 + (path2 >= 5 ? 0.22 : 0)),
       cooldown: Infinity,
       damage: 0,
       waveCash: invested / 10 + (path1 >= 3 ? 8 : 0) + (path1 >= 4 ? 16 : 0) + (path1 >= 5 ? 42 : 0),
       munitions: path2 >= 5,
       detectHiddenAura: path2 >= 4,
-      attackSpeedAura: path2 >= 5 ? 1.46 : path2 >= 4 ? 1.3 : path2 >= 3 ? 1.22 : path2 >= 2 ? 1.08 : 1,
+      attackSpeedAura: path2 >= 5 ? 1.5 : path2 >= 4 ? 1.32 : path2 >= 3 ? 1.22 : path2 >= 2 ? 1.09 : 1,
       helpMissile: path2 >= 5,
-      helpMissileCooldown: path2 >= 5 ? 4.8 : 8.8,
-      speed: path2 >= 5 ? 176 : 142,
-      acceleration: path2 >= 5 ? 720 : 560,
-      damage: path2 >= 5 ? 18 : 8.5,
-      splash: path2 >= 5 ? 46 : 28,
+      helpMissileCooldown: path2 >= 5 ? 3 : 8.8,
+      speed: path2 >= 5 ? 156 : 142,
+      acceleration: path2 >= 5 ? 620 : 560,
+      damage: path2 >= 5 ? 4.2 : 8.5,
+      splash: path2 >= 5 ? 14 : 28,
       homing: 9.5,
       shrapnel: false,
       clusters: false,
       rain: false,
-      auraRadius: CELL_SIZE * (1.9 + path2 * 0.18 + (path2 >= 5 ? 0.22 : 0))
+      auraRadius: CELL_SIZE * (2 + path2 * 0.18 + (path2 >= 5 ? 0.22 : 0))
     });
   }
 
@@ -5926,12 +6463,12 @@ function towerStats(tower) {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
     return finalizeStats({
-      range: CELL_SIZE * (2.55 + path2 * 0.18 + path1 * 0.08),
-      cooldown: Math.max(1.08 - path2 * 0.12 - (path2 >= 4 ? 0.08 : 0), 0.28),
-      damage: 0.18 + path2 * 0.1 + (path2 >= 3 ? 0.14 : 0) + (path2 >= 4 ? 0.2 : 0) + (path2 >= 5 ? 0.4 : 0),
-      acidDot: 1.25 + path2 * 0.48 + path1 * 0.2 + (path2 >= 4 ? 0.6 : 0) + (path2 >= 5 ? 1.7 : 0),
+      range: CELL_SIZE * (2.75 + path2 * 0.18 + path1 * 0.08),
+      cooldown: Math.max(1 - path2 * 0.12 - (path2 >= 4 ? 0.08 : 0), 0.28),
+      damage: 0.3 + path2 * 0.14 + (path2 >= 3 ? 0.18 : 0) + (path2 >= 4 ? 0.28 : 0) + (path2 >= 5 ? 0.56 : 0),
+      acidDot: 1.75 + path2 * 0.62 + path1 * 0.28 + (path2 >= 4 ? 0.85 : 0) + (path2 >= 5 ? 2.25 : 0),
       acidDuration: 2.9 + path1 * 0.42 + (path1 >= 3 ? 0.55 : 0) + (path1 >= 4 ? 0.7 : 0) + (path1 >= 5 ? 1.2 : 0),
-      acidAmp: 1.08 + path1 * 0.07 + (path1 >= 4 ? 0.14 : 0) + (path1 >= 5 ? 0.34 : 0),
+      acidAmp: 1.12 + path1 * 0.09 + (path1 >= 4 ? 0.18 : 0) + (path1 >= 5 ? 0.42 : 0),
       spraySlow: Math.max(0.94 - path2 * 0.04, 0.72),
       spraySlowDuration: 0.48 + path2 * 0.08,
       detectHidden: true
@@ -5946,15 +6483,15 @@ function towerStats(tower) {
     const path1Chains = [1, 1, 2, 2, 3, 3];
     const path2Chains = [1, 1, 1, 3, 4, 8];
     return finalizeStats({
-      range: CELL_SIZE * (2.4 + path2 * 0.06),
-      cooldown: electrocannon ? Math.max(1.22 - path1 * 0.05, 0.72) : Math.max(0.48 - path1 * 0.055 - (path1 >= 3 ? 0.09 : 0) - (path1 >= 4 ? 0.03 : 0), 0.1),
-      damage: (electrocannon ? 4.8 : 1.3) + path2 * 0.95 + (path2 >= 3 ? 0.6 : 0) + (path2 >= 4 ? 1.4 : 0) + (supercharge ? 1.8 : 0),
+      range: CELL_SIZE * (2.55 + path2 * 0.08),
+      cooldown: electrocannon ? Math.max(1.12 - path1 * 0.05, 0.62) : Math.max(0.46 - path1 * 0.055 - (path1 >= 3 ? 0.09 : 0) - (path1 >= 4 ? 0.03 : 0), 0.1),
+      damage: (electrocannon ? 6.2 : 1.55) + path2 * 1.02 + (path2 >= 3 ? 0.7 : 0) + (path2 >= 4 ? 1.55 : 0) + (supercharge ? 2 : 0),
       chainCount: Math.max(path1Chains[path1], path2Chains[path2]),
       splash: electrocannon ? 34 : 0,
       stun: 0.22 + path2 * 0.08 + (path1 >= 4 ? 0.12 : 0) + (path2 >= 5 ? 0.18 : 0),
       chainSlow: path1 >= 4 ? 0.75 : 1,
       field: path2 >= 3,
-      fieldDamage: path2 >= 5 ? 1.1 : path2 >= 4 ? 0.56 : path2 >= 3 ? 0.3 : 0.18,
+      fieldDamage: path2 >= 5 ? 1.25 : path2 >= 4 ? 0.62 : path2 >= 3 ? 0.34 : 0.2,
       fieldStun: path2 >= 5 ? 0.22 : path2 >= 4 ? 0.14 : 0.06,
       fieldCooldown: path2 >= 5 ? 0.24 : path2 >= 4 ? 0.38 : 0.7,
       detectHidden: path2 >= 3,
@@ -5971,15 +6508,15 @@ function towerStats(tower) {
     const heavyDart = path2 >= 3;
     const blastCore = path1 >= 3;
     return finalizeStats({
-      range: CELL_SIZE * (4.6 + path1 * 0.34),
-      cooldown: heavyDart ? Math.max(1.02 - (path2 - 3) * 0.1, 0.54) : Math.max(0.98 - path1 * 0.05 - (path1 >= 4 ? 0.08 : 0), 0.34),
-      damage: heavyDart ? 10 + path2 * 3.1 + (path2 >= 3 ? 2.4 : 0) + (path2 >= 4 ? 4 : 0) + (path2 >= 5 ? 10 : 0) : 4 + path2 * 1.45 + (path1 >= 3 ? 1.8 : 0) + (path1 >= 4 ? 1.4 : 0) + (path1 >= 5 ? 2.8 : 0),
-      splash: heavyDart ? 0 : blastCore ? 50 + path1 * 6 + 16 + (path1 >= 4 ? 16 : 0) + (path1 >= 5 ? 26 : 0) : 0,
-      speed: heavyDart ? 520 + (path2 - 3) * 60 + (path2 >= 5 ? 80 : 0) : 120 + (path1 >= 3 ? 120 : 0) + (path1 >= 4 ? 40 : 0) + (path1 >= 5 ? 60 : 0),
-      acceleration: heavyDart ? 0 : 520 + (path1 >= 3 ? 220 : 0) + (path1 >= 4 ? 120 : 0) + (path1 >= 5 ? 160 : 0),
-      burst: path1 >= 5 ? 8 : path1 >= 4 ? 3 : 1,
+      range: CELL_SIZE * (4.8 + path1 * 0.34 + (path1 >= 5 ? 0.5 : 0)),
+      cooldown: heavyDart ? Math.max(0.96 - (path2 - 3) * 0.1, 0.5) : Math.max(0.92 - path1 * 0.05 - (path1 >= 4 ? 0.08 : 0), 0.34),
+      damage: heavyDart ? 11 + path2 * 3.35 + (path2 >= 3 ? 2.6 : 0) + (path2 >= 4 ? 4.4 : 0) + (path2 >= 5 ? 11 : 0) : 4.6 + path2 * 1.55 + (path1 >= 3 ? 2 : 0) + (path1 >= 4 ? 1.7 : 0) + (path1 >= 5 ? 5 : 0),
+      splash: heavyDart ? 0 : blastCore ? (40 + path1 * 4 + 12 + (path1 >= 4 ? 10 : 0) + (path1 >= 5 ? 28 : 0)) / 1.5 : 0,
+      speed: heavyDart ? 520 + (path2 - 3) * 60 + (path2 >= 5 ? 80 : 0) : 120 + (path1 >= 3 ? 120 : 0) + (path1 >= 4 ? 40 : 0) + (path1 >= 5 ? 95 : 0),
+      acceleration: heavyDart ? 0 : 520 + (path1 >= 3 ? 220 : 0) + (path1 >= 4 ? 120 : 0) + (path1 >= 5 ? 240 : 0),
+      burst: path1 >= 5 ? 10 : path1 >= 4 ? 3 : 1,
       burstDelay: path1 >= 5 ? 0.1 : path1 >= 4 ? 0.25 : 0,
-      homing: heavyDart || !blastCore ? 0 : (path1 >= 5 ? 9.5 : 7.8),
+      homing: heavyDart || !blastCore ? 0 : (path1 >= 5 ? 16.5 : path1 >= 4 ? 12.2 : 10.2),
       shrapnel: heavyDart ? false : (blastCore && path2 >= 3),
       clusters: heavyDart ? false : (blastCore && path2 >= 4),
       rain: heavyDart ? false : (blastCore && path2 >= 5),
@@ -5994,11 +6531,11 @@ function towerStats(tower) {
     const turretMode = path1 >= 3;
     const lifespan = 30 + (path2 >= 1 ? 15 : 0) + (path1 >= 4 ? 15 : 0) + (path1 >= 5 ? 35 : 0);
     return finalizeStats({
-      range: CELL_SIZE * (2.8 + path1 * 0.08 + path2 * 0.08),
-      cooldown: Math.max(2.85 - path1 * 0.32 - (path1 >= 4 ? 0.24 : 0) - (path1 >= 5 ? 0.24 : 0), 0.52),
+      range: CELL_SIZE * (2.95 + path1 * 0.08 + path2 * 0.08),
+      cooldown: Math.max(2.55 - path1 * 0.32 - (path1 >= 4 ? 0.24 : 0) - (path1 >= 5 ? 0.24 : 0), 0.52),
       damage: 1,
       trapRadius: 14 + tower.level * 2,
-      trapUses: path2 >= 5 ? 26 : path2 >= 4 ? 18 : path2 >= 2 ? 12 : 6,
+      trapUses: path2 >= 5 ? 28 : path2 >= 4 ? 20 : path2 >= 2 ? 13 : 7,
       trapLifetime: lifespan,
       sticky: path2 >= 3,
       slow: path2 >= 3 ? 0.55 : 1,
@@ -6008,8 +6545,8 @@ function towerStats(tower) {
       turretMode,
       turretCap: path1 >= 5 ? 28 : path1 >= 4 ? 16 : path1 >= 3 ? 8 : 0,
       turretCooldown: Math.max(0.78 - (path1 >= 4 ? 0.12 : 0) - (path1 >= 5 ? 0.24 : 0), 0.16),
-      turretDamage: 1.75 + path2 * 0.6 + (path1 >= 3 ? 0.5 : 0) + (path1 >= 4 ? 1 : 0) + (path1 >= 5 ? 2.6 : 0),
-      turretRange: CELL_SIZE * (2 + path2 * 0.08 + (path1 >= 4 ? 0.28 : 0) + (path1 >= 5 ? 0.55 : 0)),
+      turretDamage: 2 + path2 * 0.65 + (path1 >= 3 ? 0.6 : 0) + (path1 >= 4 ? 1.15 : 0) + (path1 >= 5 ? 2.8 : 0),
+      turretRange: CELL_SIZE * (2.15 + path2 * 0.08 + (path1 >= 4 ? 0.28 : 0) + (path1 >= 5 ? 0.55 : 0)),
       turretBarrels: path1 >= 5 ? 3 : path1 >= 4 ? 2 : 1
     });
   }
@@ -6017,25 +6554,26 @@ function towerStats(tower) {
   if (tower.type === "drone") {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
-    const baseRange = CELL_SIZE * (8.35 + levelBonus * 0.2) * (path2 >= 5 ? 1.45 : path1 >= 5 ? 1.22 : 1);
+    const baseRange = CELL_SIZE * (5.75 + levelBonus * 0.14 + (path1 >= 1 ? 0.42 : 0) + (path1 >= 2 ? 0.22 : 0)) * (path1 >= 5 ? 1.08 : 1);
     const supportCount = path2 >= 5 ? 4 : path2 >= 3 ? 3 : 0;
-    const mainGuns = path2 >= 4 ? 4 : path1 >= 1 ? 2 : 1;
+    const mainGuns = path2 >= 4 ? 4 : path1 >= 2 ? 2 : 1;
     const supportGuns = path2 >= 4 ? 2 : 1;
     return finalizeStats({
       range: baseRange,
-      cooldown: Math.max(0.56 - levelBonus * 0.035 - path2 * 0.04 - (path2 >= 4 ? 0.04 : 0) - (path1 >= 5 ? 0.14 : 0), 0.08),
-      damage: 0.9 + levelBonus * 0.32,
+      cooldown: Math.max(0.52 - levelBonus * 0.035 - path2 * 0.04 - (path2 >= 4 ? 0.04 : 0) - (path1 >= 5 ? 0.14 : 0), 0.08),
+      damage: 1 + levelBonus * 0.34,
       droneRange: CELL_SIZE * (1.5 + levelBonus * 0.08 + (path1 >= 2 ? 0.24 : 0)),
       droneSpeed: 238 + levelBonus * 12 + path2 * 34 + (path1 >= 4 ? 26 : 0) + (path1 >= 5 ? 58 : 0),
-      detectHidden: path1 >= 2,
+      detectHidden: path1 >= 1,
       bulletGuns: mainGuns,
-      bulletDamage: 0.9 + levelBonus * 0.28 + (path2 >= 4 ? 0.35 : 0) + (path2 >= 5 ? 0.8 : 0),
+      bulletDamage: 1.05 + levelBonus * 0.3 + (path2 >= 4 ? 0.38 : 0) + (path2 >= 5 ? 0.86 : 0),
       bulletPierce: path2 >= 2 ? 2 : 0,
       rocket: path1 >= 3,
       rocketCooldown: path1 >= 5 ? 0.26 : path1 >= 4 ? 0.52 : 0.7,
-      rocketDamage: 2.8 + levelBonus * 0.45 + (path1 >= 3 ? 0.8 : 0) + (path1 >= 4 ? 1.6 : 0) + (path1 >= 5 ? 2.8 : 0),
+      rocketDamage: 3.2 + levelBonus * 0.5 + (path1 >= 3 ? 0.9 : 0) + (path1 >= 4 ? 1.8 : 0) + (path1 >= 5 ? 3.1 : 0),
       rocketSplash: path1 >= 5 ? 52 : path1 >= 4 ? 38 : path1 >= 3 ? 28 : 24,
       rocketSpeed: path1 >= 5 ? 240 : path1 >= 4 ? 170 : 132,
+      rocketHoming: path1 >= 5 ? 15.5 : path1 >= 4 ? 13.2 : 11.4,
       supportCount,
       supportGuns: path2 >= 5 ? 3 : supportGuns,
       supportDamage: 0.38 + levelBonus * 0.16 + (path2 >= 3 ? 0.12 : 0) + (path2 >= 4 ? 0.2 : 0) + (path2 >= 5 ? 0.45 : 0),
@@ -6212,6 +6750,10 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
   if (enemy.key === "adapter" && enemy.adapterBlockReady) {
     enemy.adapterBlockReady = false;
     enemy.adapterGuardCooldown = Math.max(enemy.adapterGuardCooldown || 0, 5.8);
+    const armorValue = ENEMY_TYPES.adapter.armor + Math.max(0, Math.floor((waveNumber - 30) / 10));
+    enemy.armored = true;
+    enemy.armorHp = Math.max(enemy.armorHp || 0, armorValue);
+    enemy.maxArmorHp = Math.max(enemy.maxArmorHp || 0, armorValue);
     triggerAdapterPulse(enemy);
     return false;
   }
@@ -6499,7 +7041,7 @@ function hasLineOfSight(x1, y1, x2, y2) {
     const cx = Math.floor(px / CELL_SIZE);
     const cy = Math.floor(py / CELL_SIZE);
 
-    if (obstacleAt(cx, cy)) {
+    if (obstacleBlocksSight(cx, cy)) {
       return false;
     }
   }
@@ -6583,6 +7125,7 @@ function fireLaserBeam(tower, target, stats) {
     const end = beamEndPoint(startX, startY, angle);
     const maxDistance = Math.hypot(end.x - startX, end.y - startY);
     const shieldHitTracker = createShieldHitTracker();
+    const beamTargets = [];
 
     for (const enemy of enemies) {
       if (!canSeeEnemy(enemy, stats.detectHidden)) {
@@ -6594,17 +7137,117 @@ function fireLaserBeam(tower, target, stats) {
         continue;
       }
 
-      damageEnemy(enemy, stats.photonBlast ? stats.damage * 2.4 : stats.damage, "laser", {
+      beamTargets.push({ enemy, projection });
+    }
+
+    beamTargets.sort((left, right) => left.projection - right.projection);
+
+    for (const entry of beamTargets) {
+      damageEnemy(entry.enemy, stats.photonBlast ? stats.damage * 2.4 : stats.damage, "laser", {
         shieldHitTracker,
         burnDamage: stats.photonBlast ? stats.burnDamage * 2.2 : stats.burnDamage,
         burnDuration: stats.photonBlast ? Math.max(stats.burnDuration, 4.2) : stats.burnDuration
       });
+
+      if (!stats.infinitePierce) {
+        break;
+      }
     }
 
     if (stats.photonBlast) {
       addPulse(tower.centerX, tower.centerY, 18, "rgba(255, 227, 92, 0.55)");
     }
     addBeam(startX, startY, end.x, end.y, stats.beamColor, stats.photonBlast ? CELL_SIZE * 2 : Math.max(3, stats.beamWidth * 0.32), stats.photonBlast ? 0.22 : stats.beamTtl);
+  }
+}
+
+function priorityTargetsForShotgun(tower, initialTarget, stats) {
+  if (!stats.multiPriority || stats.cannonCount <= 1) {
+    return [{ target: initialTarget, priority: tower.targetPriority || "first" }];
+  }
+
+  const detection = towerHasHiddenDetection(tower, stats);
+  const candidates = enemiesInRange(tower.centerX, tower.centerY, stats.range, detection, true)
+    .filter((enemy) => canTowerDamageEnemy(tower, enemy, stats));
+  const assignments = [];
+  const usedIds = new Set();
+  const priorities = tower.cannonPriorities || stats.cannonPriorities || ["first", "strong", "last"];
+
+  for (const priority of priorities.slice(0, stats.cannonCount)) {
+    const pool = candidates.filter((enemy) => !usedIds.has(enemy.id));
+    const target = selectEnemyByPriority(pool.length > 0 ? pool : candidates, priority);
+    if (!target) {
+      continue;
+    }
+    assignments.push({ target, priority });
+    usedIds.add(target.id);
+  }
+
+  if (assignments.length === 0 && initialTarget) {
+    assignments.push({ target: initialTarget, priority: tower.targetPriority || "first" });
+  }
+
+  return assignments;
+}
+
+function fireTorchFlamethrower(tower, target, stats) {
+  const angle = Math.atan2(target.y - tower.centerY, target.x - tower.centerX);
+  const shieldHitTracker = createShieldHitTracker();
+  let hitSomething = false;
+
+  for (const enemy of enemies) {
+    if (!canSeeEnemy(enemy, stats.detectHidden) || !canTowerDamageEnemy(tower, enemy, stats)) {
+      continue;
+    }
+    const distance = Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY);
+    if (distance > stats.range || distance < (stats.minRange || 0)) {
+      continue;
+    }
+    const enemyAngle = Math.atan2(enemy.y - tower.centerY, enemy.x - tower.centerX);
+    const delta = Math.atan2(Math.sin(enemyAngle - angle), Math.cos(enemyAngle - angle));
+    if (Math.abs(delta) > stats.flameArc) {
+      continue;
+    }
+
+    damageEnemy(enemy, stats.damage, "explosion", {
+      shieldHitTracker,
+      burnDamage: stats.burnDamage,
+      burnDuration: stats.burnDuration
+    });
+    hitSomething = true;
+  }
+
+  addBeam(tower.centerX, tower.centerY, tower.centerX + Math.cos(angle) * stats.range, tower.centerY + Math.sin(angle) * stats.range, "#ff9c4d", Math.max(8, stats.flameArc * 56), 0.12);
+  if (stats.flameTrail) {
+    const trailX = tower.centerX + Math.cos(angle) * (stats.range * 0.72);
+    const trailY = tower.centerY + Math.sin(angle) * (stats.range * 0.72);
+    addStickyPuddle(trailX, trailY, stats.trailRadius, 1, stats.trailTtl, "rgba(255, 138, 64, 0.3)", stats.burnDamage * 0.32, true, 0, 0, 1);
+  }
+  if (!hitSomething) {
+    addBurstParticles(tower.centerX + Math.cos(angle) * 22, tower.centerY + Math.sin(angle) * 22, 3, "rgba(255, 181, 107, 0.55)", 16, 34, 0.05, 0.12);
+  }
+}
+
+function fireTorchRing(tower, stats) {
+  const shieldHitTracker = createShieldHitTracker();
+  for (let echo = 0; echo < (stats.ringEchoes || 1); echo += 1) {
+    const radius = stats.ringRadius * (1 + echo * 0.34);
+    const ringWidth = stats.ringWidth;
+    addPulse(tower.centerX, tower.centerY, radius, echo === 0 ? "rgba(255, 160, 86, 0.72)" : "rgba(255, 218, 120, 0.58)");
+    for (const enemy of enemies) {
+      if (!canTowerDamageEnemy(tower, enemy, stats)) {
+        continue;
+      }
+      const distance = Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY);
+      if (Math.abs(distance - radius) > ringWidth) {
+        continue;
+      }
+      damageEnemy(enemy, stats.damage * (echo === 0 ? 1 : 0.75), "explosion", {
+        shieldHitTracker,
+        burnDamage: stats.burnDamage * (echo === 0 ? 1 : 0.7),
+        burnDuration: stats.burnDuration
+      });
+    }
   }
 }
 
@@ -6975,19 +7618,23 @@ function fireTower(tower, target) {
   }
 
   if (tower.type === "shotgun") {
-    for (let index = 0; index < stats.pellets; index += 1) {
-      const spread = (Math.random() - 0.5) * stats.spread;
-      projectiles.push({
-        id: nextProjectileId,
-        kind: "shotgunPellet",
-        x: tower.centerX,
-        y: tower.centerY,
-        angle: tower.aimAngle + spread,
-        speed: stats.pelletSpeed,
-        damage: stats.damage,
-        damageType: supportDamageType
-      });
-      nextProjectileId += 1;
+    const targetGroups = priorityTargetsForShotgun(tower, target, stats);
+    for (const group of targetGroups) {
+      const aimAngle = Math.atan2(group.target.y - tower.centerY, group.target.x - tower.centerX);
+      for (let index = 0; index < stats.pellets; index += 1) {
+        const spread = (Math.random() - 0.5) * stats.spread;
+        projectiles.push({
+          id: nextProjectileId,
+          kind: "shotgunPellet",
+          x: tower.centerX,
+          y: tower.centerY,
+          angle: aimAngle + spread,
+          speed: stats.pelletSpeed,
+          damage: stats.damage,
+          damageType: supportDamageType
+        });
+        nextProjectileId += 1;
+      }
     }
     return;
   }
@@ -7048,10 +7695,18 @@ function fireTower(tower, target) {
   }
 
   if (tower.type === "fireball") {
-    spawnFireballProjectile(tower, target, stats);
-    tower.burstTargetId = null;
-    tower.burstShotsRemaining = Math.max(0, stats.burst - 1);
-    tower.burstTimer = tower.burstShotsRemaining > 0 ? stats.burstDelay : 0;
+    if (stats.flamethrower) {
+      fireTorchFlamethrower(tower, target, stats);
+      tower.cooldown = stats.cooldown;
+    } else if (stats.blazingRing) {
+      fireTorchRing(tower, stats);
+      tower.cooldown = stats.cooldown;
+    } else {
+      spawnFireballProjectile(tower, target, stats);
+      tower.burstTargetId = null;
+      tower.burstShotsRemaining = Math.max(0, stats.burst - 1);
+      tower.burstTimer = tower.burstShotsRemaining > 0 ? stats.burstDelay : 0;
+    }
     return;
   }
 
@@ -7074,7 +7729,7 @@ function fireTower(tower, target) {
 
   if (tower.type === "support") {
     if (stats.helpMissile && tower.cooldown === 0) {
-      const supportTarget = nearestEnemyInRange(tower, stats.auraRadius * 2.4, detectHidden);
+      const supportTarget = nearestEnemyInRange(tower, stats.auraRadius * 1.45, detectHidden);
       if (supportTarget) {
         tower.aimAngle = Math.atan2(supportTarget.y - tower.centerY, supportTarget.x - tower.centerX);
         spawnMissileProjectile(tower, supportTarget, stats);
@@ -7331,7 +7986,9 @@ function updateTowers(deltaTime) {
 }
 
 function spawnMissileProjectile(tower, target, stats) {
-  const angle = Math.atan2(target.y - tower.centerY, target.x - tower.centerX);
+  const baseAngle = Math.atan2(target.y - tower.centerY, target.x - tower.centerX);
+  const inaccuracy = stats.homing ? ((Math.random() - 0.5) * 0.12) : 0;
+  const angle = baseAngle + inaccuracy;
   if (stats.heavyDart) {
     projectiles.push({
       id: nextProjectileId,
@@ -7362,6 +8019,9 @@ function spawnMissileProjectile(tower, target, stats) {
     acceleration: stats.acceleration,
     angle,
     homing: stats.homing,
+    swayAmplitude: stats.homing ? 0.085 : 0,
+    swayRate: 7.5 + Math.random() * 2.5,
+    swayPhase: Math.random() * Math.PI * 2,
     damage: stats.damage,
     impactDamage: stats.splash > 0 ? 0 : stats.damage,
     splash: stats.splash,
@@ -7546,6 +8206,7 @@ function updateDrones(deltaTime) {
             angle: baseAngle + offset,
             speed: stats.rocketSpeed,
             acceleration: 240,
+            homing: stats.rocketHoming,
             damage: stats.attackDrone ? stats.rocketDamage * 1.9 : stats.rocketDamage,
             splash: stats.attackDrone ? stats.rocketSplash * 1.2 : stats.rocketSplash,
             homingDelay: stats.attackDrone ? 0.18 + missileIndex * 0.02 : 0
@@ -7687,12 +8348,14 @@ function spawnSecondaryProjectiles(originX, originY, count, kind, damage, splash
 function explodeProjectile(projectile) {
   const shieldHitTracker = createShieldHitTracker();
   addPulse(projectile.x, projectile.y, projectile.splash, "#ffc572");
+  const splashDamage = projectile.kind === "missile" ? projectile.damage * 0.82 : projectile.damage;
+  const splashFalloff = projectile.kind === "missile" ? 0.62 : 0.5;
 
   for (const enemy of enemies) {
     const distance = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
 
     if (distance <= projectile.splash) {
-      damageEnemy(enemy, projectile.damage * (1 - distance / Math.max(projectile.splash, 1) * 0.5), "explosion", { shieldHitTracker });
+      damageEnemy(enemy, splashDamage * (1 - distance / Math.max(projectile.splash, 1) * splashFalloff), "explosion", { shieldHitTracker });
       if (projectile.kind === "mangoBomb" && !activeShieldSourceForEnemy(enemy)) {
         enemy.slowFactor = Math.min(enemy.slowFactor, 0.5);
         enemy.slowTimer = Math.max(enemy.slowTimer, 1.8);
@@ -7742,6 +8405,32 @@ function projectileCollisionRadius(projectile) {
 function firstEnemyTouchingProjectile(projectile) {
   const radius = projectileCollisionRadius(projectile);
   return enemies.find((enemy) => Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) <= radius) || null;
+}
+
+function retargetHomingProjectile(projectile) {
+  if ((projectile.kind !== "missile" && projectile.kind !== "droneRocket") || enemies.length === 0) {
+    return null;
+  }
+  const current = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId && enemy.hp > 0) : null;
+  if (current) {
+    return current;
+  }
+  let nearest = null;
+  let nearestDistance = Infinity;
+  for (const enemy of enemies) {
+    if (!enemy || enemy.hp <= 0) {
+      continue;
+    }
+    const distance = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
+    if (distance < nearestDistance) {
+      nearest = enemy;
+      nearestDistance = distance;
+    }
+  }
+  if (nearest) {
+    projectile.targetId = nearest.id;
+  }
+  return nearest;
 }
 
 function explodeDroneRocket(projectile) {
@@ -8109,11 +8798,14 @@ function updateProjectiles(deltaTime) {
       continue;
     }
 
-    const target = projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null;
+    const target = retargetHomingProjectile(projectile) || (projectile.targetId ? enemies.find((enemy) => enemy.id === projectile.targetId) : null);
 
     projectile.homingDelay = Math.max(0, (projectile.homingDelay || 0) - deltaTime);
     if (target && (projectile.homing || projectile.kind === "droneRocket") && (projectile.homingDelay || 0) === 0) {
-      const desiredAngle = Math.atan2(target.y - projectile.y, target.x - projectile.x);
+      const swayOffset = projectile.kind === "missile"
+        ? Math.sin((lastTimestamp / 1000) * (projectile.swayRate || 0) + (projectile.swayPhase || 0)) * (projectile.swayAmplitude || 0)
+        : 0;
+      const desiredAngle = Math.atan2(target.y - projectile.y, target.x - projectile.x) + swayOffset;
       const angleDelta = Math.atan2(Math.sin(desiredAngle - projectile.angle), Math.cos(desiredAngle - projectile.angle));
       const maxTurn = ((typeof projectile.homing === "number" ? projectile.homing : 8) || 8) * deltaTime;
       projectile.angle += Math.max(-maxTurn, Math.min(maxTurn, angleDelta));
@@ -8222,7 +8914,7 @@ function spawnWaffleChildren(enemy, type, count, hpDivisor) {
     return;
   }
 
-  discoveredEnemies.add(type.key);
+  markEnemyDiscovered(type.key, nextTier);
   renderAlmanac();
 
   const originCell = {
@@ -8278,7 +8970,7 @@ function spawnWaffleChildren(enemy, type, count, hpDivisor) {
 
 function spawnMegaWaffleChildren(enemy) {
   const type = ENEMY_TYPES.waffle16;
-  discoveredEnemies.add(type.key);
+  markEnemyDiscovered(type.key, 3);
   renderAlmanac();
 
   const originCell = {
@@ -8840,7 +9532,7 @@ function updateHud() {
     moneyText.textContent = `Cash: ${money}`;
   }
   boardCashText.textContent = `Cash: ${money}`;
-  freeBlockText.textContent = freeBlocks > 0 ? `Block price after free: ${currentBlockCost}` : `Block price: ${currentBlockCost}`;
+  freeBlockText.textContent = freeBlocks > 0 ? `Free blocks left: ${freeBlocks} | Block price after free: ${currentBlockCost}` : `Block price: ${currentBlockCost}`;
   livesText.textContent = `Base HP: ${Math.max(0, Math.ceil(lives))}`;
   waveText.textContent = `Wave: ${waveNumber}`;
   enemyText.textContent = `Enemies: ${enemies.length}`;
@@ -8879,7 +9571,8 @@ function updateHud() {
 function updateAmbientEffects(deltaTime) {
   ambientTimer += deltaTime;
 
-  const spawnRate = activeMap.scenery === "canyon" ? 0.22
+  const spawnRate = selectedMap === "freezingmountains" ? 0.16
+    : activeMap.scenery === "canyon" ? 0.22
     : activeMap.scenery === "ruins" ? 0.32
     : activeMap.scenery === "mango" ? 0.2
     : activeMap.scenery === "graveyard" ? 0.26
@@ -8907,7 +9600,9 @@ function updateAmbientEffects(deltaTime) {
         vy: -(20 + Math.random() * 18),
         radius: 4 + Math.random() * 7,
         ttl: 2.4 + Math.random() * 1.8,
-        color: `rgba(143, 205, 235, ${0.08 + Math.random() * 0.08})`
+        color: selectedMap === "acidcaves"
+          ? `rgba(147, 255, 170, ${0.1 + Math.random() * 0.1})`
+          : `rgba(143, 205, 235, ${0.08 + Math.random() * 0.08})`
       });
     } else if (activeMap.scenery === "mango") {
       ambientParticles.push({
@@ -8942,6 +9637,18 @@ function updateAmbientEffects(deltaTime) {
         color: Math.random() > 0.4
           ? `rgba(255, 168, 72, ${0.08 + Math.random() * 0.1})`
           : `rgba(255, 97, 38, ${0.08 + Math.random() * 0.1})`
+      });
+    } else if (selectedMap === "freezingmountains") {
+      ambientParticles.push({
+        x: Math.random() * canvas.width,
+        y: -12,
+        vx: -10 + Math.random() * 20,
+        vy: 18 + Math.random() * 24,
+        radius: 3 + Math.random() * 5,
+        ttl: 3 + Math.random() * 1.6,
+        color: Math.random() > 0.45
+          ? `rgba(255, 255, 255, ${0.12 + Math.random() * 0.12})`
+          : `rgba(176, 225, 255, ${0.1 + Math.random() * 0.1})`
       });
     }
   }
@@ -9021,9 +9728,15 @@ function drawMapScenery() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   } else if (activeMap.scenery === "ruins") {
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "#0b3154");
-    gradient.addColorStop(0.5, "#12507c");
-    gradient.addColorStop(1, "#0b2942");
+    if (selectedMap === "acidcaves") {
+      gradient.addColorStop(0, "#04110d");
+      gradient.addColorStop(0.45, "#09231d");
+      gradient.addColorStop(1, "#020a08");
+    } else {
+      gradient.addColorStop(0, "#0b3154");
+      gradient.addColorStop(0.5, "#12507c");
+      gradient.addColorStop(1, "#0b2942");
+    }
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   } else if (activeMap.scenery === "shoals") {
@@ -9035,13 +9748,23 @@ function drawMapScenery() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   } else if (activeMap.scenery === "cliffs") {
     const leftGradient = ctx.createLinearGradient(0, 0, canvas.width / 2, 0);
-    leftGradient.addColorStop(0, "#5c4b39");
-    leftGradient.addColorStop(1, "#7a644e");
+    if (selectedMap === "freezingmountains") {
+      leftGradient.addColorStop(0, "#f7fbff");
+      leftGradient.addColorStop(1, "#d8e6f4");
+    } else {
+      leftGradient.addColorStop(0, "#5c4b39");
+      leftGradient.addColorStop(1, "#7a644e");
+    }
     ctx.fillStyle = leftGradient;
     ctx.fillRect(0, 0, canvas.width / 2, canvas.height);
     const rightGradient = ctx.createLinearGradient(canvas.width / 2, 0, canvas.width, 0);
-    rightGradient.addColorStop(0, "#b9aa86");
-    rightGradient.addColorStop(1, "#d5c7a0");
+    if (selectedMap === "freezingmountains") {
+      rightGradient.addColorStop(0, "#edf6ff");
+      rightGradient.addColorStop(1, "#cfe0f4");
+    } else {
+      rightGradient.addColorStop(0, "#b9aa86");
+      rightGradient.addColorStop(1, "#d5c7a0");
+    }
     ctx.fillStyle = rightGradient;
     ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
   } else if (activeMap.scenery === "mango") {
@@ -9070,6 +9793,13 @@ function drawMapScenery() {
     gradient.addColorStop(0, "#2f3b33");
     gradient.addColorStop(0.5, "#1f2923");
     gradient.addColorStop(1, "#131917");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else if (activeMap.scenery === "meadow") {
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, "#fffefd");
+    gradient.addColorStop(0.55, "#fcfbf7");
+    gradient.addColorStop(1, "#f4f2eb");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   } else {
@@ -9125,9 +9855,50 @@ function drawMapScenery() {
       }
     }
   } else if (activeMap.scenery === "ruins") {
-    ctx.fillStyle = "rgba(160, 222, 245, 0.09)";
-    for (let band = 0; band < 4; band += 1) {
-      ctx.fillRect(0, band * 132 + 28, canvas.width, 14);
+    if (selectedMap === "acidcaves") {
+      ctx.fillStyle = "rgba(100, 255, 160, 0.08)";
+      for (const cell of activeMap.noBuildCells || []) {
+        ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      }
+      for (let stream = 0; stream < 4; stream += 1) {
+        const y = 42 + stream * 126;
+        ctx.strokeStyle = "rgba(110, 255, 170, 0.16)";
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.bezierCurveTo(canvas.width * 0.18, y - 16, canvas.width * 0.38, y + 22, canvas.width * 0.58, y - 10);
+        ctx.bezierCurveTo(canvas.width * 0.76, y - 34, canvas.width * 0.88, y + 18, canvas.width, y - 4);
+        ctx.stroke();
+      }
+      const crystalSets = [
+        { x: canvas.width * 0.16, y: canvas.height * 0.22, scale: 0.9 },
+        { x: canvas.width * 0.34, y: canvas.height * 0.72, scale: 1.2 },
+        { x: canvas.width * 0.63, y: canvas.height * 0.3, scale: 1.05 },
+        { x: canvas.width * 0.82, y: canvas.height * 0.62, scale: 1.35 }
+      ];
+      for (const crystal of crystalSets) {
+        ctx.save();
+        ctx.translate(crystal.x, crystal.y);
+        ctx.scale(crystal.scale, crystal.scale);
+        ctx.fillStyle = "rgba(137, 255, 179, 0.22)";
+        ctx.strokeStyle = "rgba(191, 255, 213, 0.42)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -34);
+        ctx.lineTo(16, -8);
+        ctx.lineTo(8, 26);
+        ctx.lineTo(-10, 34);
+        ctx.lineTo(-18, -4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    } else {
+      ctx.fillStyle = "rgba(160, 222, 245, 0.09)";
+      for (let band = 0; band < 4; band += 1) {
+        ctx.fillRect(0, band * 132 + 28, canvas.width, 14);
+      }
     }
   } else if (activeMap.scenery === "shoals") {
     ctx.fillStyle = "rgba(222, 247, 255, 0.12)";
@@ -9135,16 +9906,42 @@ function drawMapScenery() {
       ctx.fillRect(0, band * 108 + 22, canvas.width, 10);
     }
   } else if (activeMap.scenery === "cliffs") {
-    ctx.fillStyle = "rgba(63, 48, 35, 0.55)";
-    for (const cell of activeMap.noBuildCells || []) {
-      ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    if (selectedMap === "freezingmountains") {
+      ctx.fillStyle = "rgba(176, 214, 244, 0.18)";
+      const icePatches = [
+        { x: canvas.width * 0.18, y: canvas.height * 0.26, w: 120, h: 54 },
+        { x: canvas.width * 0.32, y: canvas.height * 0.72, w: 150, h: 62 },
+        { x: canvas.width * 0.68, y: canvas.height * 0.22, w: 130, h: 56 },
+        { x: canvas.width * 0.8, y: canvas.height * 0.66, w: 160, h: 68 }
+      ];
+      for (const patch of icePatches) {
+        ctx.beginPath();
+        ctx.ellipse(patch.x, patch.y, patch.w / 2, patch.h / 2, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = "rgba(130, 190, 240, 0.22)";
+      ctx.lineWidth = 5;
+      for (let y = 28; y < canvas.height; y += 92) {
+        ctx.beginPath();
+        ctx.moveTo(canvas.width * 0.06, y);
+        ctx.lineTo(canvas.width * 0.24, y + 12);
+        ctx.lineTo(canvas.width * 0.42, y - 6);
+        ctx.lineTo(canvas.width * 0.61, y + 10);
+        ctx.lineTo(canvas.width * 0.82, y - 8);
+        ctx.stroke();
+      }
+    } else {
+      ctx.fillStyle = "rgba(63, 48, 35, 0.55)";
+      for (const cell of activeMap.noBuildCells || []) {
+        ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      }
+      ctx.fillStyle = "rgba(255, 245, 214, 0.08)";
+      for (let y = 0; y < canvas.height; y += 72) {
+        ctx.fillRect(canvas.width * 0.58, y, canvas.width * 0.34, 20);
+      }
+      ctx.fillStyle = "rgba(30, 24, 20, 0.12)";
+      ctx.fillRect(0, 0, canvas.width * 0.48, canvas.height);
     }
-    ctx.fillStyle = "rgba(255, 245, 214, 0.08)";
-    for (let y = 0; y < canvas.height; y += 72) {
-      ctx.fillRect(canvas.width * 0.58, y, canvas.width * 0.34, 20);
-    }
-    ctx.fillStyle = "rgba(30, 24, 20, 0.12)";
-    ctx.fillRect(0, 0, canvas.width * 0.48, canvas.height);
   } else if (activeMap.scenery === "mango") {
     ctx.fillStyle = "rgba(255, 240, 167, 0.22)";
     ctx.beginPath();
@@ -9369,6 +10166,39 @@ function drawMapScenery() {
       const lava = activeMap.furnaceCore?.some((cell) => cell.x === obstacle.x && cell.y === obstacle.y);
       ctx.fillStyle = lava ? "#4d3327" : "#6b747c";
       ctx.fillRect(obstacle.x * CELL_SIZE + 4, obstacle.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+    } else if (selectedMap === "acidcaves") {
+      const left = obstacle.x * CELL_SIZE;
+      const top = obstacle.y * CELL_SIZE;
+      ctx.fillStyle = "#173a2d";
+      ctx.fillRect(left + 2, top + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+      ctx.strokeStyle = "rgba(154, 255, 196, 0.4)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(left + CELL_SIZE * 0.5, top + 2);
+      ctx.lineTo(left + CELL_SIZE - 4, top + CELL_SIZE * 0.34);
+      ctx.lineTo(left + CELL_SIZE * 0.68, top + CELL_SIZE - 4);
+      ctx.lineTo(left + 5, top + CELL_SIZE * 0.7);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillStyle = "rgba(126, 255, 171, 0.16)";
+      ctx.fill();
+    } else if (selectedMap === "freezingmountains") {
+      const left = obstacle.x * CELL_SIZE;
+      const top = obstacle.y * CELL_SIZE;
+      ctx.fillStyle = "#eef7ff";
+      ctx.fillRect(left + 2, top + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+      ctx.strokeStyle = "rgba(129, 190, 240, 0.5)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(left + 5, top + CELL_SIZE * 0.3);
+      ctx.lineTo(left + CELL_SIZE * 0.42, top + 4);
+      ctx.lineTo(left + CELL_SIZE - 5, top + CELL_SIZE * 0.26);
+      ctx.lineTo(left + CELL_SIZE * 0.74, top + CELL_SIZE - 5);
+      ctx.lineTo(left + CELL_SIZE * 0.22, top + CELL_SIZE - 4);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillStyle = "rgba(196, 233, 255, 0.28)";
+      ctx.fill();
     } else if (activeMap.scenery === "ruins" || activeMap.scenery === "shoals") {
       const left = obstacle.x * CELL_SIZE;
       const top = obstacle.y * CELL_SIZE;
@@ -9676,7 +10506,7 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
     ctx.strokeStyle = tankStroke;
     ctx.lineWidth = 2.2;
     ctx.beginPath();
-    ctx.roundRect(-11, -9, 22, 18, 6);
+      roundedRectPath(ctx, -11, -9, 22, 18, 6);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = nozzleFill;
@@ -9787,6 +10617,17 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
       ctx.lineTo(16, 3);
       ctx.stroke();
     }
+    if (path2 >= 4) {
+      ctx.strokeStyle = ghost ? "rgba(255, 233, 138, 0.92)" : "#ffe789";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(-2, 0, 6.5, 0, Math.PI * 2);
+      ctx.moveTo(-8, -9);
+      ctx.lineTo(-2, -2);
+      ctx.moveTo(-8, 9);
+      ctx.lineTo(-2, 2);
+      ctx.stroke();
+    }
   } else if (type === "freezer") {
     ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(181, 235, 255, 0.5)") : "#b5ebff";
     ctx.beginPath();
@@ -9815,7 +10656,7 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
   } else if (type === "fireball") {
     ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(116, 70, 41, 0.72)") : "#6f4425";
     ctx.beginPath();
-    ctx.roundRect(-12, -12, 24, 24, 5);
+      roundedRectPath(ctx, -12, -12, 24, 24, 5);
     ctx.fill();
     ctx.strokeStyle = ghost ? "rgba(255, 232, 190, 0.8)" : "#f6d1a0";
     ctx.lineWidth = 2;
@@ -9830,17 +10671,26 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
     ctx.lineTo(-7, -2);
     ctx.closePath();
     ctx.fill();
-    if (level >= 3) {
+    if (path1 >= 3) {
       ctx.strokeStyle = ghost ? "rgba(255, 228, 158, 0.82)" : "#ffd287";
       ctx.beginPath();
-      ctx.moveTo(-14, 0);
-      ctx.lineTo(14, 0);
+      ctx.moveTo(-16, -4);
+      ctx.lineTo(16, 0);
+      ctx.lineTo(-16, 4);
       ctx.stroke();
     }
-    if (level >= 5) {
+    if (path2 >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(255, 202, 129, 0.82)" : "#ffca75";
+      ctx.beginPath();
+      ctx.arc(0, 0, path2 >= 5 ? 21 : 18, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (path1 >= 5) {
       ctx.strokeStyle = ghost ? "rgba(255, 245, 210, 0.86)" : "#fff1c7";
       ctx.beginPath();
-      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.moveTo(-12, -18);
+      ctx.lineTo(18, 0);
+      ctx.lineTo(-12, 18);
       ctx.stroke();
     }
   } else if (type === "dippy") {
@@ -10239,10 +11089,34 @@ function drawTower(tower) {
   drawTowerShape(tower.type, tower.level, centerX, centerY, tower.aimAngle || 0, false, false, tower);
 
   if (tower.mapFrozen) {
+    const cells = tower.footprintCells || [{ x: tower.x, y: tower.y }];
+    const minX = Math.min(...cells.map((cell) => cell.x)) * CELL_SIZE;
+    const minY = Math.min(...cells.map((cell) => cell.y)) * CELL_SIZE;
+    const maxX = (Math.max(...cells.map((cell) => cell.x)) + 1) * CELL_SIZE;
+    const maxY = (Math.max(...cells.map((cell) => cell.y)) + 1) * CELL_SIZE;
+    const width = maxX - minX;
+    const height = maxY - minY;
+    ctx.save();
+    ctx.fillStyle = "rgba(184, 234, 255, 0.26)";
+    ctx.strokeStyle = "rgba(226, 248, 255, 0.96)";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    roundedRectPath(ctx, minX + 2, minY + 2, width - 4, height - 4, 10);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(minX + 8, minY + 10);
+    ctx.lineTo(maxX - 10, maxY - 12);
+    ctx.moveTo(minX + width * 0.55, minY + 6);
+    ctx.lineTo(minX + width * 0.4, maxY - 6);
+    ctx.stroke();
+    ctx.restore();
     ctx.strokeStyle = "rgba(198, 240, 255, 0.95)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 18, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, Math.max(18, Math.max(width, height) * 0.36), 0, Math.PI * 2);
     ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(centerX - 10, centerY);
@@ -10480,6 +11354,7 @@ function drawEnemies() {
     drawEnemyShape(enemy);
     drawEnemyStatusParticles(enemy);
     const barWidth = enemy.key === "sentinel" && (enemy.tier || 1) >= 3 ? 34 : 24;
+    const overhealLimit = Math.max(enemy.overhealLimit || 0, 0);
     drawDamageLagBar(
       enemy.x - barWidth / 2,
       enemy.y - 18,
@@ -10489,6 +11364,17 @@ function drawEnemies() {
       Math.max(enemy.healthBarLagHp || enemy.hp, 0) / enemy.maxHp,
       (enemy.healthBarTintTimer || 0) > 0 ? enemy.healthBarTint || "#d94f3d" : "#d94f3d"
     );
+    if (overhealLimit > 0) {
+      drawDamageLagBar(
+        enemy.x - barWidth / 2,
+        enemy.y - 23,
+        barWidth,
+        3,
+        Math.max(0, Math.min(overhealLimit, Math.max(0, enemy.hp - enemy.maxHp))) / overhealLimit,
+        Math.max(0, Math.min(overhealLimit, Math.max(0, (enemy.healthBarLagHp || enemy.hp) - enemy.maxHp))) / overhealLimit,
+        "#f0cc46"
+      );
+    }
   }
 }
 
@@ -11938,23 +12824,50 @@ function drawTowerRangeOverlay(tower, colors = {}) {
 }
 
 function drawBlockedSightOverlay(tower) {
-  if (!tower || tower.type === "dippy" || tower.type === "support" || towerPlacedOnIsland(tower)) {
+  if (!tower || tower.type === "dippy" || tower.type === "support" || tower.type === "drone") {
     return;
   }
   const stats = towerStats(tower);
   const range = stats.range;
+  const rayStep = 6;
+  const segmentCount = 100;
   ctx.save();
   ctx.fillStyle = "rgba(214, 55, 55, 0.18)";
-  for (let y = 0; y < ROWS; y += 1) {
-    for (let x = 0; x < COLS; x += 1) {
-      const center = cellCenter(x, y);
-      if (Math.hypot(center.x - tower.centerX, center.y - tower.centerY) > range) {
-        continue;
-      }
-      if (!hasLineOfSight(tower.centerX, tower.centerY, center.x, center.y)) {
-        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+  for (let segment = 0; segment < segmentCount; segment += 1) {
+    const angle1 = (Math.PI * 2 * segment) / segmentCount;
+    const angle2 = (Math.PI * 2 * (segment + 1)) / segmentCount;
+    let inner1 = range;
+    let inner2 = range;
+
+    for (let distance = rayStep; distance <= range; distance += rayStep) {
+      const x = Math.floor((tower.centerX + Math.cos(angle1) * distance) / CELL_SIZE);
+      const y = Math.floor((tower.centerY + Math.sin(angle1) * distance) / CELL_SIZE);
+      if (obstacleBlocksSight(x, y)) {
+        inner1 = Math.max(0, distance - rayStep);
+        break;
       }
     }
+
+    for (let distance = rayStep; distance <= range; distance += rayStep) {
+      const x = Math.floor((tower.centerX + Math.cos(angle2) * distance) / CELL_SIZE);
+      const y = Math.floor((tower.centerY + Math.sin(angle2) * distance) / CELL_SIZE);
+      if (obstacleBlocksSight(x, y)) {
+        inner2 = Math.max(0, distance - rayStep);
+        break;
+      }
+    }
+
+    if (inner1 >= range && inner2 >= range) {
+      continue;
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(tower.centerX + Math.cos(angle1) * inner1, tower.centerY + Math.sin(angle1) * inner1);
+    ctx.lineTo(tower.centerX + Math.cos(angle1) * range, tower.centerY + Math.sin(angle1) * range);
+    ctx.lineTo(tower.centerX + Math.cos(angle2) * range, tower.centerY + Math.sin(angle2) * range);
+    ctx.lineTo(tower.centerX + Math.cos(angle2) * inner2, tower.centerY + Math.sin(angle2) * inner2);
+    ctx.closePath();
+    ctx.fill();
   }
   ctx.restore();
 }
@@ -11977,7 +12890,7 @@ function resetGame() {
   hoverCell = null;
   activePiece = createRandomPiece(selectedMap);
   money = startingMoney();
-  freeBlocks = 1;
+  freeBlocks = 3;
   currentBlockCost = BLOCK_COST;
   lives = DIFFICULTIES[selectedDifficulty].lives;
   waveNumber = 0;
@@ -12017,6 +12930,7 @@ seedMapFeatures();
 routes = computeRoutes();
 closeTowerPopup();
   setMessage("Board reset.", 1.0);
+  queueFreezingMountainsTutorial();
   renderTutorial();
   updateHud();
   draw();
@@ -12280,6 +13194,29 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const popupCannonPriority = event.target.closest("[data-cannon-priority-tower-id]");
+
+  if (popupCannonPriority) {
+    const tower = towers.find((entry) => entry.id === Number(popupCannonPriority.dataset.cannonPriorityTowerId));
+
+    if (!tower) {
+      clearSelection(false);
+      return;
+    }
+
+    normalizeTowerPriority(tower);
+    const allowed = availablePrioritiesForTower(tower);
+    const slot = Math.max(0, Math.min(2, Number(popupCannonPriority.dataset.cannonPrioritySlot) || 0));
+    const current = tower.cannonPriorities?.[slot] || "first";
+    const currentIndex = allowed.indexOf(current);
+    tower.cannonPriorities[slot] = allowed[(currentIndex + 1) % allowed.length];
+    openTowerPopup(tower);
+    setMessage(`${towerDisplayName(tower)} cannon ${slot + 1} priority set to ${TARGET_LABELS[tower.cannonPriorities[slot]]}.`, 1.1);
+    updateHud();
+    draw();
+    return;
+  }
+
   const popupDefrost = event.target.closest("[data-defrost-tower-id]");
 
   if (popupDefrost) {
@@ -12445,17 +13382,18 @@ window.addEventListener("keydown", (event) => {
 
     if (cheatBuffer.join(",") === "5,1,2") {
       if (gameMode === "menu") {
-        crossbowUnlocked = true;
+        cheatUnlockAll = true;
+        syncTowerUnlockState();
         persistProgressionState();
-        for (const enemy of Object.values(ENEMY_TYPES)) {
-          discoveredEnemies.add(enemy.key);
+        for (const entry of enemyAlmanacEntries()) {
+          markEnemyDiscovered(entry.parentKey || entry.key, entry.parentKey ? 1 : (entry.tier || 1));
         }
         updateTowerButtons();
         renderAlmanac();
         if (menuMapDescription) {
-          menuMapDescription.textContent = "Cheat unlocked: crossbow unlocked and the full almanac is revealed.";
+          menuMapDescription.textContent = "Cheat unlocked: every tower is unlocked and the full almanac is revealed.";
         }
-        setMessage("Cheat unlocked: crossbow unlocked and the full almanac is revealed.", 2.4);
+        setMessage("Cheat unlocked: every tower is unlocked and the full almanac is revealed.", 2.4);
       } else {
         infiniteMode = !infiniteMode;
         if (infiniteMode) {
