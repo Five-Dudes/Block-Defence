@@ -12,11 +12,16 @@ const enemyText = document.getElementById("enemyText");
 const selectionText = document.getElementById("selectionText");
 const upgradeText = document.getElementById("upgradeText");
 const nextPieceText = document.getElementById("nextPieceText");
+const blockChoicePriceText = document.getElementById("blockChoicePriceText");
+const blockChoiceHotkeys = document.getElementById("blockChoiceHotkeys");
+const pieceChoicePrimaryButton = document.getElementById("pieceChoicePrimary");
+const pieceChoiceSecondaryButton = document.getElementById("pieceChoiceSecondary");
 const towerDescription = document.getElementById("towerDescription");
 const waveButton = document.getElementById("waveButton");
 const autoWaveToggle = document.getElementById("autoWaveToggle");
 const speedControls = document.getElementById("speedControls");
 const rotateButton = document.getElementById("rotateButton");
+const mirrorButton = document.getElementById("mirrorButton");
 const pauseButton = document.getElementById("pauseButton");
 const toolGrid = document.getElementById("toolGrid");
 const towerGrid = document.getElementById("towerGrid");
@@ -108,7 +113,7 @@ const TOWER_BASE_COST = {
   missile: 60,
   trapper: 31,
   laser: 58,
-  shotgun: 54,
+  shotgun: 24,
   freezer: 34,
   drone: 52,
   fireball: 64,
@@ -320,7 +325,7 @@ const ENEMY_TYPES = {
     name: "Hydra",
     color: "#ffd84f",
     shape: 3,
-    hpMultiplier: 8.4,
+    hpMultiplier: 4.2,
     speedBonus: 18,
     reward: 12,
     description: "Hydra is a chained four-segment serpent. Its heads arrive with hidden, armoured, shelled, and shielded defenses in sequence."
@@ -425,7 +430,7 @@ const ENEMY_TYPES = {
     name: "Mega Waffle",
     color: "#b87d36",
     shape: 4,
-    hpMultiplier: 7.8,
+    hpMultiplier: 3.9,
     speedBonus: -14,
     reward: 18,
     waffleSquares: 25,
@@ -436,7 +441,7 @@ const ENEMY_TYPES = {
     name: "Mega Waffle",
     color: "#8d5f2e",
     shape: 4,
-    hpMultiplier: 52,
+    hpMultiplier: 26,
     speedBonus: -16,
     reward: 60,
     waffleSquares: 16,
@@ -447,7 +452,7 @@ const ENEMY_TYPES = {
     name: "Adapter",
     color: "#b079ff",
     shape: 2,
-    hpMultiplier: 34,
+    hpMultiplier: 17,
     speedBonus: 26,
     reward: 70,
     armor: 8,
@@ -895,6 +900,50 @@ const polyominoes = [
     ]
   },
   {
+    name: "W Pentomino",
+    color: "#4da7c9",
+    offsets: [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+      { x: 2, y: 2 }
+    ]
+  },
+  {
+    name: "Y Pentomino",
+    color: "#d38a35",
+    offsets: [
+      { x: 0, y: -1 },
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+      { x: 0, y: 2 },
+      { x: 1, y: 0 }
+    ]
+  },
+  {
+    name: "F Pentomino",
+    color: "#cf6bb2",
+    offsets: [
+      { x: 0, y: 1 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 1, y: 2 },
+      { x: 2, y: 0 }
+    ]
+  },
+  {
+    name: "V Pentomino",
+    color: "#d3a043",
+    offsets: [
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+      { x: 0, y: 2 },
+      { x: 1, y: 2 },
+      { x: 2, y: 2 }
+    ]
+  },
+  {
     name: "Long L",
     color: "#8f71f2",
     offsets: [
@@ -906,6 +955,8 @@ const polyominoes = [
     ]
   }
 ];
+const TRIOMINO_OR_TETROMINO_SIZES = new Set([3, 4]);
+const guaranteedChoicePolyominoes = polyominoes.filter((shape) => TRIOMINO_OR_TETROMINO_SIZES.has(shape.offsets.length));
 
 let currentTool = "wall";
 let selectedTowerType = "tesla";
@@ -913,6 +964,8 @@ let routes = [];
 let hoverCell = null;
 let hoverPoint = null;
 let activePiece = null;
+let pieceChoices = [];
+let activePieceChoiceIndex = 0;
 let selectedDifficulty = "standard";
 let selectedMap = "meadow";
 let activeMap = MAPS[selectedMap];
@@ -950,6 +1003,7 @@ let almanacTab = "enemies";
 let selectedAlmanacTower = "tesla";
 let selectedAlmanacEnemy = "fast:1";
 const enemyAlmanacArtCache = new Map();
+const blockPreviewArtCache = new Map();
 const discoveredEnemies = new Set();
 let infiniteMode = false;
 let cheatBuffer = [];
@@ -1141,7 +1195,7 @@ window.__blockDefenceMenuBridge = {
   }
 };
 window.__blockDefenceMenuMaps = MAPS;
-activePiece = createRandomPiece(selectedMap);
+refillPieceChoices(selectedMap);
 document.body.dataset.appBootStage = "bridge-ready";
 
 const createGrid = () =>
@@ -1627,8 +1681,70 @@ function rotateOffset(offset, turns) {
   return next;
 }
 
+function mirrorOffset(offset) {
+  return {
+    x: -offset.x,
+    y: offset.y
+  };
+}
+
 function createRandomPiece(mapKey = null) {
-  const shape = polyominoes[Math.floor(Math.random() * polyominoes.length)];
+  return createRandomPieceFromPool(polyominoes, mapKey);
+}
+
+function normalizePieceOffsets(offsets = []) {
+  if (offsets.length === 0) {
+    return [];
+  }
+  const minX = Math.min(...offsets.map((offset) => offset.x));
+  const minY = Math.min(...offsets.map((offset) => offset.y));
+  return offsets.map((offset) => ({
+    x: offset.x - minX,
+    y: offset.y - minY
+  }));
+}
+
+function piecePreviewDataUrl(piece, options = {}) {
+  if (!piece?.offsets?.length) {
+    return "";
+  }
+
+  const fill = options.color || piece.color || "#7d8ea3";
+  const cellSize = options.cellSize || 18;
+  const padding = options.padding || 6;
+  const cells = normalizePieceOffsets(piece.offsets);
+  const maxX = Math.max(...cells.map((cell) => cell.x));
+  const maxY = Math.max(...cells.map((cell) => cell.y));
+  const width = (maxX + 1) * cellSize + padding * 2;
+  const height = (maxY + 1) * cellSize + padding * 2;
+  const key = `${piece.name}|${fill}|${cellSize}|${padding}|${cells.map((cell) => `${cell.x},${cell.y}`).join(";")}`;
+
+  if (blockPreviewArtCache.has(key)) {
+    return blockPreviewArtCache.get(key);
+  }
+
+  const rects = cells.map((cell) => {
+    const x = padding + cell.x * cellSize;
+    const y = padding + cell.y * cellSize;
+    const inset = Math.max(1, Math.round(cellSize * 0.08));
+    const innerSize = cellSize - inset * 2;
+    return `
+      <rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" rx="${Math.max(3, cellSize * 0.16)}" fill="${fill}" stroke="rgba(30,30,30,0.22)" stroke-width="1.2"/>
+      <rect x="${x + inset}" y="${y + inset}" width="${innerSize}" height="${innerSize}" rx="${Math.max(2, cellSize * 0.12)}" fill="rgba(255,255,255,0.16)"/>
+    `;
+  }).join("");
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <rect width="${width}" height="${height}" rx="14" fill="rgba(255,249,240,0)"/>
+    ${rects}
+  </svg>`;
+  const dataUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  blockPreviewArtCache.set(key, dataUrl);
+  return dataUrl;
+}
+
+function createRandomPieceFromPool(pool, mapKey = null) {
+  const shape = pool[Math.floor(Math.random() * pool.length)];
   const turns = Math.floor(Math.random() * 4);
 
   return {
@@ -1636,6 +1752,47 @@ function createRandomPiece(mapKey = null) {
     color: shape.color,
     offsets: shape.offsets.map((offset) => rotateOffset(offset, turns))
   };
+}
+
+function refillPieceChoices(mapKey = null) {
+  const guaranteedIndex = Math.floor(Math.random() * 2);
+  pieceChoices = [
+    createRandomPiece(mapKey),
+    createRandomPiece(mapKey)
+  ];
+  pieceChoices[guaranteedIndex] = createRandomPieceFromPool(guaranteedChoicePolyominoes, mapKey);
+  selectPieceChoice(0, false);
+}
+
+function selectPieceChoice(index, redraw = true) {
+  if (!pieceChoices[index]) {
+    return;
+  }
+
+  setTool("wall");
+  activePieceChoiceIndex = index;
+  activePiece = pieceChoices[index];
+  updateHud();
+  if (redraw) {
+    draw();
+  }
+}
+
+function setPieceChoiceButtonContent(button, piece, index) {
+  if (!button) {
+    return;
+  }
+
+  if (!piece) {
+    button.innerHTML = "";
+    button.title = `Block choice ${index + 1}`;
+    return;
+  }
+
+  const imageUrl = piecePreviewDataUrl(piece, { cellSize: 18, padding: 8 });
+  button.innerHTML = `<img src="${imageUrl}" alt="">`;
+  button.title = piece.name;
+  button.setAttribute("aria-label", `${piece.name} block choice`);
 }
 
 function isTowerUnlocked(type) {
@@ -1984,6 +2141,7 @@ function renderAlmanac() {
   almanacGrid.innerHTML = "";
   almanacBody.classList.toggle("tower-layout", almanacTab === "towers");
   almanacBody.classList.toggle("enemy-layout", almanacTab === "enemies");
+  almanacBody.classList.toggle("block-layout", almanacTab === "blocks");
   for (const button of almanacTabs.querySelectorAll("[data-almanac-tab]")) {
     button.classList.toggle("active", button.dataset.almanacTab === almanacTab);
   }
@@ -2007,6 +2165,18 @@ function renderAlmanac() {
       almanacGrid.appendChild(entry);
     }
     renderEnemyAlmanacDetail(selectedAlmanacEnemy);
+    return;
+  }
+
+  if (almanacTab === "blocks") {
+    almanacTitle.textContent = "Almanac";
+    for (const block of polyominoes) {
+      const entry = document.createElement("article");
+      entry.className = "almanac-entry";
+      entry.innerHTML = renderBlockAlmanacCard(block);
+      almanacGrid.appendChild(entry);
+    }
+    renderBlockAlmanacDetail();
     return;
   }
 
@@ -2568,6 +2738,32 @@ function renderEnemyAlmanacDetail(id) {
     ${renderEnemyFamilyVariantBlock(entry)}`;
 }
 
+function renderBlockAlmanacCard(block) {
+  return `<div class="enemy-almanac-tile" title="${block.name}">
+    <div class="enemy-almanac-image-wrap">
+      <img class="block-almanac-image" src="${piecePreviewDataUrl(block, { cellSize: 16, padding: 10 })}" alt="${block.name}">
+    </div>
+  </div>`;
+}
+
+function renderBlockAlmanacDetail() {
+  const counts = polyominoes.reduce((acc, block) => {
+    const size = block.offsets.length;
+    acc[size] = (acc[size] || 0) + 1;
+    return acc;
+  }, {});
+  const summary = Object.entries(counts)
+    .sort((left, right) => Number(left[0]) - Number(right[0]))
+    .map(([size, count]) => `${count}x ${size}-tile`)
+    .join(" | ");
+  const names = polyominoes.map((block) => block.name).join(", ");
+  almanacDetail.innerHTML = `<h3>Blocks</h3>
+    <p>The block almanac shows every wall shape that can appear in the build offers.</p>
+    <p><strong>Pool:</strong> ${summary}</p>
+    <p><strong>Rule:</strong> Every offer shows two choices, and at least one is always a triomino or tetromino.</p>
+    <p><strong>Shapes:</strong> ${names}</p>`;
+}
+
 function diamondTierForWave(round = waveNumber) {
   if (round >= 48) {
     return 3;
@@ -2844,7 +3040,7 @@ function closeAlmanac() {
 function setTool(nextTool) {
   currentTool = nextTool;
 
-  for (const button of toolGrid.querySelectorAll("button[data-tool]")) {
+  for (const button of toolGrid?.querySelectorAll("button[data-tool]") || []) {
     button.classList.toggle("active", button.dataset.tool === nextTool);
   }
 
@@ -3250,11 +3446,10 @@ function setTowerType(nextType) {
     button.classList.toggle("active", button.dataset.towerType === nextType);
   }
 
-  for (const button of toolGrid.querySelectorAll("button[data-tool]")) {
+  for (const button of toolGrid?.querySelectorAll("button[data-tool]") || []) {
     button.classList.toggle("active", button.dataset.tool === currentTool);
   }
 
-  selectionText.textContent = `Selected: ${TOWER_INFO[nextType].name}`;
   towerDescription.textContent = TOWER_INFO[nextType].description;
   setMessage(TOWER_INFO[nextType].description, 1.8);
   draw();
@@ -3298,10 +3493,23 @@ function activeBossEnemy() {
 }
 
 function rotateActivePiece() {
-  activePiece = {
+  const rotatedPiece = {
     ...activePiece,
     offsets: activePiece.offsets.map((offset) => rotateOffset(offset, 1))
   };
+  pieceChoices[activePieceChoiceIndex] = rotatedPiece;
+  activePiece = rotatedPiece;
+  updateHud();
+  draw();
+}
+
+function mirrorActivePiece() {
+  const mirroredPiece = {
+    ...activePiece,
+    offsets: activePiece.offsets.map(mirrorOffset)
+  };
+  pieceChoices[activePieceChoiceIndex] = mirroredPiece;
+  activePiece = mirroredPiece;
   updateHud();
   draw();
 }
@@ -3597,7 +3805,7 @@ function placePiece(originX, originY) {
     outpostQuestBlocksPlaced += 1;
     outpostWalllessQuestFailed = outpostQuestBlocksPlaced > 0;
   }
-  activePiece = createRandomPiece(selectedMap);
+  refillPieceChoices(selectedMap);
       tutorialProgress.placedBlock = true;
       renderTutorial();
       queueNextTutorialStep();
@@ -4435,70 +4643,7 @@ function towerStatSummary(typeOrTower, overrides = {}) {
   const damage = type === "trapper" && stats.turretMode ? stats.turretDamage : type === "drone" ? Math.max(stats.bulletDamage, stats.rocket ? stats.rocketDamage : 0) : stats.damage;
   const range = type === "trapper" && stats.turretMode ? stats.turretRange : stats.range;
   const aps = Number.isFinite(cooldown) && cooldown > 0 ? 1 / cooldown : 0;
-  const safeDivide = (amount, interval) => Number.isFinite(interval) && interval > 0 ? amount / interval : 0;
-  let dps = Number.isFinite(cooldown) && cooldown > 0 ? damage / cooldown : 0;
-
-  if (type === "crossbow") {
-    dps = safeDivide(stats.damage, stats.cooldown) * (1 + (stats.boltPierce || 0) * 0.12);
-  } else if (type === "tesla") {
-    dps = safeDivide(stats.damage, stats.cooldown) * Math.max(1, 1 + ((stats.chainCount || 1) - 1) * 0.45);
-    dps += safeDivide((stats.fieldDamage || 0) * Math.max(stats.fieldZapCount || 1, 1), stats.fieldCooldown || Infinity);
-    if (stats.splash > 0) {
-      dps *= 1.18;
-    }
-  } else if (type === "missile") {
-    dps = safeDivide(stats.damage * Math.max(stats.burst || 1, 1), stats.cooldown);
-    if (stats.splash > 0) {
-      dps *= 1.3;
-    }
-    if (stats.homing > 0) {
-      dps *= 1.04;
-    }
-    if (stats.pierce > 0) {
-      dps *= 1 + Math.min(stats.pierce, 18) * 0.05;
-    }
-  } else if (type === "trapper") {
-    dps = stats.turretMode
-      ? safeDivide(stats.turretDamage * Math.max(stats.turretBarrels || 1, 1), stats.turretCooldown)
-      : safeDivide((stats.damage || 1) + Math.max(stats.trapUses || 0, 0) * 0.1, stats.cooldown);
-  } else if (type === "laser") {
-    dps = safeDivide(stats.damage * (stats.doubleBeam ? 2 : 1), stats.cooldown) + (stats.burnDamage || 0) * 0.55;
-    if (stats.infinitePierce) {
-      dps *= 1.16;
-    }
-  } else if (type === "shotgun") {
-    dps = safeDivide(stats.damage * Math.max(stats.pellets || 1, 1) * Math.max(stats.cannonCount || 1, 1), stats.cooldown);
-  } else if (type === "freezer") {
-    dps = safeDivide(stats.damage, stats.cooldown)
-      + safeDivide(stats.pulseDamage || 0, stats.pulseCooldown || Infinity)
-      + safeDivide(stats.auraDamage || 0, stats.auraTick || Infinity);
-  } else if (type === "drone") {
-    dps = safeDivide((stats.bulletDamage || 0) * Math.max(stats.bulletGuns || 1, 1), stats.cooldown);
-    if (stats.rocket) {
-      dps += safeDivide(stats.rocketDamage || 0, stats.rocketCooldown || Infinity);
-    }
-    if ((stats.supportCount || 0) > 0) {
-      dps += safeDivide((stats.supportDamage || 0) * Math.max(stats.supportGuns || 1, 1) * stats.supportCount, stats.supportCooldown || Infinity);
-    }
-  } else if (type === "fireball") {
-    const burstCount = stats.flamethrower ? 1 : Math.max(stats.burst || 1, 1);
-    dps = safeDivide(stats.damage * burstCount, stats.cooldown) + (stats.burnDamage || 0) * 0.5;
-    if (stats.splash > 0) {
-      dps *= 1.18;
-    }
-    if (stats.blazingRing) {
-      dps *= 1.1 + Math.max((stats.ringEchoes || 1) - 1, 0) * 0.08;
-    }
-  } else if (type === "dippy") {
-    dps = safeDivide(stats.damage * Math.max(stats.burst || 1, 1), stats.cooldown) + (stats.burnDamage || 0) * 0.4 + (stats.syrupDamage || 0) * 0.6;
-    if (stats.splash > 0) {
-      dps *= 1.2;
-    }
-  } else if (type === "support") {
-    dps = stats.helpMissile ? safeDivide(stats.damage, stats.helpMissileCooldown || Infinity) * 1.15 : 0;
-  } else if (type === "gate") {
-    dps = safeDivide(stats.damage, stats.cooldown) + (stats.acidDot || 0) * 0.95;
-  }
+  const dps = estimateTowerDpsFromStats(type, tower, stats);
 
   const extras = [];
 
@@ -4956,6 +5101,7 @@ function estimateTowerDpsFromStats(type, tower, stats) {
   if (type === "tesla") {
     let dps = safeDivide(stats.damage, stats.cooldown) * Math.max(1, 1 + ((stats.chainCount || 1) - 1) * 0.45);
     dps += safeDivide((stats.fieldDamage || 0) * Math.max(stats.fieldZapCount || 1, 1), stats.fieldCooldown || Infinity);
+    dps += (stats.stun || 0) * 18;
     if (stats.splash > 0) {
       dps *= 1.18;
     }
@@ -4976,8 +5122,8 @@ function estimateTowerDpsFromStats(type, tower, stats) {
   }
   if (type === "trapper") {
     return stats.turretMode
-      ? safeDivide(stats.turretDamage * Math.max(stats.turretBarrels || 1, 1), stats.turretCooldown)
-      : safeDivide((stats.damage || 1) + Math.max(stats.trapUses || 0, 0) * 0.1, stats.cooldown);
+      ? safeDivide(stats.turretDamage * Math.max(stats.turretBarrels || 1, 1), stats.turretCooldown) + Math.max(stats.turretCap || 0, 0) * 1.6
+      : safeDivide((stats.damage || 1) + Math.max(stats.trapUses || 0, 0) * 0.4, stats.cooldown) + (stats.mine ? 18 : 0) + (stats.mango ? 45 : 0);
   }
   if (type === "laser") {
     let dps = safeDivide(stats.damage * (stats.doubleBeam ? 2 : 1), stats.cooldown) + (stats.burnDamage || 0) * 0.55;
@@ -4992,7 +5138,10 @@ function estimateTowerDpsFromStats(type, tower, stats) {
   if (type === "freezer") {
     return safeDivide(stats.damage, stats.cooldown)
       + safeDivide(stats.pulseDamage || 0, stats.pulseCooldown || Infinity)
-      + safeDivide(stats.auraDamage || 0, stats.auraTick || Infinity);
+      + safeDivide(stats.auraDamage || 0, stats.auraTick || Infinity)
+      + Math.max(0, 1 - (stats.slow || 1)) * 180
+      + Math.max(0, stats.pulseFreeze || 0) * 90
+      + Math.max(0, 1 - (stats.auraSlow || 1)) * 260;
   }
   if (type === "drone") {
     let dps = safeDivide((stats.bulletDamage || 0) * Math.max(stats.bulletGuns || 1, 1), stats.cooldown);
@@ -5020,13 +5169,22 @@ function estimateTowerDpsFromStats(type, tower, stats) {
     if (stats.splash > 0) {
       dps *= 1.2;
     }
+    dps += Math.max(0, (stats.syrupTowerBuff || 1) - 1) * 220;
+    dps += Math.max(0, (stats.shockwaves || 1) - 1) * 18;
     return dps;
   }
   if (type === "support") {
-    return stats.helpMissile ? safeDivide(stats.damage, stats.helpMissileCooldown || Infinity) * 1.15 : 0;
+    return (stats.helpMissile ? safeDivide(stats.damage, stats.helpMissileCooldown || Infinity) * 1.15 : 0)
+      + (stats.waveCash || 0) * 0.4
+      + Math.max(0, (stats.attackSpeedAura || 1) - 1) * 180
+      + (stats.detectHiddenAura ? 15 : 0)
+      + (stats.munitions ? 620 : 0);
   }
   if (type === "gate") {
-    return safeDivide(stats.damage, stats.cooldown) + (stats.acidDot || 0) * 0.95;
+    return safeDivide(stats.damage, stats.cooldown)
+      + (stats.acidDot || 0) * 0.95
+      + Math.max(0, (stats.acidAmp || 1) - 1) * 120
+      + Math.max(0, stats.acidDuration || 0) * 16;
   }
   return safeDivide(stats.damage || 0, stats.cooldown || Infinity);
 }
@@ -5035,52 +5193,25 @@ function lateTierTargetDps(type, tower) {
   if (!PATH_TOWER_TYPES.has(type)) {
     return 0;
   }
-  const weights = {
-    crossbow: 0.95,
-    tesla: 0.78,
-    missile: 0.82,
-    trapper: 0.74,
-    laser: 0.86,
-    shotgun: 0.92,
-    freezer: 0.52,
-    drone: 0.78,
-    fireball: 0.8,
-    dippy: 0.8,
-    support: 0.26,
-    gate: 0.5
-  };
   const path1 = tower.path1 || 0;
   const path2 = tower.path2 || 0;
-  let target = 0;
+  let cost = 0;
   if (path1 >= 4) {
-    target += UPGRADE_COSTS[type].path1[3] / 20;
+    cost = Math.max(cost, UPGRADE_COSTS[type].path1[3]);
   }
   if (path1 >= 5) {
-    target += UPGRADE_COSTS[type].path1[4] / 20;
+    cost = Math.max(cost, UPGRADE_COSTS[type].path1[4]);
   }
   if (path2 >= 4) {
-    target += UPGRADE_COSTS[type].path2[3] / 20;
+    cost = Math.max(cost, UPGRADE_COSTS[type].path2[3]);
   }
   if (path2 >= 5) {
-    target += UPGRADE_COSTS[type].path2[4] / 20;
+    cost = Math.max(cost, UPGRADE_COSTS[type].path2[4]);
   }
-  return target * (weights[type] || 0.8);
+  return cost / 20;
 }
 
-function applyLateTierPowerScale(tower, stats) {
-  const type = tower.type;
-  const targetDps = lateTierTargetDps(type, tower);
-  if (targetDps <= 0) {
-    return stats;
-  }
-
-  const currentDps = estimateTowerDpsFromStats(type, tower, stats);
-  if (currentDps >= targetDps * 0.92) {
-    return stats;
-  }
-
-  const scale = Math.min(3.4, Math.max(1, Math.pow(targetDps / Math.max(currentDps, 1), 0.58)));
-
+function scaleLateTierStats(type, tower, stats, scale) {
   if (type === "crossbow") {
     stats.damage *= scale;
     if ((tower.path2 || 0) >= 4) {
@@ -5143,6 +5274,42 @@ function applyLateTierPowerScale(tower, stats) {
   return stats;
 }
 
+function applyLateTierPowerScale(tower, stats) {
+  const type = tower.type;
+  const targetDps = lateTierTargetDps(type, tower);
+  if (targetDps <= 0) {
+    return stats;
+  }
+
+  const baseStats = { ...stats };
+  const currentDps = estimateTowerDpsFromStats(type, tower, baseStats);
+  if (Math.abs(currentDps - targetDps) <= 25) {
+    return stats;
+  }
+
+  let scale = currentDps > 0 ? Math.min(6.5, Math.max(0.2, targetDps / currentDps)) : 3.5;
+  let bestStats = scaleLateTierStats(type, tower, { ...baseStats }, scale);
+  let bestDps = estimateTowerDpsFromStats(type, tower, bestStats);
+  let bestGap = Math.abs(bestDps - targetDps);
+
+  for (let attempt = 0; attempt < 6 && bestGap > 25; attempt += 1) {
+    const correction = bestDps > 0 ? targetDps / bestDps : 1;
+    scale = Math.min(7.5, Math.max(0.15, scale * correction));
+    const candidateStats = scaleLateTierStats(type, tower, { ...baseStats }, scale);
+    const candidateDps = estimateTowerDpsFromStats(type, tower, candidateStats);
+    const candidateGap = Math.abs(candidateDps - targetDps);
+    if (candidateGap < bestGap) {
+      bestStats = candidateStats;
+      bestDps = candidateDps;
+      bestGap = candidateGap;
+    } else {
+      scale = (scale + (bestDps > targetDps ? scale * 0.88 : scale * 1.12)) / 2;
+    }
+  }
+
+  return bestStats;
+}
+
 function renderTowerAlmanacDetail(type) {
   const info = TOWER_INFO[type];
   if (!isTowerUnlocked(type)) {
@@ -5171,7 +5338,7 @@ function clearSelection(clearTool = false) {
 
   if (clearTool) {
     currentTool = null;
-    for (const button of toolGrid.querySelectorAll("button[data-tool]")) {
+    for (const button of toolGrid?.querySelectorAll("button[data-tool]") || []) {
       button.classList.remove("active");
     }
   }
@@ -5257,6 +5424,45 @@ function closeTowerPopup() {
   towerPopup.classList.remove("left", "right");
 }
 
+function compactUpgradeDescription(text, maxLength = 54) {
+  if (!text || text.length <= maxLength) {
+    return text;
+  }
+  const sliced = text.slice(0, maxLength);
+  const breakpoint = Math.max(sliced.lastIndexOf(" "), sliced.lastIndexOf("-"));
+  return `${(breakpoint > 18 ? sliced.slice(0, breakpoint) : sliced).trim()}...`;
+}
+
+function upgradeNameFromDescription(text, fallback) {
+  if (!text) {
+    return fallback;
+  }
+  const colonIndex = text.indexOf(":");
+  if (colonIndex === -1) {
+    return text;
+  }
+  return text.slice(colonIndex + 1).trim().split(".")[0].trim() || fallback;
+}
+
+function upgradeDetailFromDescription(text) {
+  if (!text) {
+    return "";
+  }
+  const colonIndex = text.indexOf(":");
+  const detail = colonIndex === -1 ? text : text.slice(colonIndex + 1).trim();
+  return compactUpgradeDescription(detail, 68);
+}
+
+function setTowerUpgradeButtonContent(button, title, detail = "", cost = "") {
+  button.innerHTML = `<span class="tower-upgrade-title">${title}</span>${detail ? `<span class="tower-upgrade-detail">${detail}</span>` : ""}${cost ? `<span class="tower-upgrade-cost">${cost}</span>` : ""}`;
+}
+
+function createTowerPopupActionGroup(className = "") {
+  const group = document.createElement("div");
+  group.className = className ? `tower-popup-action-group ${className}` : "tower-popup-action-group";
+  return group;
+}
+
 function openTowerPopup(tower) {
   if (!tower) {
     closeTowerPopup();
@@ -5282,6 +5488,8 @@ function openTowerPopup(tower) {
   towerPopupSummary.innerHTML = defaultPopupSummary;
 
   towerPopupActions.innerHTML = "";
+  const primaryActions = createTowerPopupActionGroup("primary");
+  const utilityActions = createTowerPopupActionGroup("utility");
   const upgradesLocked = Boolean(tower.upgradeLocked);
   const canDefrost = tower.mapFrozen && waveNumber > (tower.frozenUntilWave || 0);
 
@@ -5296,11 +5504,12 @@ function openTowerPopup(tower) {
     button1.className = "tower-upgrade";
     button1.dataset.upgradeTowerId = tower.id;
     button1.dataset.upgradePath = "1";
-    button1.textContent = upgradesLocked
-      ? "Fort tower: upgrades locked"
-      : canPath1
-      ? `${path1Text} (${upgradeCost(tower, 1)})`
-      : "Path 1 maxed";
+    setTowerUpgradeButtonContent(
+      button1,
+      upgradesLocked ? "Path 1 locked" : canPath1 ? upgradeNameFromDescription(path1Text, "Path 1") : "Path 1 maxed",
+      !upgradesLocked && canPath1 ? upgradeDetailFromDescription(path1Text) : "",
+      !upgradesLocked && canPath1 ? `${upgradeCost(tower, 1)} cash` : ""
+    );
     button1.disabled = upgradesLocked || !canPath1;
     if (!button1.disabled) {
       const previewTower = { ...tower, path1: tower.path1 + 1, level: 1 + tower.path1 + 1 + tower.path2 };
@@ -5312,17 +5521,18 @@ function openTowerPopup(tower) {
         towerPopupSummary.innerHTML = defaultPopupSummary;
       });
     }
-    towerPopupActions.appendChild(button1);
+    primaryActions.appendChild(button1);
 
     const button2 = document.createElement("button");
     button2.className = "tower-upgrade";
     button2.dataset.upgradeTowerId = tower.id;
     button2.dataset.upgradePath = "2";
-    button2.textContent = upgradesLocked
-      ? "Fort tower: upgrades locked"
-      : canPath2
-      ? `${path2Text} (${upgradeCost(tower, 2)})`
-      : "Path 2 maxed";
+    setTowerUpgradeButtonContent(
+      button2,
+      upgradesLocked ? "Path 2 locked" : canPath2 ? upgradeNameFromDescription(path2Text, "Path 2") : "Path 2 maxed",
+      !upgradesLocked && canPath2 ? upgradeDetailFromDescription(path2Text) : "",
+      !upgradesLocked && canPath2 ? `${upgradeCost(tower, 2)} cash` : ""
+    );
     button2.disabled = upgradesLocked || !canPath2;
     if (!button2.disabled) {
       const previewTower = { ...tower, path2: tower.path2 + 1, level: 1 + tower.path1 + tower.path2 + 1 };
@@ -5334,22 +5544,24 @@ function openTowerPopup(tower) {
         towerPopupSummary.innerHTML = defaultPopupSummary;
       });
     }
-    towerPopupActions.appendChild(button2);
+    primaryActions.appendChild(button2);
     if (tower.type !== "support") {
       if (tower.type === "shotgun" && (tower.path2 || 0) >= 4) {
-        appendShotgunPriorityButtons(towerPopupActions, tower);
+        appendShotgunPriorityButtons(utilityActions, tower);
       } else {
-        appendPriorityButton(towerPopupActions, tower);
+        appendPriorityButton(utilityActions, tower);
       }
     }
     if (canDefrost) {
       const defrostButton = document.createElement("button");
       defrostButton.className = "tower-upgrade secondary";
       defrostButton.dataset.defrostTowerId = tower.id;
-      defrostButton.textContent = "Defrost";
-      towerPopupActions.appendChild(defrostButton);
+      setTowerUpgradeButtonContent(defrostButton, "Defrost");
+      utilityActions.appendChild(defrostButton);
     }
-    appendSellButton(towerPopupActions, tower);
+    appendSellButton(utilityActions, tower);
+    towerPopupActions.appendChild(primaryActions);
+    towerPopupActions.appendChild(utilityActions);
     return;
   }
 
@@ -5357,34 +5569,51 @@ function openTowerPopup(tower) {
   upgradeButton.className = "tower-upgrade";
   upgradeButton.dataset.upgradeTowerId = tower.id;
   const nextLinearName = linearUpgradeName(tower.type, tower.level + 1);
-  upgradeButton.textContent = upgradesLocked
-    ? "Fort tower: upgrades locked"
-    : tower.level >= maxTowerLevel(tower)
-      ? "Max upgraded"
-      : `${nextLinearName} (${upgradeCost(tower)})`;
+  setTowerUpgradeButtonContent(
+    upgradeButton,
+    upgradesLocked ? "Upgrade locked" : tower.level >= maxTowerLevel(tower) ? "Max upgraded" : nextLinearName,
+    "",
+    !upgradesLocked && tower.level < maxTowerLevel(tower) ? `${upgradeCost(tower)} cash` : ""
+  );
   upgradeButton.disabled = upgradesLocked || tower.level >= maxTowerLevel(tower);
   if (!upgradeButton.disabled) {
     const previewTower = { ...tower, level: tower.level + 1 };
     const previewSummary = towerStatSummary(previewTower);
+    const nextLinearDetail = compactUpgradeDescription(summarizeTowerIncrease(currentSummary, previewSummary) || "Improves this tower.", 68);
+    setTowerUpgradeButtonContent(
+      upgradeButton,
+      nextLinearName,
+      nextLinearDetail,
+      `${upgradeCost(tower)} cash`
+    );
     upgradeButton.addEventListener("mouseenter", () => {
       towerPopupSummary.innerHTML = `<strong>Next Upgrade</strong><br>${renderTowerStatsPreview(currentSummary, previewSummary)}<br>${nextLinearName}`;
     });
     upgradeButton.addEventListener("mouseleave", () => {
       towerPopupSummary.innerHTML = defaultPopupSummary;
     });
+  } else {
+    setTowerUpgradeButtonContent(
+      upgradeButton,
+      upgradesLocked ? "Upgrade locked" : "Max upgraded",
+      "",
+      ""
+    );
   }
-  towerPopupActions.appendChild(upgradeButton);
+  primaryActions.appendChild(upgradeButton);
   if (tower.type !== "support") {
-    appendPriorityButton(towerPopupActions, tower);
+    appendPriorityButton(utilityActions, tower);
   }
   if (canDefrost) {
     const defrostButton = document.createElement("button");
     defrostButton.className = "tower-upgrade secondary";
     defrostButton.dataset.defrostTowerId = tower.id;
-    defrostButton.textContent = "Defrost";
-    towerPopupActions.appendChild(defrostButton);
+    setTowerUpgradeButtonContent(defrostButton, "Defrost");
+    utilityActions.appendChild(defrostButton);
   }
-  appendSellButton(towerPopupActions, tower);
+  appendSellButton(utilityActions, tower);
+  towerPopupActions.appendChild(primaryActions);
+  towerPopupActions.appendChild(utilityActions);
 }
 
 function defrostTower(tower) {
@@ -5718,7 +5947,8 @@ function createEnemy(enemyType, options = {}) {
       ? Math.round((5 + waveNumber) * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tier >= 3 ? 7.8 : tier >= 2 ? 2.6 : 1))
     : Math.round((5 + waveNumber) * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tierConfig?.hpMultiplier || 1)));
   const armored = options.armored ?? (Boolean(resolvedEnemyType.armored) || resolvedEnemyType.key === "armored");
-  const armorValue = options.armorHp ?? (armored ? resolvedEnemyType.armor + Math.floor((waveNumber - 9) / 4) : 0);
+  const armorBase = resolvedEnemyType.armor || 0;
+  const armorValue = options.armorHp ?? (armored ? armorBase + Math.floor((waveNumber - 9) / 4) : 0);
   const waffleRewardMultiplier = resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? 1 : tier === 2 ? 0.3 : 0.1) : 1;
   const waffleSpeedBonus = resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? -10 : tier === 2 ? -2 : 10) : 0;
   const reward = options.reward ?? (resolvedEnemyType.key === "splitter"
@@ -5967,7 +6197,7 @@ function spawnIdaenBoss() {
   const boss = createEnemy(ENEMY_TYPES.idaen, {
     portalIndex: Math.floor(Math.random() * activePortals().length),
     reward: Math.max(20, Math.round(ENEMY_TYPES.idaen.reward * rewardMultiplier())),
-    hp: Math.round((180 + bossStage * 170) * 8.4 * 4 * DIFFICULTIES[selectedDifficulty].hp * brutalBossHpScale()),
+    hp: Math.round((180 + bossStage * 170) * 8.4 * 2 * DIFFICULTIES[selectedDifficulty].hp * brutalBossHpScale()),
     speed: Math.max(10, ((13 + bossStage * 2.2) / DIFFICULTIES[selectedDifficulty].interval) * brutalBossSpeedScale()),
     waffleSquares: 64,
     summonWave: waveNumber
@@ -6014,7 +6244,7 @@ function spawnAdapterBoss() {
   const boss = createEnemy(ENEMY_TYPES.adapter, {
     portalIndex: Math.floor(Math.random() * activePortals().length),
     reward: Math.max(24, Math.round(ENEMY_TYPES.adapter.reward * rewardMultiplier())),
-    hp: Math.round((260 + waveNumber * 34) * 10.5 * 4 * DIFFICULTIES[selectedDifficulty].hp * brutalBossHpScale()),
+    hp: Math.round((260 + waveNumber * 34) * 10.5 * 2 * DIFFICULTIES[selectedDifficulty].hp * brutalBossHpScale()),
     speed: Math.max(10, ((20 + waveNumber * 0.24) / DIFFICULTIES[selectedDifficulty].interval) * brutalBossSpeedScale()),
     hidden: false,
     adapterBlockReady: true,
@@ -6204,7 +6434,7 @@ function spawnSandboxEnemyFromControls() {
         shelled,
         tier,
         summonWave,
-        hp: Math.round((180 + bossStage * 170) * 8.4 * 4 * DIFFICULTIES[selectedDifficulty].hp),
+        hp: Math.round((180 + bossStage * 170) * 8.4 * 2 * DIFFICULTIES[selectedDifficulty].hp),
         speed: Math.max(10, (13 + bossStage * 2.2) / DIFFICULTIES[selectedDifficulty].interval),
         waffleSquares: 64,
         reward: Math.max(20, Math.round(enemyType.reward * rewardMultiplier()))
@@ -6218,7 +6448,7 @@ function spawnSandboxEnemyFromControls() {
           shielded,
           shelled,
           tier,
-          hp: Math.round((260 + summonWave * 34) * 10.5 * 4 * DIFFICULTIES[selectedDifficulty].hp),
+          hp: Math.round((260 + summonWave * 34) * 10.5 * 2 * DIFFICULTIES[selectedDifficulty].hp),
           speed: Math.max(10, (20 + summonWave * 0.24) / DIFFICULTIES[selectedDifficulty].interval),
           adapterBlockReady: true,
           adapterSummonTimer: 3.8,
@@ -6381,6 +6611,7 @@ function updateWave(deltaTime) {
 
   if (wave.spawned === wave.count && enemies.length === 0) {
     wave.complete = true;
+    refillPieceChoices(selectedMap);
     const supportIncome = supportWaveIncomeEntries();
     const supportTotal = supportIncome.reduce((total, entry) => total + entry.amount, 0);
     money += Math.max(2, Math.round((5 + waveNumber) * rewardMultiplier()));
@@ -7022,8 +7253,14 @@ function activeShieldSourceForEnemy(enemy) {
   let nearestDistance = Infinity;
 
   for (const source of enemies) {
-    if ((!source.shielded && !isShieldEnemy(source)) || source.hp <= 0 || (source.shieldHp || 0) <= 0) {
+    const isHydraShieldHead = source.key === "hydra" && source.hydraStage === 3 && source.hp > 0;
+    const shieldAvailable = isHydraShieldHead ? source.shielded : (source.shieldHp || 0) > 0;
+    if ((!source.shielded && !isShieldEnemy(source)) || source.hp <= 0 || !shieldAvailable) {
       continue;
+    }
+
+    if (enemy.key === "hydra" && source.key === "hydra" && enemy.hydraGroupId && enemy.hydraGroupId === source.hydraGroupId) {
+      return source;
     }
 
     const distance = Math.hypot(enemy.x - source.x, enemy.y - source.y);
@@ -7102,6 +7339,16 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
     const shieldDamage = damageClass === "energy"
       ? amount * ((shieldSource.tier || 1) >= 3 ? 3 : 2.6)
       : amount * shieldMultiplier;
+    if (shieldSource.key === "hydra" && shieldSource.hydraStage === 3) {
+      const hpBeforeShieldHead = shieldSource.hp;
+      shieldSource.hp = Math.max(0, shieldSource.hp - shieldDamage);
+      shieldSource.healthBarLagHp = Math.max(shieldSource.healthBarLagHp || hpBeforeShieldHead, hpBeforeShieldHead);
+      shieldSource.healthBarFlashTimer = 0.18;
+      shieldSource.healthBarTint = null;
+      shieldSource.healthBarTintTimer = 0;
+      addPulse(shieldSource.x, shieldSource.y, shieldSource.shieldRadius || 18, "rgba(156, 209, 255, 0.38)");
+      return true;
+    }
     shieldSource.shieldHp = Math.max(0, (shieldSource.shieldHp || 0) - shieldDamage);
     addPulse(shieldSource.x, shieldSource.y, shieldSource.shieldRadius || 18, "rgba(156, 209, 255, 0.38)");
     if (shieldSource.shieldHp === 0) {
@@ -7109,6 +7356,33 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
       shieldSource.shieldRadius = 0;
       addPulse(shieldSource.x, shieldSource.y, 24, "rgba(239, 247, 255, 0.6)");
     }
+    return true;
+  }
+
+  const hydraShellHead = hydraDefenseHead(enemy, 2);
+  if (hydraShellHead) {
+    const hpBeforeShellHead = hydraShellHead.hp;
+    hydraShellHead.hp = Math.max(0, hydraShellHead.hp - amount);
+    hydraShellHead.healthBarLagHp = Math.max(hydraShellHead.healthBarLagHp || hpBeforeShellHead, hpBeforeShellHead);
+    hydraShellHead.healthBarFlashTimer = 0.18;
+    hydraShellHead.healthBarTint = null;
+    hydraShellHead.healthBarTintTimer = 0;
+    addPulse(hydraShellHead.x, hydraShellHead.y, 18, "rgba(255, 255, 255, 0.52)");
+    return true;
+  }
+
+  const hydraArmorHead = hydraDefenseHead(enemy, 1);
+  if (hydraArmorHead) {
+    if (damageClass !== "energy" && damageClass !== "explosive") {
+      return false;
+    }
+    const hpBeforeArmorHead = hydraArmorHead.hp;
+    hydraArmorHead.hp = Math.max(0, hydraArmorHead.hp - amount);
+    hydraArmorHead.healthBarLagHp = Math.max(hydraArmorHead.healthBarLagHp || hpBeforeArmorHead, hpBeforeArmorHead);
+    hydraArmorHead.healthBarFlashTimer = 0.18;
+    hydraArmorHead.healthBarTint = null;
+    hydraArmorHead.healthBarTintTimer = 0;
+    addPulse(hydraArmorHead.x, hydraArmorHead.y, 18, "#f3f7ff");
     return true;
   }
 
@@ -7327,6 +7601,13 @@ function nearestEnemyInRange(tower, range, detectHidden = false) {
     .filter((enemy) => Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY) >= (stats.minRange || 0))
     .filter((enemy) => canTowerDamageEnemy(tower, enemy, stats));
   return selectEnemyByPriority(candidates, tower.targetPriority || "first");
+}
+
+function nearestSupportMissileTarget(tower, range, detectHidden = false) {
+  const stats = towerStats(tower);
+  const candidates = enemiesInRange(tower.centerX, tower.centerY, range, detectHidden, true)
+    .filter((enemy) => Math.hypot(enemy.x - tower.centerX, enemy.y - tower.centerY) >= (stats.minRange || 0));
+  return selectEnemyByPriority(candidates, "first");
 }
 
 function towerHasLineOfSightToPoint(tower, x, y) {
@@ -8101,7 +8382,7 @@ function fireTower(tower, target) {
 
   if (tower.type === "support") {
     if (stats.helpMissile && tower.cooldown === 0) {
-      const supportTarget = nearestEnemyInRange(tower, stats.auraRadius * 1.45, detectHidden);
+      const supportTarget = nearestSupportMissileTarget(tower, stats.auraRadius * 1.45, detectHidden);
       if (supportTarget) {
         tower.aimAngle = Math.atan2(supportTarget.y - tower.centerY, supportTarget.x - tower.centerX);
         spawnMissileProjectile(tower, supportTarget, stats);
@@ -9680,6 +9961,62 @@ function spawnSentinelChildren(enemy) {
   }
 }
 
+function hydraSegmentsByGroup(hydraGroupId, source = enemies) {
+  if (!hydraGroupId) {
+    return [];
+  }
+  return source.filter((enemy) => enemy.key === "hydra" && enemy.hydraGroupId === hydraGroupId);
+}
+
+function syncHydraGroupStatuses(hydraGroupId, source = enemies) {
+  const group = hydraSegmentsByGroup(hydraGroupId, source);
+  if (group.length === 0) {
+    return;
+  }
+
+  const hiddenAlive = group.some((entry) => entry.hydraStage === 0 && entry.hp > 0);
+  const armoredAlive = group.some((entry) => entry.hydraStage === 1 && entry.hp > 0);
+  const shelledAlive = group.some((entry) => entry.hydraStage === 2 && entry.hp > 0);
+  const shieldedAlive = group.some((entry) => entry.hydraStage === 3 && entry.hp > 0);
+
+  for (const segment of group) {
+    segment.hidden = hiddenAlive;
+    segment.armored = armoredAlive;
+    if (!armoredAlive) {
+      segment.armorHp = 0;
+      segment.maxArmorHp = 0;
+    } else if ((segment.maxArmorHp || 0) <= 0) {
+      const armorValue = (ENEMY_TYPES.hydra.armor || 4) + Math.max(0, Math.floor((waveNumber - 9) / 4));
+      segment.armorHp = Math.max(segment.armorHp || 0, armorValue);
+      segment.maxArmorHp = Math.max(segment.maxArmorHp || 0, armorValue);
+    }
+
+    segment.shelled = shelledAlive;
+    if (!shelledAlive) {
+      segment.shellHp = 0;
+      segment.maxShellHp = 0;
+    }
+
+    segment.shielded = shieldedAlive;
+    if (!shieldedAlive) {
+      segment.shieldHp = 0;
+      segment.maxShieldHp = 0;
+      segment.shieldRadius = 0;
+    } else if ((segment.maxShieldHp || 0) <= 0) {
+      segment.shieldHp = Math.max(segment.shieldHp || 0, 120);
+      segment.maxShieldHp = Math.max(segment.maxShieldHp || 0, 120);
+      segment.shieldRadius = Math.max(segment.shieldRadius || 0, CELL_SIZE * 2.4);
+    }
+  }
+}
+
+function hydraDefenseHead(enemy, stage, source = enemies) {
+  if (!enemy || enemy.key !== "hydra" || !enemy.hydraGroupId) {
+    return null;
+  }
+  return source.find((entry) => entry.key === "hydra" && entry.hydraGroupId === enemy.hydraGroupId && entry.hydraStage === stage && entry.hp > 0) || null;
+}
+
 function spawnHydra(enemyType = ENEMY_TYPES.hydra, options = {}) {
   const hydraGroupId = `hydra-${nextEnemyId}-${Math.random().toString(36).slice(2, 7)}`;
   const hydraPortalIndex = options.portalIndex ?? nextSpawnPortalIndex();
@@ -9694,17 +10031,18 @@ function spawnHydra(enemyType = ENEMY_TYPES.hydra, options = {}) {
       segmentOffset: stage * 0.34,
       sizeScale: 1.26,
       turnRate: 2.35,
-      hidden: stage === 0,
-      armored: stage === 1,
-      shelled: stage === 2,
-      shielded: stage === 3,
-      shieldHp: stage === 3 ? 120 : 0
+      hidden: true,
+      armored: true,
+      shelled: true,
+      shielded: true,
+      shieldHp: 120
     });
     if (segment) {
       segment.type = "Hydra";
       pushEnemy(segment);
     }
   }
+  syncHydraGroupStatuses(hydraGroupId);
 }
 
 function spawnHydraShieldChild(enemy) {
@@ -9930,11 +10268,15 @@ function spawnOrbChildren(enemy, primaryType, secondaryType) {
 
 function purgeDefeatedEnemies() {
   const nextEnemies = [];
+  const hydraGroupsToSync = new Set();
 
   for (const enemy of enemies) {
     if (enemy.hp > 0) {
       nextEnemies.push(enemy);
     } else {
+      if (enemy.key === "hydra" && enemy.hydraGroupId) {
+        hydraGroupsToSync.add(enemy.hydraGroupId);
+      }
       if (enemy.key === "idaen") {
         spawnMegaWaffleChildren(enemy);
       } else if (enemy.key === "hydra" && enemy.hydraStage === 3) {
@@ -9965,13 +10307,32 @@ function purgeDefeatedEnemies() {
   }
 
   enemies = nextEnemies;
+  for (const hydraGroupId of hydraGroupsToSync) {
+    syncHydraGroupStatuses(hydraGroupId, enemies);
+  }
 }
 
 function updateHud() {
-  nextPieceText.textContent = `Next block: ${activePiece.name}`;
-  routeText.textContent = isGraveyardMap()
-    ? "Routes: gravebound"
-    : allRoutesOpen(routes) ? `Routes: ${routes.length} open` : "Routes: blocked";
+  nextPieceText.textContent = "Block choices";
+  if (blockChoicePriceText) {
+    blockChoicePriceText.textContent = freeBlocks > 0 ? `Block price: Free (${freeBlocks} left)` : `Block price: ${currentBlockCost}`;
+  }
+  if (blockChoiceHotkeys) {
+    blockChoiceHotkeys.textContent = "R rotate | M mirror";
+  }
+  if (pieceChoicePrimaryButton) {
+    setPieceChoiceButtonContent(pieceChoicePrimaryButton, pieceChoices[0], 0);
+    pieceChoicePrimaryButton.classList.toggle("active", activePieceChoiceIndex === 0);
+  }
+  if (pieceChoiceSecondaryButton) {
+    setPieceChoiceButtonContent(pieceChoiceSecondaryButton, pieceChoices[1], 1);
+    pieceChoiceSecondaryButton.classList.toggle("active", activePieceChoiceIndex === 1);
+  }
+  if (routeText) {
+    routeText.textContent = isGraveyardMap()
+      ? "Routes: gravebound"
+      : allRoutesOpen(routes) ? `Routes: ${routes.length} open` : "Routes: blocked";
+  }
   updateTowerButtons();
   if (blockToolButton) {
     blockToolButton.textContent = freeBlocks > 0 ? "Block (Free)" : `Block (${currentBlockCost})`;
@@ -9991,28 +10352,34 @@ function updateHud() {
     button.classList.toggle("active", Number(button.dataset.speed) === gameSpeedMultiplier);
   });
   waveButton.textContent = autoWaveEnabled ? "Start Wave Now" : "Start Wave";
-  selectionText.textContent = `Selected: ${TOWER_INFO[selectedTowerType].name}`;
-  upgradeText.textContent = `Upgrade: ${currentTool === "upgrade" ? "click tower, max 5" : "max 5"}${selectedMap === "outpost" && !crossbowUnlocked ? " | Secret: Outpost Hard 50 or Brutal 25 with no placed blocks" : ""}`;
+  if (selectionText) {
+    selectionText.textContent = `Selected: ${TOWER_INFO[selectedTowerType].name}`;
+  }
+  if (upgradeText) {
+    upgradeText.textContent = `Upgrade: ${currentTool === "upgrade" ? "click tower, max 5" : "max 5"}${selectedMap === "outpost" && !crossbowUnlocked ? " | Secret: Outpost Hard 50 or Brutal 25 with no placed blocks" : ""}`;
+  }
   updateSandboxControls();
   updateAirstrikeControls();
   renderTutorial();
 
-  if (messageTimer > 0) {
-    statusText.textContent = message;
-  } else if (lives <= 0) {
-    statusText.textContent = "Game over.";
-  } else if (!allRoutesOpen(routes)) {
-    statusText.textContent = "The path is blocked. Adjust your block layout to reopen the route.";
-  } else if (wave && !wave.complete) {
-    statusText.textContent = `Wave ${waveNumber} in progress.`;
-  } else if (autoWaveEnabled) {
-    statusText.textContent = isSandboxMode() && sandboxWaveTarget !== null
-      ? `Auto wave armed at ${gameSpeedMultiplier}x. Sandbox wave ${sandboxWaveTarget} will repeat on its own.`
-      : `Auto wave armed at ${gameSpeedMultiplier}x. Next wave ${waveNumber + 1} will start on its own.`;
-  } else {
-    statusText.textContent = isSandboxMode() && sandboxWaveTarget !== null
-      ? `Path ready at ${gameSpeedMultiplier}x. Build and start sandbox wave ${sandboxWaveTarget}.`
-      : `Path ready at ${gameSpeedMultiplier}x. Build and start wave ${waveNumber + 1}.`;
+  if (statusText) {
+    if (messageTimer > 0) {
+      statusText.textContent = message;
+    } else if (lives <= 0) {
+      statusText.textContent = "Game over.";
+    } else if (!allRoutesOpen(routes)) {
+      statusText.textContent = "The path is blocked. Adjust your block layout to reopen the route.";
+    } else if (wave && !wave.complete) {
+      statusText.textContent = `Wave ${waveNumber} in progress.`;
+    } else if (autoWaveEnabled) {
+      statusText.textContent = isSandboxMode() && sandboxWaveTarget !== null
+        ? `Auto wave armed at ${gameSpeedMultiplier}x. Sandbox wave ${sandboxWaveTarget} will repeat on its own.`
+        : `Auto wave armed at ${gameSpeedMultiplier}x. Next wave ${waveNumber + 1} will start on its own.`;
+    } else {
+      statusText.textContent = isSandboxMode() && sandboxWaveTarget !== null
+        ? `Path ready at ${gameSpeedMultiplier}x. Build and start sandbox wave ${sandboxWaveTarget}.`
+        : `Path ready at ${gameSpeedMultiplier}x. Build and start wave ${waveNumber + 1}.`;
+    }
   }
 }
 
@@ -12825,7 +13192,7 @@ function drawAdapterEnemy(enemy) {
 }
 
 function drawBossBar() {
-  const bosses = enemies.filter((enemy) => enemy.boss && enemy.hp > 0);
+  const bosses = enemies.filter((enemy) => enemy.boss && enemy.hp > 0 && enemy.key !== "idaen" && enemy.key !== "adapter");
 
   if (bosses.length === 0) {
     return;
@@ -13346,7 +13713,7 @@ function resetGame() {
   factoryState = null;
   wave = null;
   hoverCell = null;
-  activePiece = createRandomPiece(selectedMap);
+  refillPieceChoices(selectedMap);
   money = startingMoney();
   freeBlocks = 3;
   currentBlockCost = BLOCK_COST;
@@ -13605,7 +13972,7 @@ canvas.addEventListener("mouseleave", () => {
   draw();
 });
 
-toolGrid.addEventListener("click", (event) => {
+toolGrid?.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-tool]");
 
   if (!button) {
@@ -13778,6 +14145,9 @@ mapOptions.addEventListener("click", withUiGuard("Map button", (event) => {
 }));
 
 rotateButton.addEventListener("click", rotateActivePiece);
+mirrorButton?.addEventListener("click", mirrorActivePiece);
+pieceChoicePrimaryButton?.addEventListener("click", () => selectPieceChoice(0));
+pieceChoiceSecondaryButton?.addEventListener("click", () => selectPieceChoice(1));
 waveButton.addEventListener("click", () => spawnWave(true));
 autoWaveToggle?.addEventListener("change", () => {
   autoWaveEnabled = autoWaveToggle.checked;
@@ -13871,6 +14241,11 @@ window.addEventListener("keydown", (event) => {
   if (event.key.toLowerCase() === "r") {
     event.preventDefault();
     rotateActivePiece();
+  }
+
+  if (event.key.toLowerCase() === "m") {
+    event.preventDefault();
+    mirrorActivePiece();
   }
 
   if (event.key === "Escape") {

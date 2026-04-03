@@ -98,6 +98,7 @@
       </div>
       <div class="almanac-tabs" id="almanacTabs">
         <button class="secondary active" data-almanac-tab="enemies">Enemies</button>
+        <button class="secondary" data-almanac-tab="blocks">Blocks</button>
         <button class="secondary" data-almanac-tab="towers">Towers</button>
       </div>
       <div class="almanac-body" id="almanacBody">
@@ -112,25 +113,6 @@
   <main class="app-shell">
     <section class="workspace">
       <aside class="controls">
-        <div class="panel" data-panel="tools">
-          <div class="panel-head">
-            <h2>Tools</h2>
-            <button class="panel-toggle secondary" data-toggle-panel="tools">Hide</button>
-          </div>
-          <div class="tool-grid" id="toolGrid">
-            <button class="tool active" data-tool="wall">Block (5)</button>
-            <button class="tool" data-tool="tower">Tower</button>
-            <button class="tool" data-tool="upgrade">Upgrade</button>
-          </div>
-          <div class="actions compact">
-            <button id="rotateButton">Rotate Block</button>
-          </div>
-          <p class="next-piece" id="nextPieceText">Next block: waiting</p>
-          <p class="hint" id="selectionText">Selected: Tesla</p>
-          <p class="hint" id="upgradeText">Upgrade: max 5</p>
-          <p class="hint" id="statusText">Ready to solve.</p>
-          <p class="hint" id="routeText">Route length: 0</p>
-        </div>
         <div class="panel sandbox-controls" id="sandboxControls" hidden>
           <div class="panel-head">
             <h2>Sandbox</h2>
@@ -208,6 +190,19 @@
         <div class="play-area">
           <div class="board-frame">
             <canvas id="board" width="952" height="672" aria-label="Tower defense board"></canvas>
+            <div class="board-piece-choices">
+              <p class="next-piece" id="nextPieceText">Block choices: waiting</p>
+              <p class="hint" id="blockChoicePriceText">Block price: 5</p>
+              <div class="piece-choice-grid" id="pieceChoiceGrid">
+                <button class="secondary piece-choice" id="pieceChoicePrimary" type="button" aria-label="Block choice 1"></button>
+                <button class="secondary piece-choice" id="pieceChoiceSecondary" type="button" aria-label="Block choice 2"></button>
+              </div>
+              <div class="board-piece-actions">
+                <button id="rotateButton">Rotate Block</button>
+                <button id="mirrorButton">Mirror Block</button>
+              </div>
+              <p class="hint" id="blockChoiceHotkeys">R rotate | M mirror</p>
+            </div>
           </div>
           <div class="panel towers-strip" data-panel="towers">
             <div class="panel-head">
@@ -251,7 +246,7 @@
               <h2 id="towerPopupTitle">Tower</h2>
               <button id="closeTowerPopupButton" class="panel-toggle secondary">Close</button>
             </div>
-            <p class="hint" id="towerPopupSummary">Tower details</p>
+            <div class="tower-popup-summary hint" id="towerPopupSummary">Tower details</div>
             <div class="tower-popup-actions" id="towerPopupActions"></div>
           </div>
         </div>

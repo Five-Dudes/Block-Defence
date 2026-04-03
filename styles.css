@@ -73,7 +73,7 @@ body {
   min-height: min(90vh, 920px);
   display: grid;
   align-content: center;
-  gap: 20px;
+  gap: 14px;
   background:
     radial-gradient(circle at top left, rgba(244, 202, 76, 0.2), transparent 26%),
     radial-gradient(circle at bottom right, rgba(69, 116, 216, 0.18), transparent 24%),
@@ -193,7 +193,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 8px;
 }
 
 .almanac-grid {
@@ -212,6 +212,11 @@ body {
   align-items: start;
 }
 
+.almanac-body.block-layout {
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+}
+
 .almanac-body.enemy-layout .almanac-grid {
   grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
   max-height: 58vh;
@@ -219,7 +224,20 @@ body {
   padding-right: 6px;
 }
 
+.almanac-body.block-layout .almanac-grid {
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  max-height: 58vh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
 .almanac-body.enemy-layout .almanac-detail {
+  margin-top: 0;
+  max-height: 58vh;
+  overflow-y: auto;
+}
+
+.almanac-body.block-layout .almanac-detail {
   margin-top: 0;
   max-height: 58vh;
   overflow-y: auto;
@@ -315,6 +333,20 @@ body {
   width: 68px;
   height: 68px;
   display: block;
+}
+
+.block-almanac-image {
+  width: 68px;
+  height: 68px;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.almanac-body.block-layout .enemy-almanac-image-wrap {
+  pointer-events: none;
+  user-select: none;
 }
 
 .enemy-almanac-detail-header {
@@ -439,6 +471,7 @@ h1 {
 .actions.compact {
   margin-top: 12px;
   grid-template-columns: 1fr;
+  gap: 8px;
 }
 
 .tower-grid {
@@ -629,6 +662,7 @@ button.secondary {
   width: 100%;
   margin-left: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .board-inline-actions {
@@ -645,6 +679,60 @@ button.secondary {
   margin-top: 2px;
   position: relative;
   z-index: 7;
+}
+
+.board-piece-choices {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  z-index: 5;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 249, 240, 0.9);
+  box-shadow: 0 14px 28px rgba(87, 61, 36, 0.16);
+  min-width: 224px;
+}
+
+.piece-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(88px, 120px));
+  gap: 10px;
+}
+
+.piece-choice {
+  min-height: 88px;
+  min-width: 88px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 249, 240, 0.96);
+  color: var(--ink);
+}
+
+.piece-choice img {
+  display: block;
+  max-width: 64px;
+  max-height: 64px;
+}
+
+.board-piece-choices .next-piece {
+  margin: 0;
+}
+
+.board-piece-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+#blockChoicePriceText,
+#blockChoiceHotkeys {
+  margin: 0;
 }
 
 .speed-controls {
@@ -912,9 +1000,10 @@ button.secondary {
 
 .tower-popup {
   position: absolute;
-  top: 44px;
+  top: 4px;
+  bottom: 0;
   z-index: 6;
-  width: 280px;
+  width: 320px;
 }
 
 .tower-popup.left {
@@ -979,17 +1068,72 @@ body[data-sandbox-layout="true"] #tutorialHint {
 
 .tower-popup-card {
   padding: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tower-popup-summary {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.68);
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 220px;
+}
+
+.tower-popup-summary p:last-child {
+  margin-bottom: 0;
 }
 
 .tower-popup-actions {
   display: grid;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 14px;
+  margin-top: 26px;
+  flex: 0 0 auto;
 }
 
 .tower-upgrade {
   width: 100%;
   text-align: left;
+  height: 72px;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tower-popup-action-group {
+  display: grid;
+  gap: 10px;
+}
+
+.tower-popup-action-group.primary {
+  margin-top: 10px;
+}
+
+.tower-popup-action-group.utility {
+  margin-top: 10px;
+}
+
+.tower-upgrade-title {
+  display: block;
+  font-weight: 700;
+}
+
+.tower-upgrade-detail {
+  display: block;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  opacity: 0.88;
+}
+
+.tower-upgrade-cost {
+  display: block;
+  font-size: 0.76rem;
+  opacity: 0.82;
 }
 
 .tower-upgrade.secondary {
@@ -1032,6 +1176,11 @@ canvas {
     overflow: hidden;
   }
 
+  .board-piece-choices {
+    left: 12px;
+    bottom: 12px;
+  }
+
   .play-area {
     grid-template-columns: 1fr;
   }
@@ -1040,8 +1189,14 @@ canvas {
     grid-template-columns: 1fr;
   }
 
+  .almanac-body.block-layout {
+    grid-template-columns: 1fr;
+  }
+
   .almanac-body.tower-layout .almanac-grid,
-  .almanac-body.tower-layout .almanac-detail {
+  .almanac-body.tower-layout .almanac-detail,
+  .almanac-body.block-layout .almanac-grid,
+  .almanac-body.block-layout .almanac-detail {
     max-height: none;
     overflow: visible;
   }
