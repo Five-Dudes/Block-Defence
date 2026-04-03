@@ -16,6 +16,7 @@ const blockChoicePriceText = document.getElementById("blockChoicePriceText");
 const blockChoiceHotkeys = document.getElementById("blockChoiceHotkeys");
 const pieceChoicePrimaryButton = document.getElementById("pieceChoicePrimary");
 const pieceChoiceSecondaryButton = document.getElementById("pieceChoiceSecondary");
+const blockChoicePanel = document.querySelector(".board-piece-choices");
 const towerDescription = document.getElementById("towerDescription");
 const waveButton = document.getElementById("waveButton");
 const autoWaveToggle = document.getElementById("autoWaveToggle");
@@ -79,6 +80,9 @@ const tutorialDismissButton = document.getElementById("tutorialDismissButton");
 const closeTowerPopupButton = document.getElementById("closeTowerPopupButton");
 const tutorialList = document.getElementById("tutorialList");
 const tutorialHint = document.getElementById("tutorialHint");
+const warningPanel = document.getElementById("warningPanel");
+const warningPanelTitle = document.getElementById("warningPanelTitle");
+const warningPanelBody = document.getElementById("warningPanelBody");
 const TARGET_PRIORITIES = ["first", "last", "strong", "weak", "hidden", "random", "cursor"];
 const PATH_TOWER_TYPES = new Set(["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "fireball", "dippy", "support", "crossbow", "gate"]);
 const TARGET_LABELS = {
@@ -110,7 +114,7 @@ const DASH_PERIOD = 16;
 const BLOCK_COST = 5;
 const TOWER_BASE_COST = {
   tesla: 50,
-  missile: 60,
+  missile: 52,
   trapper: 31,
   laser: 58,
   shotgun: 24,
@@ -463,7 +467,7 @@ const ENEMY_TYPES = {
 const DIFFICULTIES = {
   easy: { name: "Easy", money: 60, lives: 140, hp: 0.85, reward: 1.15, interval: 1.08, enemyCount: 1 },
   standard: { name: "Standard", money: 50, lives: 100, hp: 1, reward: 1, interval: 1 },
-  hard: { name: "Hard", money: 40, lives: 50, hp: 1.28, reward: 0.9, interval: 0.88, enemyCount: 1 },
+  hard: { name: "Hard", money: 50, lives: 50, hp: 1.28, reward: 0.9, interval: 0.88, enemyCount: 1 },
   brutal: { name: "Brutal", money: 50, lives: 28, hp: 1.16, reward: 0.65, interval: 0.94, enemyCount: 1.55 },
   sandbox: { name: "Sandbox", money: 999999, lives: 999999, hp: 1, reward: 1, interval: 1, enemyCount: 1 }
 };
@@ -1045,6 +1049,7 @@ let activeTutorialPopup = null;
 let tutorialResumeMode = null;
 let tutorialDismissed = false;
 let tutorialStepDelayTimer = 0;
+let activeWaveWarning = null;
 let introTutorialSeen = false;
 let screenShakeTimer = 0;
 let screenShakeAmount = 0;
@@ -1962,7 +1967,7 @@ function maybeShowWaveWarning(round) {
     return false;
   }
   shownWaveWarnings.add(round);
-  queueTutorialPopup(`wave-warning-${round}`, warning.title, warning.body);
+  activeWaveWarning = warning;
   return true;
 }
 
@@ -2089,7 +2094,7 @@ function queueNextTutorialStep() {
     return;
   }
   if (!tutorialProgress.upgradedTower) {
-    queueDelayedTutorialStep("tutorial-upgrade", "Buy An Upgrade", "Use the Upgrade tool or the tower popup to buy an upgrade.\n\nAfter your first upgrade, the opening tutorial is complete.");
+    queueDelayedTutorialStep("tutorial-upgrade", "Buy An Upgrade", "Open a tower and use its popup to buy an upgrade.\n\nAfter your first upgrade, the opening tutorial is complete.");
   }
 }
 
@@ -2112,7 +2117,7 @@ function renderTutorial() {
     {
       done: tutorialProgress.upgradedTower,
       title: "Upgrade it",
-      detail: "Use the Upgrade tool or tower popup to buy stronger attacks, detection, or support utility."
+      detail: "Open a tower and use its popup to buy stronger attacks, detection, or support utility."
     }
   ];
 
@@ -3044,7 +3049,25 @@ function setTool(nextTool) {
     button.classList.toggle("active", button.dataset.tool === nextTool);
   }
 
+  updateHud();
   draw();
+}
+
+function renderWarningPanel() {
+  if (!warningPanel || !warningPanelTitle || !warningPanelBody) {
+    return;
+  }
+
+  warningPanel.hidden = !activeWaveWarning;
+  if (!activeWaveWarning) {
+    return;
+  }
+
+  warningPanelTitle.textContent = activeWaveWarning.title;
+  warningPanelBody.innerHTML = activeWaveWarning.body
+    .split("\n\n")
+    .map((paragraph) => `<span>${paragraph}</span>`)
+    .join("<br><br>");
 }
 
 function updateMenuSelectors() {
@@ -3452,6 +3475,7 @@ function setTowerType(nextType) {
 
   towerDescription.textContent = TOWER_INFO[nextType].description;
   setMessage(TOWER_INFO[nextType].description, 1.8);
+  updateHud();
   draw();
 }
 
@@ -4936,10 +4960,10 @@ function pathUpgradeCostForTier(type, path, tier) {
 }
 
 function renderTowerStatsBlock(label, summary) {
-  const extras = summary.extras.length ? `<p>${summary.extras.join(" | ")}</p>` : "";
+  const extras = summary.extras.length ? `<p class="tower-stat-extras">${summary.extras.join(" | ")}</p>` : "";
   const apsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? `${formatNumber(summary.aps)}` : "Passive";
-  const dpsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? ` | DPS: ${formatNumber(summary.dps)}` : "";
-  return `<div><strong>${label}</strong><p>Damage: ${formatNumber(summary.damage)} | APS: ${apsText} | Range: ${formatRange(summary.range)}${dpsText}</p>${extras}</div>`;
+  const dpsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? `<div><span>DPS</span><strong>${formatNumber(summary.dps)}</strong></div>` : "";
+  return `<div class="tower-stats-block"><strong>${label}</strong><div class="tower-stats-grid"><div><span>Damage</span><strong>${formatNumber(summary.damage)}</strong></div><div><span>Attacks per second</span><strong>${apsText}</strong></div><div><span>Range</span><strong>${formatRange(summary.range)}</strong></div>${dpsText}</div>${extras}</div>`;
 }
 
 function formatSignedChange(value, suffix = "") {
@@ -4974,9 +4998,9 @@ function summarizeTowerIncrease(previous, next) {
 
 function renderInlineTowerStats(summary) {
   const apsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? `${formatNumber(summary.aps)}` : "Passive";
-  const dpsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? ` | DPS: ${formatNumber(summary.dps)}` : "";
-  const extras = summary.extras.length ? ` | ${summary.extras.join(" | ")}` : "";
-  return `Damage: ${formatNumber(summary.damage)} | APS: ${apsText} | Range: ${formatRange(summary.range)}${dpsText}${extras}`;
+  const dpsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? `<div><span>DPS</span><strong>${formatNumber(summary.dps)}</strong></div>` : "";
+  const extras = summary.extras.length ? `<p class="tower-stat-extras">${summary.extras.join(" | ")}</p>` : "";
+  return `<div class="tower-stats-grid"><div><span>Damage</span><strong>${formatNumber(summary.damage)}</strong></div><div><span>Attacks per second</span><strong>${apsText}</strong></div><div><span>Range</span><strong>${formatRange(summary.range)}</strong></div>${dpsText}</div>${extras}`;
 }
 
 function formatPreviewDelta(value, suffix = "") {
@@ -4993,7 +5017,7 @@ function renderTowerStatsPreview(current, preview) {
     : "";
   const dpsDelta = formatPreviewDelta((preview.dps || 0) - (current.dps || 0));
   const rangeDelta = formatPreviewDelta((preview.range - current.range) / CELL_SIZE, " tiles");
-  return `Damage: ${formatNumber(current.damage)} ${formatPreviewDelta(preview.damage - current.damage)} | APS: ${Number.isFinite(current.cooldown) ? `${formatNumber(current.aps)}` : "Passive"} ${apsDelta} | Range: ${formatRange(current.range)} ${rangeDelta} | DPS: ${formatNumber(current.dps)} ${dpsDelta}`;
+  return `<div class="tower-stats-grid tower-stats-grid-preview"><div><span>Damage</span><strong>${formatNumber(current.damage)} ${formatPreviewDelta(preview.damage - current.damage)}</strong></div><div><span>Attacks per second</span><strong>${Number.isFinite(current.cooldown) ? `${formatNumber(current.aps)}` : "Passive"} ${apsDelta}</strong></div><div><span>Range</span><strong>${formatRange(current.range)} ${rangeDelta}</strong></div><div><span>DPS</span><strong>${formatNumber(current.dps)} ${dpsDelta}</strong></div></div>`;
 }
 
 function towerCapabilityBadges(type, overrides = {}) {
@@ -6364,10 +6388,8 @@ function spawnWave(manualStart = false) {
   } else if (isAdapterWave()) {
     spawnAdapterBoss();
   }
-  if (maybeShowWaveWarning(waveNumber)) {
-    updateHud();
-    return;
-  } else if (isIdaenWave()) {
+  maybeShowWaveWarning(waveNumber);
+  if (isIdaenWave()) {
     setMessage(`Wave ${waveNumber}: Mega Waffle is approaching.`, 2.8);
   } else if (isAdapterWave()) {
     setMessage(`Wave ${waveNumber}: Adapter is diving onto the lane.`, 2.8);
@@ -10315,6 +10337,10 @@ function purgeDefeatedEnemies() {
 }
 
 function updateHud() {
+  const showBlockChoices = currentTool === "wall";
+  if (blockChoicePanel) {
+    blockChoicePanel.hidden = !showBlockChoices;
+  }
   nextPieceText.textContent = "Block choices";
   if (blockChoicePriceText) {
     blockChoicePriceText.textContent = freeBlocks > 0 ? `Block price: Free (${freeBlocks} left)` : `Block price: ${currentBlockCost}`;
@@ -10337,7 +10363,7 @@ function updateHud() {
   }
   updateTowerButtons();
   if (blockToolButton) {
-    blockToolButton.textContent = freeBlocks > 0 ? "Block (Free)" : `Block (${currentBlockCost})`;
+    blockToolButton.textContent = "Blocks";
   }
   if (moneyText) {
     moneyText.textContent = `Cash: ${money}`;
@@ -10363,6 +10389,7 @@ function updateHud() {
   updateSandboxControls();
   updateAirstrikeControls();
   renderTutorial();
+  renderWarningPanel();
 
   if (statusText) {
     if (messageTimer > 0) {
@@ -13891,6 +13918,7 @@ function resetGame() {
   selectedGateRotation = 0;
   introducedEnemyKeys.clear();
   shownWaveWarnings.clear();
+  activeWaveWarning = null;
   shownTutorialPopups.clear();
   tutorialPopupQueue = [];
   activeTutorialPopup = null;

@@ -1074,7 +1074,7 @@ body[data-sandbox-layout="true"] #tutorialHint {
 }
 
 .tower-popup-summary {
-  margin-top: 10px;
+  margin-top: 8px;
   padding: 12px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.68);
@@ -1087,10 +1087,47 @@ body[data-sandbox-layout="true"] #tutorialHint {
   margin-bottom: 0;
 }
 
+.tower-stats-block {
+  display: grid;
+  gap: 8px;
+}
+
+.tower-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.tower-stats-grid > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(255, 249, 240, 0.72);
+}
+
+.tower-stats-grid span {
+  font-size: 0.78rem;
+  color: rgba(61, 43, 36, 0.78);
+}
+
+.tower-stats-grid strong {
+  text-align: right;
+}
+
+.tower-stats-grid-preview strong span {
+  white-space: nowrap;
+}
+
+.tower-stat-extras {
+  margin: 0;
+}
+
 .tower-popup-actions {
   display: grid;
-  gap: 14px;
-  margin-top: 26px;
+  gap: 10px;
+  margin-top: 10px;
   flex: 0 0 auto;
 }
 
