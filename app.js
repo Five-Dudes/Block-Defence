@@ -6141,7 +6141,7 @@ function stunTowersNear(x, y, radius, duration) {
 
 function spawnIdaenSummons(enemy) {
   const summonWave = enemy.summonWave || waveNumber;
-  const summonCount = selectedDifficulty === "brutal" ? 20 : 25;
+  const summonCount = 12;
   const waffleType = ENEMY_TYPES.waffle16;
   const usedCells = new Set();
 
@@ -6153,9 +6153,10 @@ function spawnIdaenSummons(enemy) {
     const key = `${cell.x},${cell.y}`;
     usedCells.add(key);
 
+    const mergePath = resolveChildSpawnPath(enemy.portalIndex, [{ x: cell.x, y: cell.y }], null, 8);
     const waffle = createEnemy(waffleType, {
       startCell: { x: cell.x, y: cell.y },
-      route: cell.route,
+      route: mergePath?.route || cell.route,
       tier: summonWave >= 50 ? 3 : 2,
       hidden: summonWave >= 100 ? Math.random() < 0.55 : summonWave >= 75 ? Math.random() < 0.5 : false,
       armored: summonWave >= 100 ? Math.random() < 0.55 : summonWave >= 75 ? Math.random() < 0.5 : false,
@@ -6177,9 +6178,10 @@ function spawnIdaenSummons(enemy) {
       }
       usedCells.add(`${cell.x},${cell.y}`);
 
+      const mergePath = resolveChildSpawnPath(enemy.portalIndex, [{ x: cell.x, y: cell.y }], null, 8);
       const biscuit = createEnemy(ENEMY_TYPES.biscuit, {
         startCell: { x: cell.x, y: cell.y },
-        route: cell.route,
+        route: mergePath?.route || cell.route,
         hidden: summonWave >= 100,
         armored: summonWave >= 100,
         armorHp: summonWave >= 100 ? 2 : 0,
@@ -12168,22 +12170,171 @@ function drawOpaqueShell() {
   ctx.strokeStyle = "#ffffff";
 }
 
-function drawEnemyStateOverlay(enemy) {
-  const radius = enemyStatusRadius(enemy) + 2;
-  if (enemy.hidden) {
-    ctx.save();
-    ctx.strokeStyle = "rgba(214, 214, 214, 0.95)";
-    ctx.lineWidth = Math.max(1.8, 1.6 * (enemy.sizeScale || 1));
+function drawHiddenEnemyOutline(enemy) {
+  const outlineColor = "rgba(220, 220, 220, 0.95)";
+  const scale = enemy.sizeScale || 1;
+
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.rotate(enemy.facingAngle || 0);
+  ctx.strokeStyle = outlineColor;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if (enemy.key === "attacker") {
+    const bodyLength = (enemy.tier >= 3 ? 20 : enemy.tier === 2 ? 16 : 13) * scale;
+    const bodyWidth = (enemy.tier >= 3 ? 7.5 : enemy.tier === 2 ? 6.5 : 5.5) * scale;
+    const wingLength = bodyLength * 0.7;
+    const wingSpread = bodyLength * 0.48;
+    ctx.lineWidth = bodyWidth + 2.5;
     ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, radius, 0, Math.PI * 2);
+    ctx.moveTo(bodyLength * 0.56, 0);
+    ctx.lineTo(-bodyLength * 0.56, 0);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(4, bodyWidth * 0.56);
+    ctx.beginPath();
+    ctx.moveTo(-bodyLength * 0.14, 0);
+    ctx.lineTo(-wingLength, -wingSpread);
+    ctx.moveTo(-bodyLength * 0.14, 0);
+    ctx.lineTo(-wingLength, wingSpread);
+    if (enemy.tier >= 2) {
+      ctx.moveTo(-bodyLength * 0.36, 0);
+      ctx.lineTo(-bodyLength * 0.94, -wingSpread * 0.54);
+      ctx.moveTo(-bodyLength * 0.36, 0);
+      ctx.lineTo(-bodyLength * 0.94, wingSpread * 0.54);
+    }
     ctx.stroke();
     ctx.restore();
     return;
   }
 
+  if (enemy.waffleSquares) {
+    const gridSize = Math.max(1, Math.round(Math.sqrt(enemy.waffleSquares || 1)));
+    const cellSize = 6;
+    const gap = 1.5;
+    const totalSize = gridSize * cellSize + (gridSize - 1) * gap;
+    ctx.lineWidth = 1.8;
+    ctx.strokeRect(-totalSize / 2 - 2, -totalSize / 2 - 2, totalSize + 4, totalSize + 4);
+    ctx.restore();
+    return;
+  }
+
+  if (enemy.key === "biscuit") {
+    const width = (20 + ((enemy.tier || 1) - 1) * 4) * scale;
+    const height = (10 + ((enemy.tier || 1) - 1) * 1.6) * scale;
+    const radius = Math.min(width, height) * 0.28;
+    ctx.lineWidth = 2.2;
+    drawRoundedRect(-width / 2 - 2, -height / 2 - 2, width + 4, height + 4, radius + 1.5);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (enemy.key === "heavy") {
+    const width = 28 * scale;
+    const height = 16 * scale;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-width / 2 - 3, -height / 2 - 3, width + 6, height + 6);
+    ctx.restore();
+    return;
+  }
+
+  if (enemy.key === "hydra") {
+    const side = 22 * scale;
+    const height = side * Math.sqrt(3) / 2;
+    const noseX = (height * 2) / 3;
+    const tailX = -height / 3;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(noseX, 0);
+    ctx.lineTo(tailX, -side / 2);
+    ctx.lineTo(tailX, side / 2);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (enemy.key === "health") {
+    ctx.lineWidth = (enemy.tier >= 3 ? 5.6 : enemy.tier === 2 ? 4.8 : 4.2) * scale;
+    ctx.beginPath();
+    ctx.moveTo(-11 * scale, -10 * scale);
+    ctx.lineTo(12 * scale, 0);
+    ctx.lineTo(-11 * scale, 10 * scale);
+    ctx.stroke();
+    if ((enemy.tier || 1) >= 2) {
+      ctx.lineWidth = 3.2 * scale;
+      ctx.beginPath();
+      ctx.moveTo(-1 * scale, -7 * scale);
+      ctx.lineTo(-1 * scale, 7 * scale);
+      ctx.stroke();
+    }
+    if ((enemy.tier || 1) >= 3) {
+      ctx.lineWidth = 2.6 * scale;
+      ctx.beginPath();
+      ctx.moveTo(-7 * scale, -10 * scale);
+      ctx.lineTo(-3 * scale, -4 * scale);
+      ctx.moveTo(-7 * scale, 10 * scale);
+      ctx.lineTo(-3 * scale, 4 * scale);
+      ctx.moveTo(-10 * scale, 0);
+      ctx.lineTo(-2 * scale, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+
+  if (enemy.key === "life") {
+    const radius = 10 * scale;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(0, radius);
+    ctx.bezierCurveTo(radius * 1.1, radius * 0.1, radius * 1.2, -radius * 0.9, 0, -radius * 0.2);
+    ctx.bezierCurveTo(-radius * 1.2, -radius * 0.9, -radius * 1.1, radius * 0.1, 0, radius);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (enemy.key === "popcorn" || enemy.key === "kernel" || enemy.key === "splitter" || enemy.key === "sentinel"
+    || enemy.key === "idine" || enemy.key === "celun" || enemy.key === "celris" || enemy.key === "cel" || enemy.key === "lun" || enemy.key === "ris") {
+    const radius = enemyStatusRadius(enemy);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  const radius = (enemy.shapeSides >= 6 ? 12 : 10.5) * scale;
+  const rotation = (enemy.facingAngle || 0) + (enemy.shapeSides === 3 ? 0 : Math.PI / enemy.shapeSides);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let index = 0; index < enemy.shapeSides; index += 1) {
+    const angle = rotation + (Math.PI * 2 * index) / enemy.shapeSides;
+    const px = Math.cos(angle) * radius;
+    const py = Math.sin(angle) * radius;
+    if (index === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawEnemyStateOverlay(enemy) {
+  const radius = enemyStatusRadius(enemy) + 2;
+  if (enemy.hidden) {
+    return;
+  }
+
   if (enemy.armored && enemy.armorHp > 0 && !enemy.suppressArmorVisual) {
     ctx.save();
-    ctx.strokeStyle = "rgba(154, 160, 170, 0.96)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.98)";
     ctx.lineWidth = Math.max(4, radius * 0.22);
     ctx.beginPath();
     ctx.arc(enemy.x, enemy.y, radius + 2.5, 0, Math.PI * 2);
@@ -12196,9 +12347,10 @@ function drawEnemies() {
   for (const enemy of enemies) {
     ctx.save();
     if (enemy.hidden) {
-      ctx.globalAlpha = 0;
+      drawHiddenEnemyOutline(enemy);
+    } else {
+      drawEnemyShape(enemy);
     }
-    drawEnemyShape(enemy);
     ctx.restore();
     drawEnemyStateOverlay(enemy);
     drawEnemyStatusParticles(enemy);
