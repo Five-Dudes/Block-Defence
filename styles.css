@@ -44,6 +44,10 @@ body {
   z-index: 20;
 }
 
+#menuOverlay {
+  overflow-y: auto;
+}
+
 .overlay.active {
   display: flex;
 }
@@ -69,11 +73,13 @@ body {
 }
 
 .menu-card {
-  width: min(1180px, calc(100vw - 40px));
+  width: min(1320px, calc(100vw - 32px));
   min-height: min(90vh, 920px);
+  max-height: calc(100vh - 20px);
   display: grid;
   align-content: center;
   gap: 14px;
+  overflow-y: auto;
   background:
     radial-gradient(circle at top left, rgba(244, 202, 76, 0.2), transparent 26%),
     radial-gradient(circle at bottom right, rgba(69, 116, 216, 0.18), transparent 24%),
