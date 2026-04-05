@@ -212,12 +212,24 @@ body {
   align-items: start;
 }
 
+.almanac-body.wave-layout {
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+}
+
 .almanac-body.block-layout {
   grid-template-columns: minmax(0, 1fr) 340px;
   align-items: start;
 }
 
 .almanac-body.enemy-layout .almanac-grid {
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  max-height: 58vh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.almanac-body.wave-layout .almanac-grid {
   grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
   max-height: 58vh;
   overflow-y: auto;
@@ -232,6 +244,12 @@ body {
 }
 
 .almanac-body.enemy-layout .almanac-detail {
+  margin-top: 0;
+  max-height: 58vh;
+  overflow-y: auto;
+}
+
+.almanac-body.wave-layout .almanac-detail {
   margin-top: 0;
   max-height: 58vh;
   overflow-y: auto;
@@ -273,7 +291,8 @@ body {
   background: rgba(255, 255, 255, 0.68);
 }
 
-.almanac-body.enemy-layout .almanac-entry {
+.almanac-body.enemy-layout .almanac-entry,
+.almanac-body.wave-layout .almanac-entry {
   padding: 10px;
   min-height: 96px;
   display: flex;
@@ -1232,6 +1251,8 @@ canvas {
 
   .almanac-body.tower-layout .almanac-grid,
   .almanac-body.tower-layout .almanac-detail,
+  .almanac-body.wave-layout .almanac-grid,
+  .almanac-body.wave-layout .almanac-detail,
   .almanac-body.block-layout .almanac-grid,
   .almanac-body.block-layout .almanac-detail {
     max-height: none;

@@ -96,11 +96,12 @@
         <h2 id="almanacTitle">Almanac</h2>
         <button id="closeAlmanacButton" class="secondary">Close</button>
       </div>
-      <div class="almanac-tabs" id="almanacTabs">
-        <button class="secondary active" data-almanac-tab="enemies">Enemies</button>
-        <button class="secondary" data-almanac-tab="blocks">Blocks</button>
-        <button class="secondary" data-almanac-tab="towers">Towers</button>
-      </div>
+  <div class="almanac-tabs" id="almanacTabs">
+    <button class="secondary active" data-almanac-tab="enemies">Enemies</button>
+    <button class="secondary" data-almanac-tab="waves">Waves</button>
+    <button class="secondary" data-almanac-tab="blocks">Blocks</button>
+    <button class="secondary" data-almanac-tab="towers">Towers</button>
+  </div>
       <div class="almanac-body" id="almanacBody">
         <div class="almanac-grid" id="almanacGrid"></div>
         <div class="almanac-detail" id="almanacDetail">
@@ -277,16 +278,20 @@
         const startGameButton = document.getElementById("startGameButton");
         const openAlmanacButton = document.getElementById("openAlmanacButton");
         const menuMapDescription = document.getElementById("menuMapDescription");
-        const bridge = window.__blockDefenceMenuBridge;
-        const maps = window.__blockDefenceMenuMaps || {};
-        document.body.dataset.menuBridge = bridge ? "ready" : "missing";
+        const getBridge = () => window.__blockDefenceMenuBridge;
+        const getMaps = () => window.__blockDefenceMenuMaps || {};
+        document.body.dataset.menuBridge = getBridge() ? "ready" : "missing";
 
         function syncMenuState() {
+          const bridge = getBridge();
           const state = bridge?.getState?.();
 
           if (!state) {
+            document.body.dataset.menuBridge = "missing";
             return;
           }
+
+          document.body.dataset.menuBridge = "ready";
 
           difficultyOptions?.querySelectorAll("[data-difficulty]").forEach((button) => {
             button.classList.toggle("active", button.dataset.difficulty === state.difficulty);
@@ -296,7 +301,7 @@
             button.classList.toggle("active", button.dataset.map === state.map);
           });
 
-          const map = maps[state.map];
+          const map = getMaps()[state.map];
           if (map && menuMapDescription) {
             menuMapDescription.textContent = `${map.name}: ${map.description}`;
           }
@@ -311,6 +316,7 @@
 
           event.preventDefault();
           event.stopPropagation();
+          const bridge = getBridge();
           if (bridge?.setDifficulty?.(button.dataset.difficulty)) {
             syncMenuState();
           }
@@ -325,6 +331,7 @@
 
           event.preventDefault();
           event.stopPropagation();
+          const bridge = getBridge();
           if (bridge?.setMap?.(button.dataset.map)) {
             syncMenuState();
           }
@@ -333,6 +340,7 @@
         startGameButton?.addEventListener("click", (event) => {
           event.preventDefault();
           event.stopPropagation();
+          const bridge = getBridge();
           if (bridge?.startFromMenu) {
             bridge.startFromMenu();
           } else if (menuMapDescription) {
@@ -346,6 +354,7 @@
         openAlmanacButton?.addEventListener("click", (event) => {
           event.preventDefault();
           event.stopPropagation();
+          const bridge = getBridge();
           if (bridge?.openAlmanacFromMenu) {
             bridge.openAlmanacFromMenu();
           } else if (menuMapDescription) {
@@ -357,6 +366,7 @@
         }, true);
 
         syncMenuState();
+        window.addEventListener("load", syncMenuState);
       })();
     </script>
   </body>
