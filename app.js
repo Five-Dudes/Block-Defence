@@ -29,7 +29,6 @@ const towerGrid = document.getElementById("towerGrid");
 const boardFrame = document.querySelector(".board-frame");
 const sidePanelDock = document.getElementById("sidePanelDock");
 const boardPanelDock = document.getElementById("boardPanelDock");
-const blockToolButton = document.querySelector('[data-tool="wall"]');
 const menuOverlay = document.getElementById("menuOverlay");
 const pauseOverlay = document.getElementById("pauseOverlay");
 const tutorialOverlay = document.getElementById("tutorialOverlay");
@@ -58,7 +57,6 @@ const towerPopupSummary = document.getElementById("towerPopupSummary");
 const towerPopupActions = document.getElementById("towerPopupActions");
 const sandboxControls = document.getElementById("sandboxControls");
 const sandboxWaveInput = document.getElementById("sandboxWaveInput");
-const sandboxSetWaveButton = document.getElementById("sandboxSetWaveButton");
 const sandboxEnemySelect = document.getElementById("sandboxEnemySelect");
 const sandboxTierSelect = document.getElementById("sandboxTierSelect");
 const sandboxTierLabel = document.getElementById("sandboxTierLabel");
@@ -333,7 +331,7 @@ const ENEMY_TYPES = {
     speedBonus: -5,
     reward: 6,
     armor: 4,
-    description: "Armoured enemies shrug off bullets until lasers or explosions strip their white shell away."
+    description: "Armoured enemies wear a bright white ring that blocks kinetic and chemical damage until energy or explosive hits strip it away."
   },
   biscuit: {
     key: "biscuit",
@@ -1838,13 +1836,30 @@ function createRandomPieceFromPool(pool, mapKey = null) {
   };
 }
 
+function pieceChoiceSignature(piece) {
+  if (!piece?.offsets?.length) {
+    return "";
+  }
+  return normalizePieceOffsets(piece.offsets)
+    .map((offset) => `${offset.x},${offset.y}`)
+    .sort()
+    .join(";");
+}
+
 function refillPieceChoices(mapKey = null) {
   const guaranteedIndex = Math.floor(Math.random() * 2);
-  pieceChoices = [
+  const nextChoices = [
     createRandomPiece(mapKey),
     createRandomPiece(mapKey)
   ];
-  pieceChoices[guaranteedIndex] = createRandomPieceFromPool(guaranteedChoicePolyominoes, mapKey);
+  nextChoices[guaranteedIndex] = createRandomPieceFromPool(guaranteedChoicePolyominoes, mapKey);
+  let safety = 0;
+  while (pieceChoiceSignature(nextChoices[0]) === pieceChoiceSignature(nextChoices[1]) && safety < 24) {
+    const rerollIndex = guaranteedIndex === 0 ? 1 : 0;
+    nextChoices[rerollIndex] = createRandomPiece(mapKey);
+    safety += 1;
+  }
+  pieceChoices = nextChoices;
   selectPieceChoice(0, false);
 }
 
@@ -1977,7 +1992,7 @@ function enemyIntroMessage(enemyKey) {
     diamond: "They resist energy and explosions, so keep steady bullet coverage too.",
     attacker: "They stay hidden and fast, so detection upgrades matter soon.",
     assassin: "They are stronger hidden raiders with more health than attackers, so detection and burst both need to scale up.",
-    armored: "Bullets bounce off until lasers or explosions strip the shell.",
+  armored: "Their white armour ring blocks kinetic and chemical damage until energy or explosive hits strip it away.",
     shield: "Break the shield source first or your damage will get absorbed.",
     waffle16: "Waffles split into more waffles, so splash and lane control help.",
     hydra: "Its four heads come in with different defenses: hidden, armoured, shelled, then shielded.",
@@ -2002,11 +2017,11 @@ function waveWarningMessage(round) {
     },
     16: {
       title: "Armoured Enemies Soon",
-      body: "Armoured enemies arrive on wave 18.\n\nMissiles, lasers, and explosive damage strip armour cleanly."
+      body: "Armoured enemies arrive on wave 18.\n\nTheir white armour ring blocks kinetic and chemical damage until missiles, lasers, or other explosive and energy hits strip it away."
     },
     17: {
       title: "Armoured Enemies Next Wave",
-      body: "The next wave includes armoured enemies.\n\nKinetic damage struggles until the shell is broken."
+      body: "The next wave includes armoured enemies.\n\nTheir white armour ring ignores kinetic and chemical damage until it is broken."
     },
     28: {
       title: "Shielded Enemies Soon",
@@ -5085,7 +5100,7 @@ function teslaPathDescription(path, tier) {
       2: "Path 2 T2: Longer stun.",
       3: "Path 2 T3: Adds +2 chain. Electric Field and hidden detection unlocked.",
       4: "Path 2 T4: Supertaser. Adds +1 chain, fires the field more often, and stuns longer.",
-      5: "Path 2 T5: Electrocannon. Adds +4 chain, fires a huge electric discharge, and the field erupts with three ground zaps."
+      5: "Path 2 T5: Electrocannon. Adds +4 chain, fires a huge electric bolt, and the field calls down sky zaps."
     }
   };
 
@@ -5181,7 +5196,7 @@ function fireballPathDescription(path, tier) {
       2: "Path 2 T2: Cinder Feed. Faster bursts and bigger ignitions.",
       3: "Path 2 T3: Blazing Ring. Each shot erupts a burning ring around the Torch.",
       4: "Path 2 T4: Sun Collar. The ring grows wider and hits much harder.",
-      5: "Path 2 T5: Corona Furnace. The ring becomes a double solar halo with crushing burn damage."
+      5: "Path 2 T5: Corona Furnace. The ring becomes a double solar halo and leaves a burning area under it."
     }
   };
 
@@ -7679,7 +7694,7 @@ function towerStats(tower) {
     const photon = path2 >= 5;
     const doubleBeam = path2 >= 4 && !photon;
     const doubleBeamDamageBoost = path2 >= 4 ? (photon ? 24 : 6.8) : 0;
-    const photonBurnBoost = path2 >= 4 && photon ? 6.4 : 0;
+    const photonBurnBoost = path2 >= 4 && photon ? 2.4 : 0;
     return finalizeStats({
       range: CELL_SIZE * (4.85 + path2 * 0.22 + path1 * 0.08 + (plasma ? 0.42 : 0) + (path2 >= 4 ? 0.38 : 0) + (photon ? 0.58 : 0)),
       cooldown: photon
@@ -7688,8 +7703,8 @@ function towerStats(tower) {
           ? 0.02
           : Math.max(0.84 - path1 * 0.08 - path2 * 0.05 - (path2 >= 4 ? 0.06 : 0), 0.09),
       damage: 2.75 + path2 * 1.92 + (increasedDamage ? 2.9 : 0) + doubleBeamDamageBoost + (photon ? 24 : 0),
-      burnDamage: path1 > 0 || path2 > 0 ? 0.65 + path2 * 1.08 + (increasedDamage ? 1.2 : 0) + (path1 >= 4 ? 2.8 : 0) + (path2 >= 4 ? 2.4 : 0) + (photon ? 12 + photonBurnBoost : 0) : 0,
-      burnDuration: path1 > 0 || path2 > 0 ? 1.2 + path1 * 0.5 + path2 * 0.34 + (plasma ? 1.1 : 0) + (path1 >= 4 ? 1.4 : 0) + (path1 >= 5 ? 2.8 : 0) : 0,
+      burnDamage: path1 > 0 || path2 > 0 ? 0.65 + path2 * 1.08 + (increasedDamage ? 1.2 : 0) + (path1 >= 4 ? 2.8 : 0) + (path2 >= 4 ? 2.4 : 0) + (photon ? 4.2 + photonBurnBoost : 0) : 0,
+      burnDuration: path1 > 0 || path2 > 0 ? 1.2 + path1 * 0.5 + path2 * 0.34 + (plasma ? 1.1 : 0) + (path1 >= 4 ? 1.4 : 0) + (path1 >= 5 ? 2.8 : 0) + (photon ? 4.6 : 0) : 0,
       beamWidth: photon ? 24 : 8,
       beamColor: photon ? "#ffe35c" : plasma ? "#ffffff" : "#ff96b8",
       beamTtl: plasma ? 0.24 : photon ? 0.16 : 0.12,
@@ -8785,6 +8800,22 @@ function fireTorchRing(tower, stats) {
         burnDuration: stats.burnDuration
       });
     }
+
+    if ((tower.path2 || 0) >= 5) {
+      addStickyPuddle(
+        tower.centerX,
+        tower.centerY,
+        Math.max(radius - stats.ringWidth * 0.18, CELL_SIZE * 2.4),
+        1,
+        0.7 + echo * 0.18,
+        echo === 0 ? "rgba(255, 118, 52, 0.24)" : "rgba(255, 196, 98, 0.18)",
+        stats.burnDamage * (echo === 0 ? 0.42 : 0.28),
+        true,
+        0,
+        0,
+        1
+      );
+    }
   }
 }
 
@@ -9189,7 +9220,14 @@ function fireTower(tower, target) {
     for (let volley = 0; volley < volleyCount; volley += 1) {
       const chainShieldHitTracker = createShieldHitTracker();
       damageEnemy(target, stats.damage, teslaDamageType, { stun: stats.stun, shieldHitTracker: chainShieldHitTracker });
-      addBeam(tower.centerX, tower.centerY, target.x, target.y, "#9bd8ff");
+      if (stats.electrocannon) {
+        addBeam(tower.centerX, tower.centerY, target.x, target.y, "#dff8ff", 8.5, 0.16);
+        addBeam(tower.centerX, tower.centerY, target.x, target.y, "#84dcff", 4.8, 0.2);
+        addPulse(target.x, target.y, 18, "rgba(170, 238, 255, 0.42)");
+        addBurstParticles(target.x, target.y, 6, "rgba(198, 244, 255, 0.78)", 20, 72, 0.05, 0.14);
+      } else {
+        addBeam(tower.centerX, tower.centerY, target.x, target.y, "#9bd8ff");
+      }
 
       const chained = enemies
         .filter((enemy) => enemy.id !== target.id && Math.hypot(enemy.x - target.x, enemy.y - target.y) <= CELL_SIZE * 1.45)
@@ -9364,11 +9402,12 @@ function updateTowers(deltaTime) {
       for (const enemy of fieldTargets) {
         const zaps = stats.fieldZapCount || 1;
         for (let zap = 0; zap < zaps; zap += 1) {
-          const angle = (Math.PI * 2 * zap) / Math.max(zaps, 1);
-          const groundX = enemy.x + Math.cos(angle) * (10 + zap * 4);
-          const groundY = enemy.y + Math.sin(angle) * (10 + zap * 4);
+          const horizontalScatter = (zap - (zaps - 1) / 2) * 12 + (Math.random() - 0.5) * 10;
+          const skyX = enemy.x + horizontalScatter;
+          const skyY = -40 - zap * 22 - Math.random() * 28;
           damageEnemy(enemy, stats.electrocannon ? stats.fieldDamage * 1.4 : stats.fieldDamage, fieldDamageType, { stun: stats.fieldStun });
-          addBeam(groundX, groundY, enemy.x, enemy.y, stats.electrocannon ? "#8de2ff" : "#7cc8ff", stats.electrocannon ? 4.5 : 3);
+          addBeam(skyX, skyY, enemy.x, enemy.y, stats.electrocannon ? "#c5f1ff" : "#7cc8ff", stats.electrocannon ? 4.8 : 3.2, stats.electrocannon ? 0.14 : 0.12);
+          addBurstParticles(enemy.x, enemy.y, stats.electrocannon ? 5 : 3, stats.electrocannon ? "rgba(196, 242, 255, 0.82)" : "rgba(138, 214, 255, 0.74)", 18, 56, 0.04, 0.12);
         }
       }
       tower.fieldCooldown = stats.fieldCooldown;
@@ -11252,10 +11291,9 @@ function purgeDefeatedEnemies() {
 }
 
 function updateHud() {
-  const showBlockChoices = currentTool === "wall";
   if (blockChoicePanel) {
-    blockChoicePanel.hidden = !showBlockChoices;
-    blockChoicePanel.style.display = showBlockChoices ? "grid" : "none";
+    blockChoicePanel.hidden = false;
+    blockChoicePanel.style.display = "grid";
   }
   nextPieceText.textContent = "Block choices";
   if (blockChoicePriceText) {
@@ -11278,9 +11316,6 @@ function updateHud() {
       : allRoutesOpen(routes) ? `Routes: ${routes.length} open` : "Routes: blocked";
   }
   updateTowerButtons();
-  if (blockToolButton) {
-    blockToolButton.textContent = "Blocks";
-  }
   if (moneyText) {
     moneyText.textContent = `Cash: ${money}`;
   }
@@ -13290,11 +13325,27 @@ function drawEnemyStateOverlay(enemy) {
   }
 
   if (enemy.armored && enemy.armorHp > 0 && !enemy.suppressArmorVisual) {
+    const armorRatio = Math.max(0, Math.min(1, enemy.armorHp / Math.max(enemy.maxArmorHp || enemy.armorHp || 1, 1)));
+    const ringRadius = radius + 2.8;
+    const ringWidth = Math.max(5.2, radius * 0.26);
     ctx.save();
+    ctx.shadowColor = "rgba(255, 255, 255, 0.78)";
+    ctx.shadowBlur = 10 + armorRatio * 6;
     ctx.strokeStyle = "rgba(255, 255, 255, 0.98)";
-    ctx.lineWidth = Math.max(4, radius * 0.22);
+    ctx.lineWidth = ringWidth;
     ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, radius + 2.5, 0, Math.PI * 2);
+    ctx.arc(enemy.x, enemy.y, ringRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = `rgba(232, 241, 255, ${0.68 + armorRatio * 0.2})`;
+    ctx.lineWidth = Math.max(1.8, ringWidth * 0.28);
+    ctx.beginPath();
+    ctx.arc(enemy.x, enemy.y, ringRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(142, 152, 166, 0.45)";
+    ctx.lineWidth = Math.max(1.2, ringWidth * 0.12);
+    ctx.beginPath();
+    ctx.arc(enemy.x, enemy.y, ringRadius + ringWidth * 0.42, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -15430,7 +15481,16 @@ tutorialOverlayButton?.addEventListener("click", withUiGuard("Tutorial Continue"
 tutorialDismissButton?.addEventListener("click", withUiGuard("Dismiss Tutorial", dismissEntireTutorial));
 closeAlmanacButton.addEventListener("click", withUiGuard("Close Almanac", closeAlmanac));
 closeTowerPopupButton.addEventListener("click", withUiGuard("Close Tower Popup", closeTowerPopup));
-sandboxSetWaveButton?.addEventListener("click", withUiGuard("Sandbox Set Wave", setSandboxWave));
+sandboxWaveInput?.addEventListener("change", withUiGuard("Sandbox Set Wave", setSandboxWave));
+sandboxWaveInput?.addEventListener("blur", withUiGuard("Sandbox Set Wave Blur", setSandboxWave));
+sandboxWaveInput?.addEventListener("keydown", withUiGuard("Sandbox Set Wave Enter", (event) => {
+  if (event.key !== "Enter") {
+    return;
+  }
+  event.preventDefault();
+  setSandboxWave();
+  sandboxWaveInput.blur();
+}));
 sandboxEnemySelect?.addEventListener("change", withUiGuard("Sandbox Enemy Select", updateSandboxTierOptions));
 sandboxSpawnButton?.addEventListener("click", withUiGuard("Sandbox Spawn", spawnSandboxEnemyFromControls));
 airstrikeButton?.addEventListener("click", () => {

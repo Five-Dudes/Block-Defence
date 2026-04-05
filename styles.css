@@ -707,9 +707,6 @@ button.secondary {
 }
 
 .board-piece-choices {
-  position: absolute;
-  left: 14px;
-  bottom: 14px;
   display: grid;
   gap: 8px;
   justify-items: start;
@@ -719,6 +716,14 @@ button.secondary {
   background: rgba(255, 249, 240, 0.9);
   box-shadow: 0 14px 28px rgba(87, 61, 36, 0.16);
   min-width: 224px;
+}
+
+.board-piece-choices-panel {
+  position: static;
+  width: 100%;
+  margin-top: 2px;
+  box-shadow: none;
+  border: 1px solid rgba(127, 61, 29, 0.12);
 }
 
 .piece-choice-grid {
@@ -1236,11 +1241,6 @@ canvas {
     padding: 12px;
     width: 100%;
     overflow: hidden;
-  }
-
-  .board-piece-choices {
-    left: 12px;
-    bottom: 12px;
   }
 
   .play-area {

@@ -123,7 +123,6 @@
               <span>Wave</span>
               <input id="sandboxWaveInput" type="number" min="0" step="1" value="0">
             </label>
-            <button id="sandboxSetWaveButton" class="secondary">Set</button>
             <label class="sandbox-field sandbox-field-wide">
               <span>Enemy</span>
               <select id="sandboxEnemySelect"></select>
@@ -176,8 +175,19 @@
           <div class="panel-head">
             <h2>Blocks</h2>
           </div>
-          <div class="tower-grid tower-grid-column tool-grid" id="toolGrid">
-            <button class="tower-type active" data-tool="wall">Blocks</button>
+          <div class="tower-grid tower-grid-column tool-grid" id="toolGrid"></div>
+          <div class="board-piece-choices board-piece-choices-panel">
+            <p class="next-piece" id="nextPieceText">Block choices: waiting</p>
+            <p class="hint" id="blockChoicePriceText">Block price: 5</p>
+            <div class="piece-choice-grid" id="pieceChoiceGrid">
+              <button class="secondary piece-choice" id="pieceChoicePrimary" type="button" aria-label="Block choice 1"></button>
+              <button class="secondary piece-choice" id="pieceChoiceSecondary" type="button" aria-label="Block choice 2"></button>
+            </div>
+            <div class="board-piece-actions">
+              <button id="rotateButton">Rotate Block</button>
+              <button id="mirrorButton">Mirror Block</button>
+            </div>
+            <p class="hint" id="blockChoiceHotkeys">R rotate | M mirror</p>
           </div>
         </div>
         <div class="panel warning-panel" id="warningPanel" hidden>
@@ -205,19 +215,6 @@
         <div class="play-area">
           <div class="board-frame">
             <canvas id="board" width="952" height="672" aria-label="Tower defense board"></canvas>
-            <div class="board-piece-choices">
-              <p class="next-piece" id="nextPieceText">Block choices: waiting</p>
-              <p class="hint" id="blockChoicePriceText">Block price: 5</p>
-              <div class="piece-choice-grid" id="pieceChoiceGrid">
-                <button class="secondary piece-choice" id="pieceChoicePrimary" type="button" aria-label="Block choice 1"></button>
-                <button class="secondary piece-choice" id="pieceChoiceSecondary" type="button" aria-label="Block choice 2"></button>
-              </div>
-              <div class="board-piece-actions">
-                <button id="rotateButton">Rotate Block</button>
-                <button id="mirrorButton">Mirror Block</button>
-              </div>
-              <p class="hint" id="blockChoiceHotkeys">R rotate | M mirror</p>
-            </div>
           </div>
           <div class="panel towers-strip" data-panel="towers">
             <div class="panel-head">
