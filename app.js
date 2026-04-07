@@ -106,6 +106,8 @@ const BOARD_CENTER_SHIFT_X = CENTER_COL - LEGACY_CENTER_COL;
 const BOARD_CENTER_SHIFT_Y = CENTER_ROW - LEGACY_CENTER_ROW;
 const BASE_CANVAS_WIDTH = COLS * CELL_SIZE;
 const BASE_CANVAS_HEIGHT = ROWS * CELL_SIZE;
+const TOWER_PRICE_MULTIPLIER = 1;
+const ENEMY_CASH_DROP_MULTIPLIER = 1;
 const START_MONEY = 50;
 const START_LIVES = 100;
 const DASH_PERIOD = 16;
@@ -204,7 +206,7 @@ const ENEMY_TYPES = {
     name: "Speedy",
     color: "#f0cf42",
     shape: 3,
-    hpMultiplier: 1.1,
+    hpMultiplier: 1,
     speedBonus: 24,
     reward: 3,
     description: "Speedies are bright yellow triangles that trade durability for extreme speed and come in escalating acceleration tiers."
@@ -221,13 +223,13 @@ const ENEMY_TYPES = {
   },
   octagon: {
     key: "octagon",
-    name: "Octagon",
+    name: "Pentagon Tier 4",
     color: "#7f56d9",
     shape: 8,
     hpMultiplier: 2.2,
     speedBonus: -20,
     reward: 8,
-    description: "Octagons are rare heavy specials with the same violet shell as pentagons, but much denser bodies and a slower push."
+    description: "Pentagon Tier 4 is the octagonal final pentagon class. It keeps the violet shell, pushes slower, and carries a denser fixed-health body."
   },
   hexagon: {
     key: "hexagon",
@@ -419,7 +421,7 @@ const ENEMY_TYPES = {
     color: "#3d1e74",
     shape: 3,
     hpMultiplier: 93.75,
-    speedBonus: 4,
+    speedBonus: -6,
     reward: 28,
     armored: true,
     armor: 7,
@@ -505,12 +507,20 @@ const ENEMY_TYPES = {
     name: "Adapter",
     color: "#b079ff",
     shape: 2,
-    hpMultiplier: 17,
-    speedBonus: 26,
-    reward: 70,
-    armor: 8,
-    armored: true,
-    description: "Adapter is a fast attacker boss that constantly launches spread-out escorts and primes a reactive shield that blocks the next hit, then grants itself armour and surges nearby enemies."
+    hpMultiplier: 16,
+    speedBonus: 40,
+    reward: 10,
+    description: "Adapter is a compact adaptive raider. The first hit it takes does no damage, and that damage class becomes permanently useless against it for the rest of its life."
+  },
+  breacher: {
+    key: "breacher",
+    name: "Breacher",
+    color: "#66d8ff",
+    shape: 4,
+    hpMultiplier: 7.2,
+    speedBonus: 30,
+    reward: 18,
+    description: "Breachers are late-game shield breakers made from twin trapeziums orbiting a bright white core. They rush while shielded, then crawl once the shield is broken."
   }
 };
 const DIFFICULTIES = {
@@ -808,6 +818,12 @@ const MAPS = {
 };
 const IDAEN_BOSS_WAVES = new Set([25, 50, 75, 100, 125]);
 const ADAPTER_BOSS_WAVES = new Set([68, 100, 132]);
+const ADAPTER_IMMUNITY_COLORS = {
+  chemical: "rgba(158, 255, 136, 0.95)",
+  kinetic: "rgba(233, 243, 255, 0.95)",
+  energy: "rgba(147, 228, 255, 0.95)",
+  explosive: "rgba(255, 197, 116, 0.95)"
+};
 
 const directions = [
   { dx: 1, dy: 0 },
@@ -2000,7 +2016,7 @@ function enemyIntroMessage(enemyKey) {
     splitter: "Their first layer is not the whole problem, so keep enough follow-up damage ready for the splits.",
     biscuit: "Shortbread sprint even faster than attackers and slam the base for their remaining health.",
     idaen: "Mega Waffle is a fixed-health siege enemy that periodically throws T2 waffles onto the lane.",
-    adapter: "Adapter is the attacker boss. It often launches spread-out attacker waves and regularly primes a shield that blocks the next hit, then gains armour while healing and speeding nearby enemies."
+    adapter: "Its first blocked hit decides the permanent immunity, so try to tag it with a damage class you can spare."
   };
   return `${enemy.name} spotted. ${enemy.description}${advice[enemyKey] ? ` ${advice[enemyKey]}` : ""}`;
 }
@@ -2336,6 +2352,7 @@ function enemyAlmanacEntries() {
     "life",
     "heavy",
     "attacker",
+    "breacher",
     "adapter",
     "waffle16",
     "idaen",
@@ -2412,10 +2429,14 @@ function enemySpecialAbilities(enemy, entry = null) {
     specials.push("Throws only T2 waffles");
   }
   if (enemy.key === "adapter") {
-    specials.push("Often launches spread-out attacker waves");
-    specials.push("Primes a shield that blocks the next hit");
-    specials.push("After the shield pops, Adapter gains armour until it is broken");
-    specials.push("Nearby enemies can be overhealed by 100 and gain a brief speed boost");
+    specials.push("Starts with a one-hit adaptation shield");
+    specials.push("The first hit deals no damage");
+    specials.push("That hit's damage class becomes a permanent immunity");
+  }
+  if (enemy.key === "breacher") {
+    specials.push("Starts with a shield bar");
+    specials.push("Moves fast while shielded");
+    specials.push("Slows down sharply after the shield breaks");
   }
   if (enemy.key === "splitter") {
     specials.push("Has 10 tiers");
@@ -2471,8 +2492,9 @@ function enemySpecialAbilities(enemy, entry = null) {
     specials.push("Appears before Behemoth");
   }
   if (enemy.key === "octagon") {
+    specials.push("Counts as Pentagon Tier 4");
     specials.push("Fixed 110 HP special unit");
-    specials.push("Slower than pentagons");
+    specials.push("Slower than lower pentagon tiers");
   }
   if (enemy.key === "hydra") {
     specials.push("Spawns as a four-segment chain");
@@ -2502,6 +2524,54 @@ function enemySpecialAbilities(enemy, entry = null) {
   return specials;
 }
 
+function enemyAlmanacDescription(enemy, entry) {
+  const tier = entry?.tier || 1;
+  const behaviorDescriptions = {
+    fast: "Rushes the lane quickly and punishes slow reaction time.",
+    speedy: "An upgraded Fast that pushes extreme movement speed, with later tiers accelerating even harder.",
+    pentagon: "Moves more slowly than Fast enemies but carries much more health.",
+    octagon: "The final Pentagon tier uses fixed health and slower movement to act as a sturdier specialist.",
+    hexagon: "A heavy elite that leans on very high health and steady forward pressure.",
+    diamond: "A faster elite that keeps pressure up while resisting heat, energy, freeze, and explosive damage.",
+    health: "Regenerates health over time while keeping up strong lane speed.",
+    life: "Regenerates, heals nearby enemies, and splits into lower tiers on defeat.",
+    heavy: "An extremely slow health brick built to soak damage and grind forward.",
+    attacker: "An always-hidden raider with built-in armour that pressures detection and burst damage.",
+    assassin: "A stronger hidden raider with much heavier health than an Attacker.",
+    breacher: "Starts with a shield bar, rushes while shielded, and slows sharply after the shield breaks.",
+    adapter: "The first hit against it deals no damage, and that damage class becomes permanently useless against it.",
+    waffle16: "Splits into smaller waffles on defeat, so it keeps lane pressure going after the first kill.",
+    idaen: "A late-game waffle summoner with fixed health that throws out Tier 2 waffles.",
+    biscuit: "A very fast rusher that can punish the base hard if it slips through.",
+    sentinel: tier >= 3
+      ? "Skrey is the top Sentinel tier, built for late-game pressure and dropping 4 Overwatches on defeat."
+      : tier >= 2
+        ? "Overwatch is the middle Sentinel tier, dropping 8 Sentinels on defeat with wider split pressure."
+        : "A late-game tank that becomes much more dangerous once higher Sentinel tiers start chaining splits.",
+    behemoth: "A colossal siege brute with extreme health that drops 6 Pinks on defeat.",
+    specialPentagon: "The light Behemoth class that appears before full Behemoths arrive.",
+    hydra: "Spawns as a four-segment chain whose heads arrive with hidden, armoured, shelled, and shielded defenses in sequence.",
+    idine: "A late-game splitter elite that bursts into 4 Celuns and 4 Celris on defeat.",
+    celun: "A mid-split Idine spawn that breaks into 2 Cels and 2 Luns on defeat.",
+    celris: "An Idine spawn that can only be damaged by energy and explosions, then splits into 2 Cels and 2 Ris.",
+    cel: "A small fragment spawned by the Idine family after larger splits break apart.",
+    lun: "A small fragment produced when Celuns split.",
+    ris: "A small fragment produced when Celris split.",
+    splitter: "Comes in 10 tiers, with each tier at double the previous tier's health, and splits into 2 of the previous tier on defeat.",
+    popcorn: "Bursts into 25 kernels on defeat and scatters them across a wide area.",
+    kernel: "A fragment spawned by Popcorn and released across a broad area when Popcorn bursts."
+  };
+  const baseDescription = behaviorDescriptions[enemy.key] || enemy.description || "";
+  const specials = enemySpecialAbilities(enemy, entry).filter((special) => {
+    const normalizedDescription = baseDescription.toLowerCase();
+    return !normalizedDescription.includes(String(special).toLowerCase());
+  });
+  if (specials.length === 0) {
+    return baseDescription;
+  }
+  return `${baseDescription} ${specials.join("; ")}.`;
+}
+
 function enemyAlmanacDisplayName(entry) {
   const enemy = enemyAlmanacPrimaryEnemy(entry);
   if (!enemy) {
@@ -2524,6 +2594,12 @@ function enemyAlmanacDisplayName(entry) {
   }
   if (entry.key === "specialPentagon") {
     return "Pink";
+  }
+  if (entry.key === "octagon") {
+    return "Pentagon Tier 4";
+  }
+  if (entry.key === "breacher") {
+    return `Breacher Tier ${entry.tier}`;
   }
   if (entry.key === "speedy") {
     return `Speedy Tier ${entry.tier}`;
@@ -2586,7 +2662,7 @@ function enemyAlmanacStats(entry) {
     return {
       hp: Math.round(((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp) * (isSkrey ? 7.8 : isOverwatch ? 2.6 : 1)),
       speed: ((((30 + round * 2 + enemy.speedBonus + (isSkrey ? 24 : isOverwatch ? 30 : 0)) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1))) / CELL_SIZE,
-      reward: Math.max(1, Math.round(enemy.reward * (isSkrey ? 4.2 : isOverwatch ? 2.2 : 1))),
+      reward: Math.max(1, Math.round(enemy.reward * (entry.tier >= 3 ? 10.8 : entry.tier === 2 ? 3.2 : 1))),
       extras: [
         isSkrey ? "Drops 4 Overwatches" : isOverwatch ? "Drops 8 Sentinels" : "",
         `Appears from ${sandboxWaveForEnemyTier("sentinel", entry.tier)}`
@@ -2631,6 +2707,17 @@ function enemyAlmanacStats(entry) {
     };
   }
 
+  if (entry.key === "breacher") {
+    const tierStats = genericTierConfig(entry.tier);
+    const shieldHp = entry.tier >= 3 ? 165 : entry.tier === 2 ? 105 : 60;
+    return {
+      hp: Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp * (tierStats?.hpMultiplier || 1)),
+      speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (tierStats?.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
+      reward: Math.max(1, Math.round(enemy.reward * (tierStats?.rewardMultiplier || 1))),
+      extras: [`Shield ${formatNumber(shieldHp)}`, "Fast while shielded, slow after break", `Appears from ${sandboxWaveForEnemyTier("breacher", entry.tier)}`]
+    };
+  }
+
   if (entry.key === "idaen") {
     return {
       hp: 156,
@@ -2669,9 +2756,9 @@ function enemyAlmanacStats(entry) {
 
   if (entry.key === "splitter") {
     return {
-      hp: Math.round(2 ** (entry.tier - 1)),
+      hp: splitterHpForTier(entry.tier),
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
-      reward: Math.max(1, Math.round(enemy.reward * Math.max(1, entry.tier * 0.7))),
+      reward: Math.max(1, Math.round(enemy.reward * Math.pow(1.46, Math.max(0, entry.tier - 1)))),
       extras: [`Splits into 2 Tier ${Math.max(1, entry.tier - 1)}s`, `Appears from ${sandboxWaveForEnemyTier("splitter", entry.tier)}`]
     };
   }
@@ -2904,7 +2991,6 @@ function renderEnemyAlmanacDetail(id) {
   }
   const enemy = enemyAlmanacPrimaryEnemy(entry);
   const stats = enemyAlmanacStats(entry);
-  const specials = enemySpecialAbilities(enemy, entry);
   const effects = [];
   if (enemy.hidden) {
     effects.push("Hidden");
@@ -2924,7 +3010,7 @@ function renderEnemyAlmanacDetail(id) {
   if (enemy.key === "shield") {
     effects.push("Shield Aura");
   } else if (enemy.key === "adapter") {
-    effects.push("Adaptive Boss");
+    effects.push("Adaptive Immunity");
   }
   if (entry.key === "sentinel" && entry.tier === 2) {
     effects.push("Overwatch");
@@ -2937,12 +3023,11 @@ function renderEnemyAlmanacDetail(id) {
       <div class="enemy-almanac-detail-image-wrap">
         ${renderEnemyAlmanacArt(entry)}
       </div>
-      <p>${enemy.description}</p>
+      <p>${enemyAlmanacDescription(enemy, entry)}</p>
     </div>
     <p><strong>Health:</strong> ${formatNumber(stats.hp)} | <strong>Speed:</strong> ${formatNumber(stats.speed)} cells/s | <strong>Reward:</strong> ${formatNumber(stats.reward)}</p>
     <p><strong>Effects:</strong> ${effects.length ? effects.join(", ") : "None"}</p>
     ${stats.extras.length ? `<p><strong>Details:</strong> ${stats.extras.join(", ")}</p>` : ""}
-    ${specials.length ? `<p><strong>Special:</strong> ${specials.join(", ")}</p>` : ""}
     ${renderEnemyFamilyVariantBlock(entry)}`;
 }
 
@@ -3055,6 +3140,127 @@ function waveCountForRound(round) {
   return wavePlanForRound(round).count;
 }
 
+function forcedNaturalEnemyForWave(round, spawnIndex = 1) {
+  if (spawnIndex !== 1) {
+    return null;
+  }
+
+  if (round === firstWaveForEnemyTier("sentinel", 3)) {
+    return { enemyType: ENEMY_TYPES.sentinel, tier: 3 };
+  }
+  if (round === firstWaveForEnemyTier("sentinel", 2)) {
+    return { enemyType: ENEMY_TYPES.sentinel, tier: 2 };
+  }
+  if (round === firstWaveForEnemyTier("sentinel", 1)) {
+    return { enemyType: ENEMY_TYPES.sentinel, tier: 1 };
+  }
+  if (round === firstWaveForEnemyTier("attacker", 3)) {
+    return { enemyType: ENEMY_TYPES.attacker, tier: 3 };
+  }
+  if (round === firstWaveForEnemyTier("attacker", 2)) {
+    return { enemyType: ENEMY_TYPES.attacker, tier: 2 };
+  }
+  if (round === firstWaveForEnemyTier("attacker", 1)) {
+    return { enemyType: ENEMY_TYPES.attacker, tier: 1 };
+  }
+  if (round === firstWaveForEnemyTier("assassin", 3)) {
+    return { enemyType: ENEMY_TYPES.assassin, tier: 3 };
+  }
+  if (round === firstWaveForEnemyTier("assassin", 2)) {
+    return { enemyType: ENEMY_TYPES.assassin, tier: 2 };
+  }
+  if (round === firstWaveForEnemyTier("assassin", 1)) {
+    return { enemyType: ENEMY_TYPES.assassin, tier: 1 };
+  }
+  if (round === firstWaveForEnemyTier("breacher", 1)) {
+    return { enemyType: ENEMY_TYPES.breacher, tier: 1 };
+  }
+  if (round === firstWaveForEnemyTier("octagon", 1)) {
+    return { enemyType: ENEMY_TYPES.octagon, tier: 1 };
+  }
+  if (round === firstWaveForEnemyTier("hydra", 1)) {
+    return { enemyType: ENEMY_TYPES.hydra, tier: 1 };
+  }
+  if (round === firstWaveForEnemyTier("idine", 1)) {
+    return { enemyType: ENEMY_TYPES.idine, tier: 1 };
+  }
+
+  return null;
+}
+
+function remapLateWaveEnemyType(enemyType, round, randomValue) {
+  if (!enemyType) {
+    return enemyType;
+  }
+
+  const legacyKeys = new Set(["fast", "speedy", "pentagon", "hexagon", "diamond", "heavy", "splitter", "biscuit"]);
+  if (!legacyKeys.has(enemyType.key)) {
+    return enemyType;
+  }
+
+  if (round >= 90) {
+    if (randomValue > 0.82) {
+      return ENEMY_TYPES.behemoth;
+    }
+    if (randomValue > 0.7) {
+      return ENEMY_TYPES.waffle16;
+    }
+    if (randomValue > 0.58) {
+      return ENEMY_TYPES.assassin;
+    }
+    if (randomValue > 0.46) {
+      return ENEMY_TYPES.attacker;
+    }
+    if (randomValue > 0.34) {
+      return ENEMY_TYPES.sentinel;
+    }
+    if (randomValue > 0.22) {
+      return ENEMY_TYPES.life;
+    }
+    return ENEMY_TYPES.health;
+  }
+
+  if (round >= 75) {
+    if (randomValue > 0.9) {
+      return ENEMY_TYPES.behemoth;
+    }
+    if (randomValue > 0.76) {
+      return ENEMY_TYPES.waffle16;
+    }
+    if (randomValue > 0.64) {
+      return ENEMY_TYPES.assassin;
+    }
+    if (randomValue > 0.5) {
+      return ENEMY_TYPES.attacker;
+    }
+    if (randomValue > 0.38) {
+      return ENEMY_TYPES.sentinel;
+    }
+    if (randomValue > 0.22) {
+      return ENEMY_TYPES.life;
+    }
+    return ENEMY_TYPES.health;
+  }
+
+  if (round >= 60) {
+    if (randomValue > 0.86) {
+      return ENEMY_TYPES.waffle16;
+    }
+    if (randomValue > 0.68) {
+      return ENEMY_TYPES.attacker;
+    }
+    if (randomValue > 0.54) {
+      return ENEMY_TYPES.sentinel;
+    }
+    if (randomValue > 0.42) {
+      return ENEMY_TYPES.life;
+    }
+    return ENEMY_TYPES.health;
+  }
+
+  return enemyType;
+}
+
 function waveRewardForRound(round) {
   const mapConfig = almanacWaveMapConfig();
   return Math.max(2, Math.round((5 + round) * (DIFFICULTIES[selectedDifficulty].reward || 1) * (mapConfig.reward || 1)));
@@ -3151,6 +3357,9 @@ function waveRosterEnemyName(enemy) {
   if (enemy.key === "specialPentagon") {
     return "Pink";
   }
+  if (enemy.key === "octagon") {
+    return "Pentagon Tier 4";
+  }
   if (enemy.key === "splitter") {
     return `Splitter Tier ${enemy.tier}`;
   }
@@ -3218,6 +3427,7 @@ function waveAlmanacSummary(round) {
   for (let spawnIndex = 1; spawnIndex <= count; spawnIndex += 1) {
     const rng = deterministicSpawnRandom(round, spawnIndex);
     const roll = biasedWaveRoll(rng(), round);
+    const forcedNatural = forcedNaturalEnemyForWave(round, spawnIndex);
     const forceHidden = round === 20 && spawnIndex === 1;
     const forceArmored = round === 24 && spawnIndex === 1;
     const forceShielded = round === 30 && spawnIndex === 1;
@@ -3225,89 +3435,117 @@ function waveAlmanacSummary(round) {
     const singleShieldedAttackerWave = round === 42;
     const popcornRushWave = round === 74;
     let enemyType = ENEMY_TYPES.fast;
+    let forcedTier = null;
 
-    if (popcornRushWave) {
+    if (forcedNatural) {
+      enemyType = forcedNatural.enemyType;
+      forcedTier = forcedNatural.tier;
+    }
+
+    if (!forcedNatural && popcornRushWave) {
       enemyType = ENEMY_TYPES.popcorn;
-    } else if (shieldedAttackerWave) {
+    } else if (!forcedNatural && shieldedAttackerWave) {
       enemyType = ENEMY_TYPES.attacker;
-    } else if (singleShieldedAttackerWave && spawnIndex === 1) {
+    } else if (!forcedNatural && singleShieldedAttackerWave && spawnIndex === 1) {
       enemyType = ENEMY_TYPES.attacker;
     }
 
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 3 && roll > 0.58) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 3 && roll > 0.58) {
       enemyType = ENEMY_TYPES.pentagon;
     }
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 48 && roll > 0.962) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 48 && roll > 0.962) {
       enemyType = ENEMY_TYPES.octagon;
     }
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 10 && roll > 0.67) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 10 && roll > 0.67) {
       enemyType = ENEMY_TYPES.speedy;
     }
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 7 && roll > 0.72) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 7 && roll > 0.72) {
       enemyType = ENEMY_TYPES.diamond;
     }
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 9 && roll > 0.86) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 9 && roll > 0.86) {
       enemyType = ENEMY_TYPES.health;
     }
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 22 && roll > 0.91) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 22 && roll > 0.91) {
       enemyType = ENEMY_TYPES.heavy;
     }
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 5 && roll > 0.92) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 5 && roll > 0.92) {
       enemyType = ENEMY_TYPES.splitter;
     }
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 28 && roll > 0.965) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 28 && roll > 0.965) {
       enemyType = ENEMY_TYPES.sentinel;
     }
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 40 && roll > 0.985) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 40 && roll > 0.985) {
       enemyType = ENEMY_TYPES.hydra;
     }
-    if (!shieldedAttackerWave && !singleShieldedAttackerWave && round >= 36 && roll > 0.82) {
+    if (!forcedNatural && !shieldedAttackerWave && !singleShieldedAttackerWave && round >= 36 && roll > 0.82) {
       enemyType = ENEMY_TYPES.attacker;
     }
-    if (!shieldedAttackerWave && !singleShieldedAttackerWave && round >= 73 && roll > 0.958) {
+    if (!forcedNatural && !shieldedAttackerWave && !singleShieldedAttackerWave && round >= 73 && roll > 0.958) {
       enemyType = ENEMY_TYPES.assassin;
     }
-    if (!shieldedAttackerWave && round >= 6 && roll > 0.84) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 82 && roll > 0.988) {
+      enemyType = ENEMY_TYPES.breacher;
+    }
+    if (!forcedNatural && !shieldedAttackerWave && round >= 6 && roll > 0.84) {
       enemyType = ENEMY_TYPES.hexagon;
     }
-    if (!shieldedAttackerWave && round >= 12 && roll > 0.95) {
+    if (!forcedNatural && !shieldedAttackerWave && round >= 12 && roll > 0.95) {
       enemyType = ENEMY_TYPES.waffle16;
     }
-    if (!shieldedAttackerWave && round >= 24 && roll > 0.93) {
+    if (!forcedNatural && !shieldedAttackerWave && round >= 24 && roll > 0.93) {
       enemyType = ENEMY_TYPES.biscuit;
     }
-    if (!shieldedAttackerWave && round >= 28 && roll > 0.955) {
+    if (!forcedNatural && !shieldedAttackerWave && round >= 28 && roll > 0.955) {
       enemyType = ENEMY_TYPES.life;
     }
-    if (!shieldedAttackerWave && round >= 34 && roll > 0.972) {
+    if (!forcedNatural && !shieldedAttackerWave && round >= 34 && roll > 0.972) {
       enemyType = ENEMY_TYPES.popcorn;
     }
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 64 && roll > 0.986) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 64 && roll > 0.986) {
       enemyType = ENEMY_TYPES.specialPentagon;
     }
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 50 && roll > 0.9925) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 50 && roll > 0.9925) {
       enemyType = ENEMY_TYPES.idaen;
     }
-    if (!shieldedAttackerWave && round >= 74 && roll > 0.989) {
+    if (!forcedNatural && !shieldedAttackerWave && round >= 74 && roll > 0.989) {
       enemyType = ENEMY_TYPES.idine;
     }
-    if (!shieldedAttackerWave && round >= 78 && roll > 0.991) {
+    if (!forcedNatural && !shieldedAttackerWave && round >= 78 && roll > 0.991) {
       enemyType = ENEMY_TYPES.celun;
     }
-    if (!shieldedAttackerWave && round >= 80 && roll > 0.992) {
+    if (!forcedNatural && !shieldedAttackerWave && round >= 80 && roll > 0.992) {
       enemyType = ENEMY_TYPES.celris;
     }
-    if (!shieldedAttackerWave && round >= 84 && roll > 0.993) {
+    if (!forcedNatural && !shieldedAttackerWave && round >= 84 && roll > 0.993) {
       enemyType = ENEMY_TYPES.cel;
     }
-    if (!shieldedAttackerWave && round >= 86 && roll > 0.9935) {
+    if (!forcedNatural && !shieldedAttackerWave && round >= 86 && roll > 0.9935) {
       enemyType = ENEMY_TYPES.lun;
     }
-    if (!shieldedAttackerWave && round >= 88 && roll > 0.994) {
+    if (!forcedNatural && !shieldedAttackerWave && round >= 88 && roll > 0.994) {
       enemyType = ENEMY_TYPES.ris;
     }
-    if (!shieldedAttackerWave && !popcornRushWave && round >= 68 && roll > 0.9945) {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 68 && roll > 0.9945) {
       enemyType = ENEMY_TYPES.behemoth;
+    }
+
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && enemyType.key !== "hydra" && enemyType.key !== "behemoth" && enemyType.key !== "idaen") {
+      const naturalEliteRoll = rng();
+      if (round >= 74 && naturalEliteRoll > 0.992) {
+        enemyType = ENEMY_TYPES.idine;
+      } else if (!singleShieldedAttackerWave && round >= 73 && naturalEliteRoll > 0.982) {
+        enemyType = ENEMY_TYPES.assassin;
+      } else if (round >= 82 && naturalEliteRoll > 0.972) {
+        enemyType = ENEMY_TYPES.breacher;
+      } else if (!singleShieldedAttackerWave && round >= 36 && naturalEliteRoll > 0.955) {
+        enemyType = ENEMY_TYPES.attacker;
+      } else if (round >= 28 && naturalEliteRoll > 0.968) {
+        enemyType = ENEMY_TYPES.sentinel;
+      }
+    }
+
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave) {
+      enemyType = remapLateWaveEnemyType(enemyType, round, rng());
     }
 
     let hidden = false;
@@ -3347,7 +3585,7 @@ function waveAlmanacSummary(round) {
         : (forceShielded || (round >= 31 && enemyType.key !== "attacker" && rng() < Math.min(0.05 + (round - 31) * 0.008, 0.22)));
 
     const enemy = previewEnemyForWave(enemyType, round, {
-      tier: waveTierForEnemy(enemyType.key, round, rng),
+      tier: forcedTier || waveTierForEnemy(enemyType.key, round, rng),
       hidden: attackerHidden || enemyType.key === "assassin" || (enemyType.key.startsWith("waffle") ? waffleMods.hidden : hidden),
       armored: enemyArmored,
       armorHp: attackerArmored
@@ -3362,7 +3600,7 @@ function waveAlmanacSummary(round) {
       enemy.hp = 1200;
       enemy.maxHp = 1200;
       enemy.speed = Math.max(CELL_SIZE * 0.82, enemy.speed * 0.72);
-      enemy.reward = Math.max(1, Math.round(ENEMY_TYPES.behemoth.reward * (DIFFICULTIES[selectedDifficulty].reward || 1) * (almanacWaveMapConfig().reward || 1)));
+      enemy.reward = enemyCashFromHp(enemy.maxHp);
     }
 
     addEnemy(enemy);
@@ -3370,13 +3608,8 @@ function waveAlmanacSummary(round) {
 
   if (isAdapterWave(round)) {
     const boss = previewEnemyForWave(ENEMY_TYPES.adapter, round, {
-      reward: Math.max(24, Math.round(ENEMY_TYPES.adapter.reward * (DIFFICULTIES[selectedDifficulty].reward || 1) * (almanacWaveMapConfig().reward || 1))),
-      hp: Math.round((260 + round * 34) * 10.5 * 2 * DIFFICULTIES[selectedDifficulty].hp * brutalBossHpScale()),
-      speed: Math.max(10, ((20 + round * 0.24) / DIFFICULTIES[selectedDifficulty].interval) * brutalBossSpeedScale()),
       hidden: false,
-      adapterBlockReady: true,
-      adapterSummonTimer: 3.8,
-      adapterGuardCooldown: 4.8
+      sizeScale: 1
     });
     addEnemy(boss);
   }
@@ -3495,6 +3728,10 @@ function splitterTierForWave(round = waveNumber) {
   return Math.max(1, Math.min(10, 1 + Math.floor(Math.max(0, round - 5) / 14)));
 }
 
+function splitterHpForTier(tier = 1, hpScale = 1) {
+  return Math.max(1, Math.round(Math.pow(2, Math.max(0, tier - 1)) * hpScale));
+}
+
 function maxTierForEnemy(enemyKey) {
   return enemyKey === "splitter" ? 10 : enemyKey === "sentinel" ? 3 : 3;
 }
@@ -3520,7 +3757,7 @@ function diamondTierConfig(tier = 1) {
     return {
       hpMultiplier: 4.6,
       speedMultiplier: 0.62,
-      rewardMultiplier: 4.2,
+      rewardMultiplier: 10.2,
       radiusMultiplier: 1.45,
       color: "#55d8ff",
       coreColor: "#e9fbff"
@@ -3530,7 +3767,7 @@ function diamondTierConfig(tier = 1) {
     return {
       hpMultiplier: 2.05,
       speedMultiplier: 0.82,
-      rewardMultiplier: 1.9,
+      rewardMultiplier: 3.15,
       radiusMultiplier: 1.18,
       color: "#71dcff",
       coreColor: "#f1fcff"
@@ -3551,7 +3788,7 @@ function shieldTierConfig(tier = 1) {
     return {
       hpMultiplier: 4.2,
       speedMultiplier: 0.58,
-      rewardMultiplier: 3.8,
+      rewardMultiplier: 9.7,
       radiusMultiplier: 1.5,
       color: "#5fa8ff",
       coreColor: "#edf5ff",
@@ -3563,7 +3800,7 @@ function shieldTierConfig(tier = 1) {
     return {
       hpMultiplier: 2.05,
       speedMultiplier: 0.8,
-      rewardMultiplier: 1.9,
+      rewardMultiplier: 3.05,
       radiusMultiplier: 1.2,
       color: "#79baff",
       coreColor: "#f4f8ff",
@@ -3588,7 +3825,7 @@ function genericTierConfig(tier = 1) {
     return {
       hpMultiplier: 4.1,
       speedMultiplier: 0.64,
-      rewardMultiplier: 3.4,
+      rewardMultiplier: 10.6,
       radiusMultiplier: 1.4
     };
   }
@@ -3596,7 +3833,7 @@ function genericTierConfig(tier = 1) {
     return {
       hpMultiplier: 1.95,
       speedMultiplier: 0.84,
-      rewardMultiplier: 1.75,
+      rewardMultiplier: 3.25,
       radiusMultiplier: 1.14
     };
   }
@@ -3775,7 +4012,7 @@ function populateSandboxEnemyOptions() {
     .map((key) => `<option value="${key}">${sandboxEnemyOptionLabel(key)} (${sandboxEnemyWaveLabel(key)})</option>`)
     .join("");
   sandboxEnemySelect.innerHTML = [
-    renderGroup("Main Enemies", ["fast", "speedy", "pentagon", "octagon", "hexagon", "diamond", "health", "life", "heavy", "splitter", "biscuit", "sentinel", "attacker", "assassin", "hydra", "behemoth", "idaen", "adapter"]),
+    renderGroup("Main Enemies", ["fast", "speedy", "pentagon", "octagon", "hexagon", "diamond", "health", "life", "heavy", "splitter", "biscuit", "sentinel", "attacker", "assassin", "breacher", "hydra", "behemoth", "idaen", "adapter"]),
     renderOptions(["popcorn", "idine"])
   ].join("");
   updateSandboxTierOptions();
@@ -3952,7 +4189,8 @@ function firstWaveForEnemyTier(enemyKey, tier = 1) {
     attacker: [36, 48, 64],
     assassin: [73, 88, 100],
     hydra: [40],
-    idine: [74],
+    idine: [75],
+    breacher: [82, 94, 108],
     celun: [78],
     celris: [80],
     cel: [84],
@@ -4858,9 +5096,21 @@ function supportWaveIncomeBonus() {
 
 function towerCost(type) {
   if (type === "crossbow" && crossbowUnlocked) {
-    return 14;
+    return 14 * TOWER_PRICE_MULTIPLIER;
   }
-  return TOWER_BASE_COST[type];
+  return TOWER_BASE_COST[type] * TOWER_PRICE_MULTIPLIER;
+}
+
+function scaleEnemyCashDrop(value) {
+  return Math.max(0, Math.round((value || 0) * ENEMY_CASH_DROP_MULTIPLIER));
+}
+
+function previewEnemyCashDrop(value, minimum = 1) {
+  return Math.max(minimum, scaleEnemyCashDrop(value));
+}
+
+function enemyCashFromHp(hp) {
+  return Math.max(0, Math.round(hp || 0));
 }
 
 function mockTower(type, overrides = {}) {
@@ -4892,17 +5142,15 @@ function mockTower(type, overrides = {}) {
 
 function upgradeCost(tower, path = null) {
   if (typeof tower === "number") {
-    return 4 + tower * 3;
+    return (4 + tower * 3) * TOWER_PRICE_MULTIPLIER;
   }
-
   if (PATH_TOWER_TYPES.has(tower.type) && path !== null) {
     const nextTier = (path === 1 ? tower.path1 : tower.path2) + 1;
-    return UPGRADE_COSTS[tower.type][`path${path}`][nextTier - 1];
+    return UPGRADE_COSTS[tower.type][`path${path}`][nextTier - 1] * TOWER_PRICE_MULTIPLIER;
   }
-
   const nextLevel = tower.level + 1;
   const table = UPGRADE_COSTS[tower.type];
-  return Array.isArray(table) ? table[Math.max(0, nextLevel - 2)] : 4 + tower.level * 3;
+  return Array.isArray(table) ? table[Math.max(0, nextLevel - 2)] * TOWER_PRICE_MULTIPLIER : (4 + tower.level * 3) * TOWER_PRICE_MULTIPLIER;
 }
 
 function sellValue(tower) {
@@ -5541,6 +5789,16 @@ function roundUpgradeCash(value) {
   return Math.max(5, Math.round(value / 5) * 5);
 }
 
+function towerFormulaValue(typeOrTower, overrides = {}) {
+  const summary = towerStatSummary(typeOrTower, overrides);
+  const rangeTiles = Math.max(0.5, summary.range / CELL_SIZE);
+  return Math.max(5, summary.dps * rangeTiles * 2);
+}
+
+function towerFormulaCost(type, overrides = {}) {
+  return roundUpgradeCash(towerFormulaValue(type, overrides));
+}
+
 function upgradeUtilityPremium(type, previousTower, nextTower, previousSummary, nextSummary) {
   const previousStats = towerStats(previousTower);
   const nextStats = towerStats(nextTower);
@@ -5839,7 +6097,7 @@ function pathUpgradeSummary(type, path) {
     const previousSummary = towerStatSummary(type, previousOverrides);
     const summary = towerStatSummary(type, overrides);
     const deltaText = summarizeTowerIncrease(previousSummary, summary);
-    const cost = UPGRADE_COSTS[type]?.[`path${path}`]?.[tier - 1];
+    const cost = upgradeCost(mockTower(type, previousOverrides), path);
     entries.push(`<p><strong>${upgradeNameForTower(type, path, tier)}${towerCapabilityBadges(type, overrides)}</strong>${cost ? ` (${cost})` : ""}: ${deltaText || "No stat change"}</p>`);
   }
 
@@ -5920,9 +6178,9 @@ function estimateTowerDpsFromStats(type, tower, stats) {
     return safeDivide(stats.damage, stats.cooldown)
       + safeDivide(stats.pulseDamage || 0, stats.pulseCooldown || Infinity)
       + safeDivide(stats.auraDamage || 0, stats.auraTick || Infinity)
-      + Math.max(0, 1 - (stats.slow || 1)) * 180
-      + Math.max(0, stats.pulseFreeze || 0) * 90
-      + Math.max(0, 1 - (stats.auraSlow || 1)) * 260;
+      + Math.max(0, 1 - (stats.slow || 1)) * 32
+      + Math.max(0, stats.pulseFreeze || 0) * 22
+      + Math.max(0, 1 - (stats.auraSlow || 1)) * 54;
   }
   if (type === "drone") {
     let dps = safeDivide((stats.bulletDamage || 0) * Math.max(stats.bulletGuns || 1, 1), stats.cooldown);
@@ -5963,9 +6221,9 @@ function estimateTowerDpsFromStats(type, tower, stats) {
   }
   if (type === "gate") {
     return safeDivide(stats.damage, stats.cooldown)
-      + (stats.acidDot || 0) * 0.95
-      + Math.max(0, (stats.acidAmp || 1) - 1) * 120
-      + Math.max(0, stats.acidDuration || 0) * 16;
+      + (stats.acidDot || 0) * 0.58
+      + Math.max(0, (stats.acidAmp || 1) - 1) * 38
+      + Math.max(0, stats.acidDuration || 0) * 3.2;
   }
   return safeDivide(stats.damage || 0, stats.cooldown || Infinity);
 }
@@ -6736,8 +6994,9 @@ function createEnemy(enemyType, options = {}) {
     ? requestedTier
     : (enemyUsesTiers(resolvedEnemyType.key) ? requestedTier : 1);
   const diamondTier = resolvedEnemyType.key === "diamond" ? diamondTierConfig(tier) : null;
-  const shielded = Boolean(options.shielded) || resolvedEnemyType.key === "shield";
-  const shieldTier = shielded ? shieldTierConfig(tier) : null;
+  const breacherShielded = resolvedEnemyType.key === "breacher";
+  const shielded = Boolean(options.shielded) || resolvedEnemyType.key === "shield" || breacherShielded;
+  const shieldTier = shielded && !breacherShielded ? shieldTierConfig(tier) : null;
   const genericTier = !diamondTier && !shieldTier && enemyUsesTiers(resolvedEnemyType.key) && resolvedEnemyType.key !== "splitter" ? genericTierConfig(tier) : null;
   const tierConfig = diamondTier || shieldTier || genericTier;
   const hp = options.hp ?? (resolvedEnemyType.key === "specialPentagon"
@@ -6749,7 +7008,7 @@ function createEnemy(enemyType, options = {}) {
     : resolvedEnemyType.key === "octagon"
     ? 110
     : resolvedEnemyType.key === "splitter"
-    ? Math.round(2 ** (tier - 1) * DIFFICULTIES[selectedDifficulty].hp)
+    ? splitterHpForTier(tier, DIFFICULTIES[selectedDifficulty].hp)
     : resolvedEnemyType.key === "sentinel"
       ? Math.round((5 + waveNumber) * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tier >= 3 ? 7.8 : tier >= 2 ? 2.6 : 1))
     : Math.round((5 + waveNumber) * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tierConfig?.hpMultiplier || 1)));
@@ -6773,10 +7032,10 @@ function createEnemy(enemyType, options = {}) {
     )
   );
   const reward = options.reward ?? (resolvedEnemyType.key === "splitter"
-    ? Math.max(1, Math.round(resolvedEnemyType.reward * Math.max(1, tier * 0.7) * rewardMultiplier() * strengthRewardBoost))
+    ? Math.max(1, Math.round(resolvedEnemyType.reward * Math.pow(1.46, Math.max(0, tier - 1)) * rewardMultiplier() * strengthRewardBoost))
     : resolvedEnemyType.key === "sentinel"
-      ? Math.max(1, Math.round(resolvedEnemyType.reward * (tier >= 3 ? 4.2 : tier >= 2 ? 2.2 : 1) * rewardMultiplier() * strengthRewardBoost))
-    : Math.max(1, Math.round(resolvedEnemyType.reward * waffleRewardMultiplier * rewardMultiplier() * (tierConfig?.rewardMultiplier || 1) * strengthRewardBoost)));
+      ? Math.max(1, Math.round(resolvedEnemyType.reward * (tier >= 3 ? 10.8 : tier === 2 ? 3.2 : 1) * rewardMultiplier() * strengthRewardBoost))
+      : Math.max(1, Math.round(resolvedEnemyType.reward * waffleRewardMultiplier * rewardMultiplier() * (tierConfig?.rewardMultiplier || 1) * strengthRewardBoost)));
   const sentinelTierSpeedBonus = resolvedEnemyType.key === "sentinel"
     ? (tier >= 3 ? 24 : tier >= 2 ? 30 : 0)
     : 0;
@@ -6797,10 +7056,10 @@ function createEnemy(enemyType, options = {}) {
   const healPower = options.healPower ?? (resolvedEnemyType.key === "life" ? (tier >= 3 ? 2.2 : tier === 2 ? 1.5 : 1) : 0);
   const healInterval = options.healInterval ?? (resolvedEnemyType.key === "life" ? 0.65 : 0);
   const shieldHp = shielded
-    ? (options.shieldHp ?? 120)
+    ? (options.shieldHp ?? (breacherShielded ? (tier >= 3 ? 165 : tier === 2 ? 105 : 60) : 120))
     : 0;
   const shieldRadius = shielded
-    ? CELL_SIZE * (2.4 * (shieldTier?.shieldRadiusMultiplier || 1))
+    ? (options.shieldRadius ?? (breacherShielded ? CELL_SIZE * (1.4 + tier * 0.18) : CELL_SIZE * (2.4 * (shieldTier?.shieldRadiusMultiplier || 1))))
     : 0;
 
   return {
@@ -6811,10 +7070,12 @@ function createEnemy(enemyType, options = {}) {
     type: resolvedEnemyType.key === "sentinel" ? (tier >= 3 ? "Skrey" : tier >= 2 ? "Overwatch" : "Sentinel") : resolvedEnemyType.name,
     shapeSides: resolvedEnemyType.shape,
     reward,
-    color: options.color || (shielded ? "#79beff" : null) || tierConfig?.color || resolvedEnemyType.color,
+    color: options.color || ((shielded && !breacherShielded) ? "#79beff" : null) || tierConfig?.color || resolvedEnemyType.color,
     waffleSquares: options.waffleSquares ?? (resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? 16 : tier === 2 ? 4 : 1) : (resolvedEnemyType.waffleSquares || 0)),
     x: center.x,
     y: center.y,
+    previousX: center.x,
+    previousY: center.y,
     progress: options.progress || 0,
     speed,
     hp,
@@ -6875,21 +7136,8 @@ function createEnemy(enemyType, options = {}) {
     kernelVariant: options.kernelVariant || "normal",
     allowedDamageClasses: options.allowedDamageClasses || resolvedEnemyType.allowedDamageClasses || null,
     ghostAdapterEscort: Boolean(options.ghostAdapterEscort),
-    adapterBlockReady: Boolean(options.adapterBlockReady),
-    adapterSummonTimer: options.adapterSummonTimer || 0,
-    adapterGuardCooldown: options.adapterGuardCooldown || 0,
-    adapterGuards: {
-      energy: false,
-      chemical: false,
-      explosive: false,
-      kinetic: false
-    },
-    adapterDamageByClass: {
-      energy: 0,
-      chemical: 0,
-      explosive: 0,
-      kinetic: 0
-    }
+    adapterImmunityClass: options.adapterImmunityClass || null,
+    breacherSlowFactor: options.breacherSlowFactor ?? (resolvedEnemyType.key === "breacher" ? (tier >= 3 ? 0.38 : tier === 2 ? 0.44 : 0.5) : 1)
   };
 }
 
@@ -6966,7 +7214,7 @@ function stunTowersNear(x, y, radius, duration) {
 }
 
 function spawnIdaenSummons(enemy) {
-  const summonCount = 12;
+  const summonCount = Math.random() < 0.32 ? 3 : 1;
   const waffleType = ENEMY_TYPES.waffle16;
   const usedCells = new Set();
 
@@ -7026,21 +7274,14 @@ function spawnAdapterEscorts(enemy) {
 function spawnAdapterBoss() {
   const boss = createEnemy(ENEMY_TYPES.adapter, {
     portalIndex: Math.floor(Math.random() * activePortals().length),
-    reward: Math.max(24, Math.round(ENEMY_TYPES.adapter.reward * rewardMultiplier())),
-    hp: Math.round((260 + waveNumber * 34) * 10.5 * 2 * DIFFICULTIES[selectedDifficulty].hp * brutalBossHpScale()),
-    speed: Math.max(10, ((20 + waveNumber * 0.24) / DIFFICULTIES[selectedDifficulty].interval) * brutalBossSpeedScale()),
     hidden: false,
-    adapterBlockReady: true,
-    adapterSummonTimer: 3.8,
-    adapterGuardCooldown: 4.8
+    sizeScale: 1
   });
 
   if (!boss) {
     return;
   }
 
-  boss.sizeScale = 3.1;
-  boss.boss = true;
   pushEnemy(boss);
 }
 
@@ -7210,19 +7451,14 @@ function spawnSandboxEnemyFromControls() {
     const portalIndex = portalValue === "auto" ? undefined : Number(portalValue);
   const spawned = enemyType.key === "hydra"
         ? (spawnHydra(enemyType, { portalIndex, hidden, armored, shielded }), true)
-      : enemyType.key === "adapter"
+    : enemyType.key === "adapter"
         ? pushEnemy(createEnemy(enemyType, {
           portalIndex,
-          hidden,
+          hidden: false,
           shielded,
           shelled,
           tier,
-          hp: Math.round((260 + summonWave * 34) * 10.5 * 2 * DIFFICULTIES[selectedDifficulty].hp),
-          speed: Math.max(10, (20 + summonWave * 0.24) / DIFFICULTIES[selectedDifficulty].interval),
-          adapterBlockReady: true,
-          adapterSummonTimer: 3.8,
-          adapterGuardCooldown: 4.8,
-          hidden: false
+          sizeScale: 1
         }))
       : enemyType.key === "behemoth"
         ? pushEnemy(createEnemy(enemyType, {
@@ -7259,6 +7495,7 @@ function spawnSandboxEnemyFromControls() {
 function spawnEnemy() {
   const roll = biasedWaveRoll(Math.random(), waveNumber);
   const spawnIndex = Math.max(1, wave?.spawned || 1);
+  const forcedNatural = forcedNaturalEnemyForWave(waveNumber, spawnIndex);
   const forceHidden = waveNumber === 20 && spawnIndex === 1;
   const forceArmored = waveNumber === 24 && spawnIndex === 1;
   const forceShielded = waveNumber === 30 && spawnIndex === 1;
@@ -7266,113 +7503,141 @@ function spawnEnemy() {
   const singleShieldedAttackerWave = waveNumber === 42;
   const popcornRushWave = waveNumber === 74;
   let enemyType = ENEMY_TYPES.fast;
+  let forcedTier = null;
 
-  if (popcornRushWave) {
+  if (forcedNatural) {
+    enemyType = forcedNatural.enemyType;
+    forcedTier = forcedNatural.tier;
+  }
+
+  if (!forcedNatural && popcornRushWave) {
     enemyType = ENEMY_TYPES.popcorn;
-  } else if (shieldedAttackerWave) {
+  } else if (!forcedNatural && shieldedAttackerWave) {
     enemyType = ENEMY_TYPES.attacker;
-  } else if (singleShieldedAttackerWave && spawnIndex === 1) {
+  } else if (!forcedNatural && singleShieldedAttackerWave && spawnIndex === 1) {
     enemyType = ENEMY_TYPES.attacker;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 3 && roll > 0.58) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 3 && roll > 0.58) {
     enemyType = ENEMY_TYPES.pentagon;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 48 && roll > 0.962) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 48 && roll > 0.962) {
     enemyType = ENEMY_TYPES.octagon;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 10 && roll > 0.67) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 10 && roll > 0.67) {
     enemyType = ENEMY_TYPES.speedy;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 7 && roll > 0.72) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 7 && roll > 0.72) {
     enemyType = ENEMY_TYPES.diamond;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 9 && roll > 0.86) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 9 && roll > 0.86) {
     enemyType = ENEMY_TYPES.health;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 22 && roll > 0.91) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 22 && roll > 0.91) {
     enemyType = ENEMY_TYPES.heavy;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 5 && roll > 0.92) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 5 && roll > 0.92) {
     enemyType = ENEMY_TYPES.splitter;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 28 && roll > 0.965) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 28 && roll > 0.965) {
     enemyType = ENEMY_TYPES.sentinel;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 40 && roll > 0.985) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 40 && roll > 0.985) {
     enemyType = ENEMY_TYPES.hydra;
   }
 
-  if (!shieldedAttackerWave && !singleShieldedAttackerWave && waveNumber >= 36 && roll > 0.82) {
+  if (!forcedNatural && !shieldedAttackerWave && !singleShieldedAttackerWave && waveNumber >= 36 && roll > 0.82) {
     enemyType = ENEMY_TYPES.attacker;
   }
 
-  if (!shieldedAttackerWave && !singleShieldedAttackerWave && waveNumber >= 73 && roll > 0.958) {
+  if (!forcedNatural && !shieldedAttackerWave && !singleShieldedAttackerWave && waveNumber >= 73 && roll > 0.958) {
     enemyType = ENEMY_TYPES.assassin;
   }
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 82 && roll > 0.988) {
+    enemyType = ENEMY_TYPES.breacher;
+  }
 
-  if (!shieldedAttackerWave && waveNumber >= 6 && roll > 0.84) {
+  if (!forcedNatural && !shieldedAttackerWave && waveNumber >= 6 && roll > 0.84) {
     enemyType = ENEMY_TYPES.hexagon;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 12 && roll > 0.95) {
+  if (!forcedNatural && !shieldedAttackerWave && waveNumber >= 12 && roll > 0.95) {
     enemyType = ENEMY_TYPES.waffle16;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 24 && roll > 0.93) {
+  if (!forcedNatural && !shieldedAttackerWave && waveNumber >= 24 && roll > 0.93) {
     enemyType = ENEMY_TYPES.biscuit;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 28 && roll > 0.955) {
+  if (!forcedNatural && !shieldedAttackerWave && waveNumber >= 28 && roll > 0.955) {
     enemyType = ENEMY_TYPES.life;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 34 && roll > 0.972) {
+  if (!forcedNatural && !shieldedAttackerWave && waveNumber >= 34 && roll > 0.972) {
     enemyType = ENEMY_TYPES.popcorn;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 64 && roll > 0.986) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 64 && roll > 0.986) {
     enemyType = ENEMY_TYPES.specialPentagon;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 50 && roll > 0.9925) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 50 && roll > 0.9925) {
     enemyType = ENEMY_TYPES.idaen;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 74 && roll > 0.989) {
+  if (!forcedNatural && !shieldedAttackerWave && waveNumber >= 74 && roll > 0.989) {
     enemyType = ENEMY_TYPES.idine;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 78 && roll > 0.991) {
+  if (!forcedNatural && !shieldedAttackerWave && waveNumber >= 78 && roll > 0.991) {
     enemyType = ENEMY_TYPES.celun;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 80 && roll > 0.992) {
+  if (!forcedNatural && !shieldedAttackerWave && waveNumber >= 80 && roll > 0.992) {
     enemyType = ENEMY_TYPES.celris;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 84 && roll > 0.993) {
+  if (!forcedNatural && !shieldedAttackerWave && waveNumber >= 84 && roll > 0.993) {
     enemyType = ENEMY_TYPES.cel;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 86 && roll > 0.9935) {
+  if (!forcedNatural && !shieldedAttackerWave && waveNumber >= 86 && roll > 0.9935) {
     enemyType = ENEMY_TYPES.lun;
   }
 
-  if (!shieldedAttackerWave && waveNumber >= 88 && roll > 0.994) {
+  if (!forcedNatural && !shieldedAttackerWave && waveNumber >= 88 && roll > 0.994) {
     enemyType = ENEMY_TYPES.ris;
   }
 
-  if (!shieldedAttackerWave && !popcornRushWave && waveNumber >= 68 && roll > 0.9945) {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 68 && roll > 0.9945) {
     enemyType = ENEMY_TYPES.behemoth;
+  }
+
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && enemyType.key !== "hydra" && enemyType.key !== "behemoth" && enemyType.key !== "idaen") {
+    const naturalEliteRoll = Math.random();
+    if (waveNumber >= 74 && naturalEliteRoll > 0.992) {
+      enemyType = ENEMY_TYPES.idine;
+    } else if (!singleShieldedAttackerWave && waveNumber >= 73 && naturalEliteRoll > 0.982) {
+      enemyType = ENEMY_TYPES.assassin;
+    } else if (waveNumber >= 82 && naturalEliteRoll > 0.972) {
+      enemyType = ENEMY_TYPES.breacher;
+    } else if (!singleShieldedAttackerWave && waveNumber >= 36 && naturalEliteRoll > 0.955) {
+      enemyType = ENEMY_TYPES.attacker;
+    } else if (waveNumber >= 28 && naturalEliteRoll > 0.968) {
+      enemyType = ENEMY_TYPES.sentinel;
+    }
+  }
+
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave) {
+    enemyType = remapLateWaveEnemyType(enemyType, waveNumber, Math.random());
   }
 
   let hidden = false;
@@ -7397,7 +7662,7 @@ function spawnEnemy() {
   }
 
   const enemy = createEnemy(enemyType, {
-    tier: enemyType.key === "diamond"
+    tier: forcedTier || (enemyType.key === "diamond"
       ? rolledTierForWave("diamond")
       : enemyType.key === "sentinel"
         ? rolledTierForWave("sentinel")
@@ -7415,7 +7680,7 @@ function spawnEnemy() {
         ? rolledTierForWave("assassin")
       : enemyType.key === "waffle16"
         ? rolledTierForWave("waffle16")
-      : rolledTierForWave(enemyType.key),
+      : rolledTierForWave(enemyType.key)),
     hidden: attackerHidden || enemyType.key === "assassin" || (enemyType.key.startsWith("waffle") ? waffleMods.hidden : hidden),
     armored: enemyArmored,
     armorHp: attackerArmored
@@ -7484,6 +7749,9 @@ function updateEnemies(deltaTime) {
   const resolvedHydraGroups = new Set();
 
   for (const enemy of enemies) {
+    enemy.previousX = enemy.x;
+    enemy.previousY = enemy.y;
+
     if (enemy.stunTimer > 0) {
       enemy.stunTimer = Math.max(0, enemy.stunTimer - deltaTime);
     }
@@ -7578,21 +7846,6 @@ function updateEnemies(deltaTime) {
         enemy.phaseCooldown = 15;
         spawnIdaenSummons(enemy);
       }
-    } else if (enemy.key === "adapter") {
-      enemy.adapterSummonTimer = Math.max(0, (enemy.adapterSummonTimer || 0) - deltaTime);
-      enemy.adapterGuardCooldown = Math.max(0, (enemy.adapterGuardCooldown || 0) - deltaTime);
-      if (enemy.adapterSummonTimer === 0) {
-        enemy.adapterSummonTimer = 5.6;
-        spawnAdapterEscorts(enemy);
-      }
-    if (!enemy.adapterBlockReady && enemy.adapterGuardCooldown === 0) {
-      enemy.adapterBlockReady = true;
-      enemy.adapterGuardCooldown = 5.8;
-      enemy.armored = false;
-      enemy.armorHp = 0;
-      enemy.maxArmorHp = 0;
-      addPulse(enemy.x, enemy.y, CELL_SIZE * 1.6, "rgba(255, 232, 168, 0.26)");
-    }
     }
 
     if (enemy.spawnDetourActive && Array.isArray(enemy.route) && enemy.route.length > 0) {
@@ -7605,7 +7858,8 @@ function updateEnemies(deltaTime) {
     }
 
     const stunFactor = enemy.stunTimer > 0 || enemy.phaseTimer > 0 ? 0 : 1;
-    enemy.progress += (enemy.speed * enemy.slowFactor * (enemy.speedBoostFactor || 1) * stunFactor * deltaTime) / CELL_SIZE;
+    const breacherFactor = enemy.key === "breacher" && (enemy.shieldHp || 0) <= 0 ? (enemy.breacherSlowFactor || 0.5) : 1;
+    enemy.progress += (enemy.speed * enemy.slowFactor * (enemy.speedBoostFactor || 1) * breacherFactor * stunFactor * deltaTime) / CELL_SIZE;
 
     const points = enemyRoutePoints(enemy);
 
@@ -7750,22 +8004,22 @@ function towerStats(tower) {
     const permafrost = path1 >= 3;
     const aura = path2 >= 3;
     return finalizeStats({
-      range: CELL_SIZE * (3.7 + path2 * 0.2 + (path1 >= 4 ? 0.15 : 0)),
-      cooldown: Math.max(1.04 - path1 * 0.09 - path2 * 0.03 - (path1 >= 5 ? 0.06 : 0) - (path2 >= 5 ? 0.04 : 0), 0.32),
-      damage: 1.2 + path1 * 0.48 + path2 * 0.28 + (path1 >= 4 ? 1.4 : 0) + (path1 >= 5 ? 3.8 : 0),
-      slow: Math.max(0.72 - path2 * 0.05 - (path2 >= 5 ? 0.06 : 0), 0.34),
-      slowDuration: 1.15 + path1 * 0.22 + path2 * 0.18,
+      range: CELL_SIZE * (3.35 + path2 * 0.18 + (path1 >= 4 ? 0.12 : 0)),
+      cooldown: Math.max(1.18 - path1 * 0.08 - path2 * 0.025 - (path1 >= 5 ? 0.05 : 0) - (path2 >= 5 ? 0.035 : 0), 0.34),
+      damage: 0.82 + path1 * 0.4 + path2 * 0.24 + (path1 >= 4 ? 1.1 : 0) + (path1 >= 5 ? 3.2 : 0),
+      slow: Math.max(0.8 - path2 * 0.04 - (path2 >= 5 ? 0.05 : 0), 0.42),
+      slowDuration: 0.9 + path1 * 0.18 + path2 * 0.14,
       detectHidden: path2 >= 4,
       permafrost,
-      pulseRadius: CELL_SIZE * (2.55 + path1 * 0.16 + path2 * 0.08 + (path1 >= 4 ? 0.3 : 0) + (path1 >= 5 ? 0.4 : 0)),
-      pulseDamage: 1.15 + path1 * 0.38 + path2 * 0.24 + (permafrost ? 1.35 : 0) + (path1 >= 4 ? 2.1 : 0) + (path1 >= 5 ? 4.2 : 0),
-      pulseFreeze: permafrost ? 0.48 + (path1 - 3) * 0.12 + (path1 >= 4 ? 0.28 : 0) + (path1 >= 5 ? 0.52 : 0) : 0,
-      pulseCooldown: permafrost ? Math.max(2.2 - path1 * 0.3 - (path1 >= 5 ? 0.18 : 0), 0.5) : Math.max(1.22 - path1 * 0.08 - path2 * 0.04, 0.46),
+      pulseRadius: CELL_SIZE * (2.35 + path1 * 0.14 + path2 * 0.08 + (path1 >= 4 ? 0.24 : 0) + (path1 >= 5 ? 0.34 : 0)),
+      pulseDamage: 0.82 + path1 * 0.32 + path2 * 0.18 + (permafrost ? 1.05 : 0) + (path1 >= 4 ? 1.7 : 0) + (path1 >= 5 ? 3.6 : 0),
+      pulseFreeze: permafrost ? 0.34 + (path1 - 3) * 0.1 + (path1 >= 4 ? 0.22 : 0) + (path1 >= 5 ? 0.42 : 0) : 0,
+      pulseCooldown: permafrost ? Math.max(2.45 - path1 * 0.28 - (path1 >= 5 ? 0.14 : 0), 0.6) : Math.max(1.3 - path1 * 0.06 - path2 * 0.03, 0.52),
       aura,
-      auraRadius: CELL_SIZE * (2.35 + path2 * 0.18),
-      auraDamage: aura ? 0.58 + path2 * 0.24 + path1 * 0.12 + (path2 >= 4 ? 0.9 : 0) + (path2 >= 5 ? 2.1 : 0) : 0,
-      auraSlow: aura ? Math.max(0.6 - (path2 - 3) * 0.09 - (path2 >= 4 ? 0.11 : 0) - (path2 >= 5 ? 0.17 : 0), 0.08) : 1,
-      auraTick: aura ? (path2 >= 5 ? 0.09 : path2 >= 4 ? 0.13 : 0.22) : 0,
+      auraRadius: CELL_SIZE * (2.2 + path2 * 0.16),
+      auraDamage: aura ? 0.34 + path2 * 0.18 + path1 * 0.08 + (path2 >= 4 ? 0.62 : 0) + (path2 >= 5 ? 1.5 : 0) : 0,
+      auraSlow: aura ? Math.max(0.72 - (path2 - 3) * 0.07 - (path2 >= 4 ? 0.08 : 0) - (path2 >= 5 ? 0.12 : 0), 0.18) : 1,
+      auraTick: aura ? (path2 >= 5 ? 0.12 : path2 >= 4 ? 0.16 : 0.24) : 0,
       boltSpeed: 250
     });
   }
@@ -7908,22 +8162,22 @@ function towerStats(tower) {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
     const acidAmp = path1 >= 5 ? 3.45 : path1 >= 4 ? 1.52 : path1 >= 3 ? 1.18 : path1 >= 2 ? 1.05 : 1;
-    const acidDuration = 2.9
-      + (path1 >= 3 ? 0.75 : 0)
-      + (path1 >= 4 ? 3.1 : 0)
-      + (path1 >= 5 ? 6.5 : 0)
-      + (path2 >= 2 ? 0.2 : 0)
-      + (path2 >= 4 ? 3 : 0)
-      + (path2 >= 5 ? 3 : 0);
+    const acidDuration = 2.15
+      + (path1 >= 3 ? 0.6 : 0)
+      + (path1 >= 4 ? 2.4 : 0)
+      + (path1 >= 5 ? 5.4 : 0)
+      + (path2 >= 2 ? 0.15 : 0)
+      + (path2 >= 4 ? 2.2 : 0)
+      + (path2 >= 5 ? 2.4 : 0);
     return finalizeStats({
-      range: CELL_SIZE * (2.75 + path2 * 0.18 + path1 * 0.08),
-      cooldown: Math.max(0.94 - path2 * 0.12 - (path2 >= 4 ? 0.12 : 0) - (path2 >= 5 ? 0.06 : 0), 0.18),
-      damage: 0.36 + path2 * 0.16 + (path2 >= 3 ? 0.22 : 0) + (path2 >= 4 ? 0.78 : 0) + (path2 >= 5 ? 1.9 : 0),
-      acidDot: 2.1 + path2 * 0.78 + path1 * 0.34 + (path2 >= 4 ? 2.1 : 0) + (path2 >= 5 ? 5.6 : 0),
+      range: CELL_SIZE * (2.45 + path2 * 0.16 + path1 * 0.08),
+      cooldown: Math.max(1.08 - path2 * 0.1 - (path2 >= 4 ? 0.1 : 0) - (path2 >= 5 ? 0.05 : 0), 0.22),
+      damage: 0.22 + path2 * 0.12 + (path2 >= 3 ? 0.16 : 0) + (path2 >= 4 ? 0.58 : 0) + (path2 >= 5 ? 1.5 : 0),
+      acidDot: 1.45 + path2 * 0.62 + path1 * 0.26 + (path2 >= 4 ? 1.7 : 0) + (path2 >= 5 ? 4.6 : 0),
       acidDuration,
       acidAmp,
-      spraySlow: Math.max(0.94 - path2 * 0.04, 0.72),
-      spraySlowDuration: 0.48 + path2 * 0.08,
+      spraySlow: Math.max(0.96 - path2 * 0.03, 0.8),
+      spraySlowDuration: 0.36 + path2 * 0.06,
       detectHidden: true
     });
   }
@@ -8237,15 +8491,16 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
     return true;
   }
 
-  if (enemy.key === "adapter" && enemy.adapterBlockReady) {
-    enemy.adapterBlockReady = false;
-    enemy.adapterGuardCooldown = Math.max(enemy.adapterGuardCooldown || 0, 5.8);
-    const armorValue = ENEMY_TYPES.adapter.armor + Math.max(0, Math.floor((waveNumber - 30) / 10));
-    enemy.armored = true;
-    enemy.armorHp = Math.max(enemy.armorHp || 0, armorValue);
-    enemy.maxArmorHp = Math.max(enemy.maxArmorHp || 0, armorValue);
-    triggerAdapterPulse(enemy);
-    return false;
+  if (enemy.key === "adapter") {
+    if (!enemy.adapterImmunityClass) {
+      enemy.adapterImmunityClass = damageClass;
+      addPulse(enemy.x, enemy.y, CELL_SIZE * 1.4, ADAPTER_IMMUNITY_COLORS[damageClass] || "rgba(255, 225, 173, 0.9)");
+      return false;
+    }
+    if (enemy.adapterImmunityClass === damageClass) {
+      addPulse(enemy.x, enemy.y, CELL_SIZE * 0.95, ADAPTER_IMMUNITY_COLORS[damageClass] || "rgba(255,255,255,0.85)");
+      return false;
+    }
   }
 
   if (isDiamondEnemy(enemy)) {
@@ -8575,6 +8830,55 @@ function addPulse(x, y, radius, color) {
     ttl: 0.18
   });
   nextEffectId += 1;
+}
+
+function addEnemyDeathAnimation(enemy) {
+  if (!enemy) {
+    return;
+  }
+
+  const radius = enemyStatusRadius(enemy);
+  const primaryColor = enemy.coreColor || enemy.color || "#ffffff";
+  const secondaryColor = enemy.color || primaryColor;
+  const particleCount = enemy.boss ? 18 : Math.max(8, Math.round(radius * 0.7));
+
+  addPulse(enemy.x, enemy.y, radius + 8, "rgba(255, 255, 255, 0.42)");
+  addBurstParticles(enemy.x, enemy.y, particleCount, primaryColor, 55, 165, 0.22, 0.52);
+  addBurstParticles(enemy.x, enemy.y, Math.max(4, Math.round(particleCount * 0.45)), secondaryColor, 28, 92, 0.14, 0.32);
+  effects.push({
+    id: nextEffectId,
+    kind: "enemyDeath",
+    x: enemy.x,
+    y: enemy.y,
+    vx: Math.cos(enemy.facingAngle || 0) * 18,
+    vy: -24,
+    spin: (Math.random() - 0.5) * 1.8,
+    color: secondaryColor,
+    glowColor: primaryColor,
+    radius,
+    maxTtl: enemy.boss ? 0.52 : 0.38,
+    ttl: enemy.boss ? 0.52 : 0.38,
+    enemy: {
+      ...enemy,
+      x: 0,
+      y: 0,
+      burnTimer: 0,
+      poisonTimer: 0,
+      stunTimer: 0,
+      whiteoutTimer: 0,
+      mangoTimer: 0,
+      healthBarFlashTimer: 0,
+      healthBarTintTimer: 0,
+      shellHp: 0,
+      armorHp: 0,
+      shieldHp: 0
+    }
+  });
+  nextEffectId += 1;
+
+  if (enemy.boss || (enemy.tier || 1) >= 3 || enemy.key === "behemoth") {
+    triggerScreenShake(enemy.boss ? 0.28 : 0.16, enemy.boss ? 0.18 : 0.12);
+  }
 }
 
 function gateArcEndpoints(tower) {
@@ -9164,6 +9468,59 @@ function explodeTrap(trap) {
   if (trap.mango) {
     spawnSecondaryProjectiles(trap.centerX, trap.centerY, 5, "mangoBomb", trap.damage * 0.7, 30, true);
   }
+}
+
+function spendTrapSpikesOnEnemy(trap, enemy) {
+  if (!trap || !enemy || enemy.hp <= 0) {
+    return false;
+  }
+
+  const availableSpikes = Math.max(0, Math.floor(trap.usesRemaining || 0));
+  if (availableSpikes <= 0) {
+    return false;
+  }
+
+  const damagePerSpike = trap.kind === "mine" ? trap.damage * 0.95 : trap.damage;
+  if (damagePerSpike <= 0) {
+    return false;
+  }
+
+  const spikesNeeded = Math.max(1, Math.ceil(enemy.hp / damagePerSpike));
+  const spikesSpent = Math.min(availableSpikes, spikesNeeded);
+  const damageAmount = damagePerSpike * spikesSpent;
+
+  trap.usesRemaining = Math.max(0, availableSpikes - spikesSpent);
+
+  damageEnemy(enemy, damageAmount, trap.damageType || "trap", trap.kind === "mine"
+    ? undefined
+    : {
+      slow: trap.slow < 1 ? trap.slow : null,
+      slowDuration: trap.slow < 1 ? trap.duration : 0
+    });
+
+  return spikesSpent > 0;
+}
+
+function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(px - x1, py - y1);
+  }
+  const projection = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+  const clamped = Math.max(0, Math.min(1, projection));
+  const closestX = x1 + dx * clamped;
+  const closestY = y1 + dy * clamped;
+  return Math.hypot(px - closestX, py - closestY);
+}
+
+function enemyTouchesTrap(enemy, trap) {
+  const startX = enemy.previousX ?? enemy.x;
+  const startY = enemy.previousY ?? enemy.y;
+  const endX = enemy.x;
+  const endY = enemy.y;
+  const reach = trap.radius + enemyStatusRadius(enemy) * 0.55;
+  return pointToSegmentDistance(trap.centerX, trap.centerY, startX, startY, endX, endY) <= reach;
 }
 
 function fireTower(tower, target) {
@@ -9815,7 +10172,7 @@ function updateTraps(deltaTime) {
     let removeTrap = false;
 
     if (trap.kind === "spike") {
-      const touching = enemies.filter((entry) => Math.hypot(entry.x - trap.centerX, entry.y - trap.centerY) <= trap.radius);
+      const touching = enemies.filter((entry) => enemyTouchesTrap(entry, trap));
       if (touching.length > 0) {
         const scale = deltaTime / Math.max(trap.tickRate || 0.08, 0.03);
         trap.usesRemaining = (trap.usesRemaining ?? 18) - scale;
@@ -9854,27 +10211,24 @@ function updateTraps(deltaTime) {
       }
     } else {
       const touching = enemies.filter((enemy) =>
-        Math.hypot(enemy.x - trap.centerX, enemy.y - trap.centerY) <= trap.radius &&
-        canHitArmored(enemy, "trap")
+        enemyTouchesTrap(enemy, trap) &&
+        canHitArmored(enemy, trap.damageType || "trap")
       );
 
       if (touching.length > 0) {
-        const scale = deltaTime / Math.max(trap.tickRate || 0.08, 0.03);
         trap.targetEnemyId = touching[0].id;
-        trap.usesRemaining -= scale;
+        let spentAnySpikes = false;
 
         for (const enemy of touching) {
-          if (trap.kind === "mine") {
-            damageEnemy(enemy, trap.damage * 0.95 * scale, trap.damageType || "trap");
-          } else {
-            damageEnemy(enemy, trap.damage * scale, trap.damageType || "trap", {
-              slow: trap.slow < 1 ? trap.slow : null,
-              slowDuration: trap.slow < 1 ? trap.duration : 0
-            });
+          if ((trap.usesRemaining || 0) <= 0) {
+            break;
           }
+          spentAnySpikes = spendTrapSpikesOnEnemy(trap, enemy) || spentAnySpikes;
         }
 
-        addPulse(trap.centerX, trap.centerY, trap.radius, trap.kind === "mine" ? "#ffd067" : "#9de67b");
+        if (spentAnySpikes) {
+          addPulse(trap.centerX, trap.centerY, trap.radius, trap.kind === "mine" ? "#ffd067" : "#9de67b");
+        }
 
         if (trap.usesRemaining <= 0) {
           if (trap.kind === "mine") {
@@ -10442,6 +10796,11 @@ function updateEffects(deltaTime) {
     } else if (effect.kind === "spark") {
       effect.x += effect.vx * deltaTime;
       effect.y += effect.vy * deltaTime;
+    } else if (effect.kind === "enemyDeath") {
+      effect.x += effect.vx * deltaTime;
+      effect.y += effect.vy * deltaTime;
+      effect.vx *= Math.max(0, 1 - deltaTime * 5.5);
+      effect.vy *= Math.max(0, 1 - deltaTime * 6.5);
     } else if (effect.kind === "floatingText") {
       effect.y += effect.vy * deltaTime;
     }
@@ -11250,6 +11609,7 @@ function purgeDefeatedEnemies() {
     if (enemy.hp > 0) {
       nextEnemies.push(enemy);
     } else {
+      addEnemyDeathAnimation(enemy);
       if (enemy.key === "hydra" && enemy.hydraGroupId) {
         hydraGroupsToSync.add(enemy.hydraGroupId);
       }
@@ -13164,6 +13524,7 @@ function drawOpaqueShell() {
 
 function drawHiddenEnemyOutline(enemy) {
   const outlineColor = "rgba(220, 220, 220, 0.95)";
+  const accentColor = "rgba(248, 248, 248, 0.88)";
   const scale = enemy.sizeScale || 1;
 
   ctx.save();
@@ -13173,7 +13534,7 @@ function drawHiddenEnemyOutline(enemy) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
-  if (enemy.key === "attacker" || enemy.key === "assassin") {
+  if (enemy.key === "attacker") {
     const bodyLength = (enemy.tier >= 3 ? 20 : enemy.tier === 2 ? 16 : 13) * scale;
     const bodyWidth = (enemy.tier >= 3 ? 7.5 : enemy.tier === 2 ? 6.5 : 5.5) * scale;
     const wingLength = bodyLength * 0.7;
@@ -13196,6 +13557,45 @@ function drawHiddenEnemyOutline(enemy) {
       ctx.lineTo(-bodyLength * 0.94, wingSpread * 0.54);
     }
     ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (enemy.key === "assassin") {
+    const bodyLength = (enemy.tier >= 3 ? 21 : enemy.tier === 2 ? 17 : 14) * scale;
+    const bodyWidth = (enemy.tier >= 3 ? 8 : enemy.tier === 2 ? 6.8 : 5.8) * scale;
+    const wingLength = bodyLength * 0.74;
+    const wingSpread = bodyLength * 0.5;
+    ctx.lineWidth = bodyWidth + 2.5;
+    ctx.beginPath();
+    ctx.moveTo(bodyLength * 0.6, 0);
+    ctx.lineTo(-bodyLength * 0.6, 0);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(4, bodyWidth * 0.6);
+    ctx.beginPath();
+    ctx.moveTo(-bodyLength * 0.08, 0);
+    ctx.lineTo(-wingLength, -wingSpread);
+    ctx.moveTo(-bodyLength * 0.08, 0);
+    ctx.lineTo(-wingLength, wingSpread);
+    ctx.moveTo(bodyLength * 0.12, -bodyWidth * 0.8);
+    ctx.lineTo(bodyLength * 0.34, 0);
+    ctx.lineTo(bodyLength * 0.12, bodyWidth * 0.8);
+    ctx.stroke();
+    if (enemy.tier >= 2) {
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = Math.max(2.2, bodyWidth * 0.28);
+      ctx.beginPath();
+      ctx.moveTo(-bodyLength * 0.18, -bodyWidth * 0.92);
+      ctx.lineTo(-bodyLength * 0.46, -wingSpread * 0.54);
+      ctx.moveTo(-bodyLength * 0.18, bodyWidth * 0.92);
+      ctx.lineTo(-bodyLength * 0.46, wingSpread * 0.54);
+      if (enemy.tier >= 3) {
+        ctx.moveTo(-bodyLength * 0.56, -wingSpread * 0.5);
+        ctx.lineTo(-bodyLength * 0.78, 0);
+        ctx.lineTo(-bodyLength * 0.56, wingSpread * 0.5);
+      }
+      ctx.stroke();
+    }
     ctx.restore();
     return;
   }
@@ -13295,6 +13695,16 @@ function drawHiddenEnemyOutline(enemy) {
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.stroke();
+    if ((enemy.tier || 1) >= 2 && enemy.key !== "idine" && enemy.key !== "celun" && enemy.key !== "celris" && enemy.key !== "cel" && enemy.key !== "lun" && enemy.key !== "ris") {
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = enemy.tier >= 3 ? 2.4 : 1.7;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius + (enemy.tier >= 3 ? 3 : 1.5), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, enemy.tier >= 3 ? 4.2 : 2.8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.restore();
     return;
   }
@@ -13315,6 +13725,45 @@ function drawHiddenEnemyOutline(enemy) {
   }
   ctx.closePath();
   ctx.stroke();
+  if (enemy.key === "diamond") {
+    const coreRadius = 5 + ((enemy.tier || 1) - 1) * 1.5;
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(0, -coreRadius);
+    ctx.lineTo(coreRadius, 0);
+    ctx.lineTo(0, coreRadius);
+    ctx.lineTo(-coreRadius, 0);
+    ctx.closePath();
+    ctx.stroke();
+    if ((enemy.tier || 1) >= 2) {
+      ctx.lineWidth = enemy.tier >= 3 ? 2.4 : 1.6;
+      ctx.beginPath();
+      ctx.moveTo(0, -radius - 2);
+      ctx.lineTo(radius + 2, 0);
+      ctx.lineTo(0, radius + 2);
+      ctx.lineTo(-radius - 2, 0);
+      ctx.closePath();
+      ctx.stroke();
+    }
+  } else if ((enemy.tier || 1) >= 2 && enemy.key !== "shield") {
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = enemy.tier >= 3 ? 2.4 : 1.6;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + (enemy.tier >= 3 ? 3 : 1.5), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, enemy.tier >= 3 ? 4.2 : 2.8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  if (enemy.shielded || enemy.key === "shield") {
+    const outerRadius = enemy.shieldRadius || radius + 10;
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, outerRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -13351,10 +13800,18 @@ function drawEnemyStateOverlay(enemy) {
   }
 }
 
+function usesHiddenOutlineOnly(enemy) {
+  return enemy.hidden;
+}
+
+function usesHiddenVisualEffect(enemy) {
+  return enemy.hidden && enemy.key !== "attacker" && enemy.key !== "assassin";
+}
+
 function drawEnemies() {
   for (const enemy of enemies) {
     ctx.save();
-    if (enemy.hidden) {
+    if (usesHiddenOutlineOnly(enemy)) {
       drawHiddenEnemyOutline(enemy);
     } else {
       drawEnemyShape(enemy);
@@ -13383,10 +13840,19 @@ function drawEnemies() {
         shellRatio
       );
     }
+    if (enemy.key === "breacher" && (enemy.maxShieldHp || 0) > 0) {
+      drawShieldOverlayBar(
+        enemy.x - barWidth / 2,
+        enemy.y - 23,
+        barWidth,
+        3,
+        Math.max(0, Math.min(1, (enemy.shieldHp || 0) / Math.max(enemy.maxShieldHp || 1, 1)))
+      );
+    }
     if (overhealLimit > 0) {
       drawDamageLagBar(
         enemy.x - barWidth / 2,
-        enemy.y - 23,
+        enemy.y - (enemy.key === "breacher" && (enemy.maxShieldHp || 0) > 0 ? 28 : 23),
         barWidth,
         3,
         Math.max(0, Math.min(overhealLimit, Math.max(0, enemy.hp - enemy.maxHp))) / overhealLimit,
@@ -13416,6 +13882,18 @@ function drawShellOverlayBar(x, y, width, height, ratio) {
   ctx.fillStyle = "rgba(255, 255, 255, 0.96)";
   ctx.fillRect(x, y, width * clampedRatio, height);
   ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+  ctx.lineWidth = 0.8;
+  ctx.strokeRect(x, y, width * clampedRatio, height);
+}
+
+function drawShieldOverlayBar(x, y, width, height, ratio) {
+  const clampedRatio = Math.max(0, Math.min(1, ratio));
+  if (clampedRatio <= 0) {
+    return;
+  }
+  ctx.fillStyle = "rgba(126, 214, 255, 0.94)";
+  ctx.fillRect(x, y, width * clampedRatio, height);
+  ctx.strokeStyle = "rgba(226, 248, 255, 0.95)";
   ctx.lineWidth = 0.8;
   ctx.strokeRect(x, y, width * clampedRatio, height);
 }
@@ -13486,6 +13964,11 @@ function drawEnemyShape(enemy) {
 
   if (enemy.key === "life") {
     drawLifeEnemy(enemy);
+    return;
+  }
+
+  if (enemy.key === "breacher") {
+    drawBreacherEnemy(enemy);
     return;
   }
 
@@ -13969,12 +14452,99 @@ function drawLifeEnemy(enemy) {
   }
   ctx.stroke();
   if ((enemy.healRadius || 0) > 0) {
-    ctx.strokeStyle = "rgba(255, 180, 198, 0.28)";
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = "rgba(255, 180, 198, 0.42)";
+    ctx.lineWidth = 1.8;
     ctx.beginPath();
-    ctx.arc(0, 0, 8 + Math.sin((lastTimestamp || 0) / 180) * 1.5, 0, Math.PI * 2);
+    ctx.arc(0, 0, 12 + Math.sin((lastTimestamp || 0) / 180) * 2.2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 210, 222, 0.26)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, 0, 17 + Math.sin((lastTimestamp || 0) / 220) * 2.4, 0, Math.PI * 2);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+function drawBreacherEnemy(enemy) {
+  const scale = enemy.sizeScale || 1;
+  const tier = enemy.tier || 1;
+  const width = (18 + (tier - 1) * 3) * scale;
+  const height = (14 + (tier - 1) * 2.4) * scale;
+  const innerGap = (8 + (tier - 1) * 1.5) * scale;
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.rotate(enemy.facingAngle || 0);
+
+  const drawTrapezium = (direction = 1) => {
+    const outerX = direction * (innerGap + width * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(outerX - direction * width * 0.5, -height * 0.5);
+    ctx.lineTo(outerX + direction * width * 0.34, -height * 0.28);
+    ctx.lineTo(outerX + direction * width * 0.34, height * 0.28);
+    ctx.lineTo(outerX - direction * width * 0.5, height * 0.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  };
+
+  ctx.fillStyle = enemy.color;
+  ctx.strokeStyle = "rgba(220, 247, 255, 0.92)";
+  ctx.lineWidth = 2;
+  drawTrapezium(-1);
+  drawTrapezium(1);
+
+  const orbRadius = (5.5 + (tier - 1) * 1.2) * scale;
+  ctx.shadowColor = "rgba(255, 255, 255, 0.9)";
+  ctx.shadowBlur = 14 + tier * 3;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(0, 0, orbRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, orbRadius + 1.6, 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (tier >= 2) {
+    ctx.strokeStyle = "rgba(196, 245, 255, 0.9)";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-innerGap * 0.4, -height * 0.54);
+    ctx.lineTo(0, -height * 0.18);
+    ctx.lineTo(innerGap * 0.4, -height * 0.54);
+    ctx.stroke();
+  }
+
+  if (tier >= 3) {
+    ctx.strokeStyle = "rgba(242, 252, 255, 0.94)";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-innerGap * 0.46, height * 0.56);
+    ctx.lineTo(0, height * 0.16);
+    ctx.lineTo(innerGap * 0.46, height * 0.56);
+    ctx.stroke();
+  }
+
+  if ((enemy.shieldHp || 0) > 0) {
+    const shieldRatio = Math.max(0, Math.min(1, enemy.shieldHp / Math.max(enemy.maxShieldHp || 1, 1)));
+    const shieldRadius = enemy.shieldRadius || innerGap + width * 0.9;
+    ctx.strokeStyle = `rgba(126, 214, 255, ${0.42 + shieldRatio * 0.4})`;
+    ctx.lineWidth = 2.4 + tier * 0.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, shieldRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([7, 5]);
+    ctx.lineDashOffset = -(lastTimestamp / 18);
+    ctx.strokeStyle = "rgba(230, 249, 255, 0.92)";
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.max(orbRadius + 6, shieldRadius - 4), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   ctx.restore();
 }
 
@@ -14190,7 +14760,7 @@ function drawAttackerEnemy(enemy) {
   }
   ctx.stroke();
 
-  if (enemy.hidden) {
+  if (usesHiddenVisualEffect(enemy)) {
     ctx.strokeStyle = outlineColor;
     ctx.lineWidth = bodyWidth + 3;
     ctx.beginPath();
@@ -14304,7 +14874,7 @@ function drawAssassinEnemy(enemy) {
   }
   ctx.stroke();
 
-  if (enemy.hidden) {
+  if (usesHiddenVisualEffect(enemy)) {
     ctx.strokeStyle = outlineColor;
     ctx.lineWidth = bodyWidth + 3;
     ctx.beginPath();
@@ -14468,6 +15038,7 @@ function drawAdapterEnemy(enemy) {
   drawAttackerEnemy(enemy);
   const bodyLength = 26 * (enemy.sizeScale || 1);
   const wingSpread = bodyLength * 0.52;
+  const immunityColor = enemy.adapterImmunityClass ? (ADAPTER_IMMUNITY_COLORS[enemy.adapterImmunityClass] || "rgba(231, 216, 255, 0.82)") : "rgba(255, 225, 173, 0.85)";
   ctx.save();
   ctx.translate(enemy.x, enemy.y);
   ctx.rotate(enemy.facingAngle || 0);
@@ -14478,17 +15049,15 @@ function drawAdapterEnemy(enemy) {
   ctx.lineTo(bodyLength * 0.74, 0);
   ctx.lineTo(bodyLength * 0.2, wingSpread * 0.45);
   ctx.stroke();
-  ctx.fillStyle = enemy.adapterBlockReady ? "rgba(255, 225, 173, 0.85)" : "rgba(231, 216, 255, 0.72)";
+  ctx.fillStyle = immunityColor;
   ctx.beginPath();
   ctx.arc(0, 0, 6.5, 0, Math.PI * 2);
   ctx.fill();
-  if (enemy.adapterBlockReady) {
-    ctx.strokeStyle = "rgba(255, 213, 124, 0.95)";
-    ctx.lineWidth = 2.4;
-    ctx.beginPath();
-    ctx.arc(0, 0, bodyLength * 0.72, 0, Math.PI * 2);
-    ctx.stroke();
-  }
+  ctx.strokeStyle = immunityColor;
+  ctx.lineWidth = enemy.adapterImmunityClass ? 2.2 : 2.4;
+  ctx.beginPath();
+  ctx.arc(0, 0, bodyLength * 0.72, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -14524,7 +15093,7 @@ function drawBossBar() {
     ctx.textBaseline = "middle";
     const bossName = boss.key === "adapter" ? "Adapter" : "Mega Waffle";
     const bossState = boss.key === "adapter"
-      ? (boss.adapterBlockReady ? " - Primed" : "")
+      ? ""
       : (boss.phaseTimer > 0 || biscuitsAlive ? " - Shielded" : "");
     ctx.fillText(`${bossName}${bossState}`, left + width / 2, top + barHeight / 2);
   });
@@ -14838,6 +15407,38 @@ function drawEffects() {
   }
 }
 
+function drawEnemyDeathEffects() {
+  for (const effect of effects) {
+    if (effect.kind !== "enemyDeath") {
+      continue;
+    }
+
+    const progress = 1 - effect.ttl / Math.max(effect.maxTtl || 0.4, 0.01);
+    const fade = Math.max(0, 1 - progress);
+    const squash = 1 + Math.sin(Math.min(1, progress * 1.45) * Math.PI) * 0.24;
+    const stretch = Math.max(0.6, 1 - progress * 0.42);
+
+    ctx.save();
+    ctx.translate(effect.x, effect.y);
+    ctx.rotate((effect.enemy?.facingAngle || 0) + (effect.spin || 0) * progress);
+    ctx.globalAlpha = Math.pow(fade, 0.88) * 0.95;
+    ctx.fillStyle = effect.glowColor || effect.color || "#ffffff";
+    ctx.beginPath();
+    ctx.arc(0, 0, (effect.radius || 12) * (0.72 + progress * 1.25), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha *= 0.7;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, (effect.radius || 12) * (0.95 + progress * 0.75), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.scale(squash, stretch);
+    ctx.globalAlpha = Math.pow(fade, 1.15);
+    drawEnemyShape(effect.enemy);
+    ctx.restore();
+  }
+}
+
 function drawEndpoint(point, fill) {
   const center = cellCenter(point.x, point.y);
   const offset = entityRenderOffset(point);
@@ -14875,6 +15476,7 @@ function draw() {
   drawProjectiles();
   drawEffects();
   drawEnemies();
+  drawEnemyDeathEffects();
   drawBossBar();
   if (!activeMap.hidePortals) {
     for (const portal of activePortals()) {
@@ -15232,6 +15834,28 @@ function showPanel(panelName) {
   }
 }
 
+function shouldSuppressGameContextMenu() {
+  return gameMode === "playing" || gameMode === "paused" || Boolean(armedAbility);
+}
+
+function handleBoardRightClick(event) {
+  if (!shouldSuppressGameContextMenu()) {
+    return false;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  if (armedAbility) {
+    armedAbility = null;
+    setMessage("Ability targeting cancelled.", 0.9);
+  } else {
+    clearSelection(true);
+    setMessage("Selection cleared.", 0.9);
+  }
+  updateHud();
+  draw();
+  return true;
+}
+
 canvas.addEventListener("click", (event) => {
   if (armedAbility === "airstrike") {
     useAirstrikeAt(pointerToCanvas(event));
@@ -15241,20 +15865,39 @@ canvas.addEventListener("click", (event) => {
   applyTool(cell.x, cell.y);
 });
 
-canvas.addEventListener("contextmenu", (event) => {
-  event.preventDefault();
-  if (armedAbility) {
-    armedAbility = null;
-    setMessage("Ability targeting cancelled.", 0.9);
-    updateHud();
-    draw();
+canvas.addEventListener("mousedown", (event) => {
+  if (event.button !== 2) {
     return;
   }
-  clearSelection(true);
-  setMessage("Selection cleared.", 0.9);
-  updateHud();
-  draw();
+  handleBoardRightClick(event);
 });
+
+canvas.addEventListener("mouseup", (event) => {
+  if (event.button !== 2) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+});
+
+canvas.addEventListener("auxclick", (event) => {
+  if (event.button !== 2) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+});
+
+canvas.addEventListener("contextmenu", (event) => {
+  handleBoardRightClick(event);
+});
+
+document.addEventListener("contextmenu", (event) => {
+  if (!shouldSuppressGameContextMenu()) {
+    return;
+  }
+  event.preventDefault();
+}, true);
 
 canvas.addEventListener("mousemove", (event) => {
   const cell = pointerToCell(event);
@@ -15584,6 +16227,12 @@ window.addEventListener("keyup", (event) => {
   if (event.key.startsWith("Arrow")) {
     heldScrollKeys.delete(event.key);
   }
+});
+
+window.addEventListener("blur", () => {
+  heldScrollKeys.clear();
+  hoverPoint = null;
+  hoverCell = null;
 });
 
 applyMapViewport();
