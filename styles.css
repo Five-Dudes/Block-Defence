@@ -686,6 +686,7 @@ button.secondary {
   min-height: 100%;
   width: 100%;
   margin-left: 0;
+  margin-top: -6px;
   overflow: hidden;
   position: relative;
 }
@@ -1240,11 +1241,18 @@ canvas {
   .board-frame {
     padding: 12px;
     width: 100%;
+    margin-top: -4px;
     overflow: hidden;
+  }
+
+  .board-panel {
+    min-height: 0;
+    align-content: start;
   }
 
   .play-area {
     grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .almanac-body.tower-layout {

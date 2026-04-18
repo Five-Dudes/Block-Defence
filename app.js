@@ -83,7 +83,9 @@ const warningPanel = document.getElementById("warningPanel");
 const warningPanelTitle = document.getElementById("warningPanelTitle");
 const warningPanelBody = document.getElementById("warningPanelBody");
 const TARGET_PRIORITIES = ["first", "last", "strong", "weak", "hidden", "random", "cursor"];
-const PATH_TOWER_TYPES = new Set(["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "fireball", "dippy", "support", "crossbow", "gate"]);
+const ORB_SPIN_PRIORITIES = ["clockwise", "anticlockwise"];
+const ORB_TYPE_PRIORITIES = ["explosive", "energy", "concentrated", "adaptive"];
+const PATH_TOWER_TYPES = new Set(["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "fireball", "dippy", "support", "treasury", "orb", "crossbow", "gate"]);
 const TARGET_LABELS = {
   first: "First",
   last: "Last",
@@ -91,7 +93,13 @@ const TARGET_LABELS = {
   weak: "Weak",
   hidden: "Hidden",
   random: "Random",
-  cursor: "Cursor"
+  cursor: "Cursor",
+  clockwise: "Clockwise",
+  anticlockwise: "Anti Clockwise",
+  explosive: "Explosive",
+  energy: "Energy",
+  concentrated: "Concentrated",
+  adaptive: "Adaptive"
 };
 
 document.body.dataset.appBootStage = "constants";
@@ -124,6 +132,8 @@ const TOWER_BASE_COST = {
   fireball: 64,
   dippy: 92,
   support: 44,
+  treasury: 60,
+  orb: 46,
   crossbow: 30,
   gate: 42
 };
@@ -168,6 +178,14 @@ const UPGRADE_COSTS = {
     path1: [24, 52, 126, 1512, 18144],
     path2: [18, 46, 116, 1392, 16704]
   },
+  treasury: {
+    path1: [19, 52, 340, 2480, 15545],
+    path2: [24, 64, 420, 2360, 11800]
+  },
+  orb: {
+    path1: [12, 38, 116, 1480, 8920],
+    path2: [14, 34, 124, 1760, 12480]
+  },
   crossbow: {
     path1: [8, 12, 39, 468, 5616],
     path2: [9, 19, 62, 744, 8128]
@@ -180,14 +198,16 @@ const UPGRADE_COSTS = {
 const TOWER_INFO = {
   tesla: { name: "Tesla", color: "#92d5ff", description: "Tesla chains lightning between nearby enemies and briefly stuns what it hits." },
   missile: { name: "Cannon", color: "#ffae57", description: "Cannon fires heavier explosive shots that deal strong splash damage in an area." },
-  trapper: { name: "Trap Setter", color: "#89d37a", description: "Trap Setter seeds temporary traps, mines, or wall turrets depending on its upgrade path." },
+  trapper: { name: "Trap Setter", color: "#89d37a", description: "Trap Setter seeds temporary traps, mines, or wall turrets depending on its upgrade path. Its traps can catch hidden enemies, but turret mode still cannot detect them." },
   laser: { name: "Laser", color: "#ff7ca8", description: "Laser starts as a single-target burning beam, then branches into plasma or infinite-pierce crystal upgrades." },
   shotgun: { name: "Shotgun", color: "#ffd34d", description: "Shotgun fires short yellow line blasts and can branch into Bullet Storm or the Triple Cannon Wavelength path." },
   freezer: { name: "Freezer", color: "#b5ebff", description: "Freezer launches chilling shots that slow targets, then branches into Permafrost pulses or a constant slowing aura." },
   fireball: { name: "Torch", color: "#ff8b4d", description: "Torch tower. Needs a 2x2 space and can branch into a long-ranged flamethrower or a blazing ring." },
   drone: { name: "Drone", color: "#7de3d6", description: "Drone commands mobile gunships that chase targets inside tower coverage and can branch into support or assault roles." },
   dippy: { name: "Dippy", color: "#fff1b8", description: "Dippy is an egg. A very powerful egg." },
-  support: { name: "Support", color: "#c9b6ff", description: "Support hub boosts nearby towers and can branch into income generation or an ammo supplier aura." },
+  support: { name: "Support", color: "#c9b6ff", description: "Support fort boosts nearby towers and can branch into a fortress battery or a stronger logistics aura." },
+  treasury: { name: "Treasury", color: "#ffd46a", description: "Treasury generates end-of-wave cash and can branch into a trade empire or a loan-and-tax economy hub." },
+  orb: { name: "Orb", color: "#9fd0ff", description: "Orb spins satellites around its core, shredding nearby enemies with rotating contact strikes and adaptive orb modes." },
   crossbow: { name: "Crossbow", color: "#8b5d33", description: "Outpost crossbow tower. Branches into a fast repeater path or a heavy ballista path." },
   gate: { name: "Acid", color: "#91e59d", description: "Acid coats enemies in corrosive spray. Direct hits are light, but the damage over time and acid weakening build up fast." }
 };
@@ -200,7 +220,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 0.8,
     speedBonus: 24,
     reward: 2,
-    description: "Fast triangles sprint through lanes and punish slow reaction times."
+    description: "Fast enemies sprint through lanes and punish slow reaction times."
   },
   speedy: {
     key: "speedy",
@@ -210,7 +230,20 @@ const ENEMY_TYPES = {
     hpMultiplier: 1,
     speedBonus: 24,
     reward: 3,
-    description: "Speedies are bright yellow triangles that trade durability for extreme speed and come in escalating acceleration tiers."
+    description: "Speedies trade durability for extreme speed and stronger higher tiers."
+  },
+  narder: {
+    key: "narder",
+    name: "Narder",
+    color: "#9ff3ff",
+    shape: 3,
+    hpMultiplier: 3.1,
+    speedBonus: 66,
+    reward: 10,
+    slowResistance: 0.75,
+    stunResistance: 0.75,
+    spinRate: 11.1,
+    description: "Narders resist part of slows and stuns while spinning quickly the entire time."
   },
   pentagon: {
     key: "pentagon",
@@ -220,7 +253,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 1.85,
     speedBonus: -8,
     reward: 4,
-    description: "Pentagons are slower but absorb far more punishment than standard creeps."
+    description: "Pentagons move slower but absorb far more punishment than standard enemies."
   },
   octagon: {
     key: "octagon",
@@ -230,7 +263,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 2.2,
     speedBonus: -20,
     reward: 8,
-    description: "Pentagon Tier 4 is the octagonal final pentagon class. It keeps the violet shell, pushes slower, and carries a denser fixed-health body."
+    description: "Pentagon Tier 4 is the toughest pentagon class, with heavier health and slower movement."
   },
   hexagon: {
     key: "hexagon",
@@ -250,7 +283,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 1.6,
     speedBonus: 12,
     reward: 5,
-    description: "Diamonds glide in faster than pentagons and bring sharper mid-wave pressure."
+    description: "Diamonds move faster than pentagons and bring sharper mid-wave pressure."
   },
   health: {
     key: "health",
@@ -260,7 +293,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 1.6,
     speedBonus: 24,
     reward: 3,
-    description: "Healths are fast regenerating runners. They move like Fasts, but carry much more health and rebuild it over time."
+    description: "Health regenerates over time while keeping strong lane speed."
   },
   life: {
     key: "life",
@@ -270,7 +303,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 2.45,
     speedBonus: 18,
     reward: 6,
-    description: "Life is a stronger healing form of Health. It regenerates, heals nearby enemies, and splits into lower tiers when destroyed."
+    description: "Life regenerates, heals nearby enemies, and splits into lower tiers when destroyed."
   },
   heavy: {
     key: "heavy",
@@ -280,7 +313,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 4.9,
     speedBonus: -16,
     reward: 7,
-    description: "Heavies are slow mid-game slabs with very high health that grind steadily toward the base."
+    description: "Heavies bring very high health and steady forward pressure."
   },
   attacker: {
     key: "attacker",
@@ -291,7 +324,7 @@ const ENEMY_TYPES = {
     speedBonus: 42,
     reward: 6,
     hidden: true,
-    description: "Attackers are fast purple raiders that stay hidden until your detection and burst damage are ready for them."
+    description: "Attackers stay hidden and move quickly, demanding detection and burst damage."
   },
   assassin: {
     key: "assassin",
@@ -302,7 +335,7 @@ const ENEMY_TYPES = {
     speedBonus: 50,
     reward: 28,
     hidden: true,
-    description: "Assassins are elite green raiders. They move like advanced attackers, stay hidden, and carry much heavier health through the lane."
+    description: "Assassins stay hidden, move quickly, and carry much heavier health than Attackers."
   },
   shield: {
     key: "shield",
@@ -323,7 +356,7 @@ const ENEMY_TYPES = {
     speedBonus: -10,
     reward: 10,
     waffleSquares: 16,
-    description: "Waffles are layered swarm carriers that break apart into smaller waffles when destroyed."
+    description: "Waffles break apart into smaller waffles when destroyed."
   },
   armored: {
     key: "armored",
@@ -334,7 +367,7 @@ const ENEMY_TYPES = {
     speedBonus: -5,
     reward: 6,
     armor: 4,
-    description: "Armoured enemies wear a bright white ring that blocks kinetic and chemical damage until energy or explosive hits strip it away."
+    description: "Armoured enemies block kinetic and chemical damage until energy or explosive hits strip the armour away."
   },
   biscuit: {
     key: "biscuit",
@@ -344,7 +377,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 0.65,
     speedBonus: 56,
     reward: 4,
-    description: "Shortbread are thin rectangular rushers that sprint even faster than attackers and crack the base hard if they slip through."
+    description: "Shortbread sprint even faster than Attackers and punish leaks hard."
   },
   sentinel: {
     key: "sentinel",
@@ -354,27 +387,27 @@ const ENEMY_TYPES = {
     hpMultiplier: 27.6,
     speedBonus: -10,
     reward: 24,
-    description: "Sentinels are late-game dark red monitors. Their higher classes grow much tankier and split into more pressure when they fall."
+    description: "Sentinels scale into much tankier classes and split into more pressure when they fall."
   },
   behemoth: {
     key: "behemoth",
     name: "Behemoth",
     color: "#d88ca8",
     shape: 8,
-    hpMultiplier: 60,
+    hpMultiplier: 260,
     speedBonus: -18,
-    reward: 72,
-    description: "Behemoth is a colossal pink siege brute with extreme health. When it falls, six softer Pink fragments break free and keep the push going."
+    reward: 1,
+    description: "Behemoth has extreme health and releases six lighter fragments on defeat."
   },
   specialPentagon: {
     key: "specialPentagon",
     name: "Pink",
     color: "#f0a6c4",
     shape: 5,
-    hpMultiplier: 10,
+    hpMultiplier: 54,
     speedBonus: -6,
-    reward: 0,
-    description: "Pink is the lighter first Behemoth class. It appears before full Behemoths and also drops out of them on defeat."
+    reward: 1,
+    description: "This is the lighter Behemoth class and it also drops from Behemoths on defeat."
   },
   hydra: {
     key: "hydra",
@@ -384,7 +417,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 4.2,
     speedBonus: 18,
     reward: 12,
-    description: "Hydra is a chained four-segment serpent. Its heads arrive with hidden, armoured, shelled, and shielded defenses in sequence."
+    description: "Hydra arrives with hidden, armoured, shelled, and shielded defenses in sequence."
   },
   splitter: {
     key: "splitter",
@@ -394,7 +427,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 1.05,
     speedBonus: 16,
     reward: 8,
-    description: "Splitters are glowing yellow orbs that burst into lower-tier copies when destroyed, so they keep lane pressure going even after the first pop."
+    description: "Splitters burst into lower-tier copies when destroyed, keeping lane pressure going after the first pop."
   },
   popcorn: {
     key: "popcorn",
@@ -404,17 +437,17 @@ const ENEMY_TYPES = {
     hpMultiplier: 1.74,
     speedBonus: 20,
     reward: 6,
-    description: "Popcorn is a fragile blue sphere. When it bursts, a wide shower of kernels scatters far from the impact point."
+    description: "Popcorn bursts into a wide shower of kernels."
   },
   kernel: {
     key: "kernel",
     name: "Kernel",
     color: "#7abfff",
     shape: 32,
-    hpMultiplier: 1.05,
+    hpMultiplier: 0.08,
     speedBonus: 46,
     reward: 1,
-    description: "Kernels are tiny blue fragments launched from defeated Popcorn. Their shades change how tough or fast they are."
+    description: "Kernels are Popcorn fragments with varying toughness and speed."
   },
   idine: {
     key: "idine",
@@ -426,7 +459,19 @@ const ENEMY_TYPES = {
     reward: 28,
     armored: true,
     armor: 7,
-    description: "Idine is a late-game splitter elite. Its dark core bursts into Celuns and Celris, which then fracture again."
+    description: "Idine bursts into Celuns and Celris, which then fracture again."
+  },
+  xer: {
+    key: "xer",
+    name: "Xer",
+    color: "#efe6ff",
+    shape: 4,
+    hpMultiplier: 420,
+    speedBonus: -24,
+    reward: 1,
+    armored: true,
+    armor: 14,
+    description: "Xer is a siege boss that bursts into Behemoths, Idines, Skreys, Tier 3 Assassins, Tier 3 Breachers, and Popcorn on defeat."
   },
   celun: {
     key: "celun",
@@ -436,7 +481,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 12.375,
     speedBonus: 22,
     reward: 0,
-    description: "Celuns are purple orbs shed by Idine. They split into Cels and Luns on defeat."
+    description: "Celuns split into Cels and Luns on defeat."
   },
   celris: {
     key: "celris",
@@ -447,7 +492,7 @@ const ENEMY_TYPES = {
     speedBonus: 24,
     reward: 0,
     allowedDamageClasses: ["energy", "explosive"],
-    description: "Celris are pink orbs shed by Idine. Only energy and explosions can damage them."
+    description: "Celris can only be damaged by energy and explosions."
   },
   cel: {
     key: "cel",
@@ -457,7 +502,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 7.125,
     speedBonus: 28,
     reward: 0,
-    description: "Cels are dark blue fragments left from Celuns and Celris."
+    description: "Cels are fragments left from Celuns and Celris."
   },
   lun: {
     key: "lun",
@@ -467,7 +512,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 7.125,
     speedBonus: 30,
     reward: 0,
-    description: "Luns are red fragments split from Celuns."
+    description: "Luns split from Celuns."
   },
   ris: {
     key: "ris",
@@ -479,7 +524,7 @@ const ENEMY_TYPES = {
     reward: 0,
     armored: true,
     armor: 4,
-    description: "Ris are bright fragments split from Celris."
+    description: "Ris split from Celris and keep armour."
   },
   megaWaffle: {
     key: "megaWaffle",
@@ -490,7 +535,7 @@ const ENEMY_TYPES = {
     speedBonus: -14,
     reward: 18,
     waffleSquares: 25,
-    description: "Mega Waffles are massive summoned slabs that briefly disrupt towers when they crash in."
+    description: "Mega Waffles briefly disrupt towers when they crash in."
   },
   idaen: {
     key: "idaen",
@@ -501,7 +546,7 @@ const ENEMY_TYPES = {
     speedBonus: -16,
     reward: 90,
     waffleSquares: 16,
-    description: "Mega Waffle is a giant waffle golem that lumbers in from wave 50 and throws T2 waffles onto the map."
+    description: "Mega Waffle throws Tier 2 waffles onto the map."
   },
   adapter: {
     key: "adapter",
@@ -511,7 +556,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 16,
     speedBonus: 40,
     reward: 10,
-    description: "Adapter is a compact adaptive raider. The first hit it takes does no damage, and that damage class becomes permanently useless against it for the rest of its life."
+    description: "Adapter ignores the first hit it takes, then permanently becomes immune to that damage class."
   },
   breacher: {
     key: "breacher",
@@ -521,7 +566,7 @@ const ENEMY_TYPES = {
     hpMultiplier: 7.2,
     speedBonus: 30,
     reward: 18,
-    description: "Breachers are late-game shield breakers made from twin trapeziums orbiting a bright white core. They rush while shielded, then crawl once the shield is broken."
+    description: "Breachers rush while shielded, then slow down sharply once the shield is broken."
   }
 };
 const DIFFICULTIES = {
@@ -584,15 +629,15 @@ const MAPS = {
     description: "Two portals split the lane while canyon pillars block long tower lines.",
     scenery: "canyon",
     goal: { x: COLS - 1, y: Math.floor(ROWS / 2) },
-    portals: [{ x: 0, y: 5 }, { x: 0, y: 13 }],
-    obstacles: [{ x: 8, y: 6 }, { x: 8, y: 7 }, { x: 14, y: 3 }, { x: 14, y: 11 }, { x: 19, y: 7 }]
+    portals: [{ x: 0, y: 7 }, { x: 0, y: 11 }],
+    obstacles: [{ x: 10, y: 7 }, { x: 10, y: 8 }, { x: 15, y: 6 }, { x: 15, y: 12 }, { x: 20, y: 9 }]
   },
   ruins: {
     name: "Sunken Ruins",
     description: "Three portals breach a flooded ruin field. Islands act as fixed build platforms, and blocks must extend outward from islands or existing walls.",
     scenery: "ruins",
     goal: { x: COLS - 1, y: Math.floor(ROWS / 2) },
-    portals: [{ x: 0, y: 5 }, { x: 0, y: 9 }, { x: 0, y: 13 }],
+    portals: [{ x: 0, y: 7 }, { x: 0, y: 9 }, { x: 0, y: 11 }],
     obstacles: uniqueCells([
       ...cellsFromRects([{ x: 5, y: 4, width: 2, height: 3 }]),
       ...cellsFromRects([{ x: 5, y: 8, width: 2, height: 3 }]),
@@ -609,8 +654,8 @@ const MAPS = {
     description: "Two portals attack from opposite edges while the base sits in the middle beneath mango haze and deep yellow ditches cut through the fields.",
     scenery: "mango",
     goal: { x: CENTER_COL, y: CENTER_ROW },
-    portals: [{ x: 0, y: 4 }, { x: COLS - 1, y: 10 }],
-    obstacles: [{ x: 8, y: 5 }, { x: 8, y: 9 }, { x: 12, y: 2 }, { x: 13, y: 12 }, { x: 17, y: 4 }, { x: 17, y: 10 }],
+    portals: [{ x: 0, y: 6 }, { x: COLS - 1, y: 10 }],
+    obstacles: [{ x: 10, y: 7 }, { x: 10, y: 11 }, { x: 14, y: 5 }, { x: 15, y: 13 }, { x: 19, y: 7 }, { x: 19, y: 11 }],
     noBuildCells: uniqueCells([
       ...cellsFromRects([{ x: 2, y: 2, width: 4, height: 2 }]),
       ...cellsFromPoints([[6, 3], [7, 3], [8, 4], [9, 4], [10, 5]]),
@@ -1000,6 +1045,17 @@ const polyominoes = [
     ]
   },
   {
+    name: "N Pentomino",
+    color: "#d95e8c",
+    offsets: [
+      { x: -1, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+      { x: 1, y: 1 },
+      { x: 2, y: 1 }
+    ]
+  },
+  {
     name: "F Pentomino",
     color: "#cf6bb2",
     offsets: [
@@ -1132,7 +1188,7 @@ let activeWaveWarning = null;
 let introTutorialSeen = false;
 let screenShakeTimer = 0;
 let screenShakeAmount = 0;
-const ALMANAC_TOWER_TYPES = ["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "fireball", "dippy", "support", "crossbow", "gate"];
+const ALMANAC_TOWER_TYPES = ["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "fireball", "dippy", "support", "treasury", "orb", "crossbow", "gate"];
 const MENU_STATE_STORAGE_KEY = "blockDefence.menuState";
 const PROGRESSION_STORAGE_KEY = "blockDefence.progression";
 
@@ -1518,19 +1574,150 @@ function advanceFactoryQuarter() {
 
 function supportWaveIncomeEntries() {
   return towers
-    .filter((tower) => tower.type === "support")
+    .filter((tower) => tower.type === "treasury")
     .map((tower) => ({
       tower,
-      amount: Math.max(0, Math.round(towerStats(tower).waveCash || 0))
+      amount: Math.max(0, Math.round(treasuryWaveIncome(tower)))
     }))
     .filter((entry) => entry.amount > 0);
 }
 
 function supportEnemyDropMultiplier() {
   const bonus = towers
-    .filter((tower) => tower.type === "support")
+    .filter((tower) => (towerStats(tower).enemyDropMultiplier || 1) > 1)
     .reduce((total, tower) => total + Math.max(0, (towerStats(tower).enemyDropMultiplier || 1) - 1), 0);
   return 1 + bonus;
+}
+
+function supportEnemyDropFlatBonus() {
+  return towers.reduce((total, tower) => total + Math.max(0, towerStats(tower).enemyDropFlatBonus || 0), 0);
+}
+
+function enemyCashDropFromKill(enemy) {
+  const baseReward = Math.max(0, Math.round(enemy?.reward || 0));
+  const multipliedReward = Math.max(1, Math.round(baseReward * supportEnemyDropMultiplier()));
+  const flatBonus = supportEnemyDropFlatBonus();
+  return Math.max(1, multipliedReward + flatBonus);
+}
+
+function isWaveRunning() {
+  return Boolean(wave && !wave.complete);
+}
+
+function treasuryTradeEmpireMultiplier(targetTower) {
+  if (!targetTower || targetTower.type !== "treasury") {
+    return 1;
+  }
+
+  let multiplier = 1;
+  for (const tower of towers) {
+    if (tower.id === targetTower.id || tower.type !== "treasury") {
+      continue;
+    }
+    const stats = towerStats(tower);
+    if (!stats.tradeEmpireAura || !stats.auraRadius) {
+      continue;
+    }
+    if (Math.hypot(targetTower.centerX - tower.centerX, targetTower.centerY - tower.centerY) <= stats.auraRadius) {
+      multiplier *= stats.tradeEmpireAura;
+    }
+  }
+  return multiplier;
+}
+
+function treasuryWaveIncome(tower) {
+  const stats = towerStats(tower);
+  if (stats.bankEnabled) {
+    return 0;
+  }
+  return Math.max(0, (stats.waveCash || 0) * treasuryTradeEmpireMultiplier(tower));
+}
+
+function treasuryBankCap(tower) {
+  const stats = towerStats(tower);
+  return Math.max(0, Math.round(stats.bankCap || 0));
+}
+
+function processTreasuryBanks() {
+  for (const tower of towers) {
+    if (tower.type !== "treasury") {
+      continue;
+    }
+    const stats = towerStats(tower);
+    if (!stats.bankEnabled) {
+      continue;
+    }
+    const baseIncome = Math.max(0, (stats.waveCash || 0) * treasuryTradeEmpireMultiplier(tower));
+    const currentStored = Math.max(0, tower.bankStored || 0);
+    const lastIncrease = Math.max(0, tower.bankLastIncrease || baseIncome);
+    const growthGain = currentStored > 0 ? lastIncrease * (currentStored * 0.1) : 0;
+    const rawGain = baseIncome + growthGain;
+    const cap = Math.max(0, Math.round(stats.bankCap || 0));
+    const actualGain = Math.max(0, Math.min(cap - currentStored, rawGain));
+    tower.bankStored = currentStored + actualGain;
+    tower.bankLastIncrease = actualGain;
+    if (actualGain > 0) {
+      addFloatingText(tower.centerX, tower.centerY - 12, `+$${Math.round(actualGain)}`, "#ffe27a", 1.05);
+    }
+    refreshOpenTowerPopup(tower.id);
+  }
+}
+
+function treasuryLoanOffer(tower) {
+  return null;
+}
+
+function processTreasuryLoans() {
+  for (const tower of towers) {
+    if (tower.type !== "treasury") {
+      continue;
+    }
+    const remaining = Math.max(0, tower.loanDebtRemaining || 0);
+    const roundsLeft = Math.max(0, tower.loanRoundsRemaining || 0);
+    if (remaining <= 0 || roundsLeft <= 0) {
+      tower.loanDebtRemaining = 0;
+      tower.loanRoundsRemaining = 0;
+      continue;
+    }
+    const payment = Math.min(remaining, Math.ceil(remaining / roundsLeft));
+    money = Math.max(0, money - payment);
+    tower.loanDebtRemaining = Math.max(0, remaining - payment);
+    tower.loanRoundsRemaining = Math.max(0, roundsLeft - 1);
+    addFloatingText(tower.centerX, tower.centerY + 10, `-$${payment}`, "#ff8f8f", 1);
+    refreshOpenTowerPopup(tower.id);
+  }
+}
+
+function takeTreasuryLoan(tower) {
+  const offer = treasuryLoanOffer(tower);
+  if (!offer) {
+    setMessage("This treasury cannot take a loan right now.", 1.4);
+    return false;
+  }
+  money += offer.amount;
+  tower.loanDebtRemaining = offer.repayTotal;
+  tower.loanRoundsRemaining = offer.rounds;
+  addFloatingText(tower.centerX, tower.centerY - 16, `+$${offer.amount}`, "#ffe27a", 1.15);
+  openTowerPopup(tower);
+  setMessage(`Treasury loan taken: +$${offer.amount} now, repay $${offer.repayTotal} over ${offer.rounds} rounds.`, 2);
+  return true;
+}
+
+function collectTreasuryBank(tower) {
+  if (!tower || tower.type !== "treasury") {
+    return false;
+  }
+  const stored = Math.max(0, Math.round(tower.bankStored || 0));
+  if (stored <= 0) {
+    setMessage("That bank is empty.", 1.2);
+    return false;
+  }
+  money += stored;
+  tower.bankStored = 0;
+  addFloatingText(tower.centerX, tower.centerY - 16, `+$${stored}`, "#ffe27a", 1.15);
+  openTowerPopup(tower);
+  setMessage(`Collected $${stored} from the treasury bank.`, 1.8);
+  return true;
 }
 
 function addFloatingText(x, y, text, color = "#ffe27a", ttl = 1.05) {
@@ -1629,6 +1816,10 @@ function enemyCountMultiplier() {
 
 function rewardMultiplier() {
   return DIFFICULTIES[selectedDifficulty].reward * (activeMap.reward || 1);
+}
+
+function enemyRewardMultiplier() {
+  return rewardMultiplier() * 1.25;
 }
 
 function brutalWaveCountScale(round = waveNumber) {
@@ -1787,6 +1978,133 @@ function cellCenter(x, y) {
     x: x * CELL_SIZE + CELL_SIZE / 2,
     y: y * CELL_SIZE + CELL_SIZE / 2
   };
+}
+
+function boardPerspective() {
+  const boardWidth = COLS * CELL_SIZE;
+  const boardHeight = ROWS * CELL_SIZE;
+  const screenScale = 0.88;
+  return {
+    boardWidth,
+    boardHeight,
+    horizonY: boardHeight * 0.3,
+    centerX: boardWidth / 2,
+    screenOffsetX: (canvas.width - boardWidth * screenScale) / 2,
+    screenOffsetY: (canvas.height - boardHeight * screenScale) / 2,
+    screenScale,
+    minScale: 0.82,
+    depthCurve: 1.12
+  };
+}
+
+function projectBoardPoint(x, y) {
+  const perspective = boardPerspective();
+  const clampedDepth = Math.max(0, Math.min(1, y / perspective.boardHeight));
+  const easedDepth = clampedDepth ** perspective.depthCurve;
+  const scale = perspective.minScale + (1 - perspective.minScale) * easedDepth;
+  return {
+    x: perspective.screenOffsetX + (perspective.centerX + (x - perspective.centerX) * scale) * perspective.screenScale,
+    y: perspective.screenOffsetY + (perspective.horizonY + (perspective.boardHeight - perspective.horizonY) * easedDepth) * perspective.screenScale,
+    scale: scale * perspective.screenScale,
+    depth: easedDepth
+  };
+}
+
+function projectCellCenterPoint(x, y) {
+  return projectBoardPoint(x * CELL_SIZE + CELL_SIZE / 2, y * CELL_SIZE + CELL_SIZE / 2);
+}
+
+function projectCellCorner(x, y) {
+  return projectBoardPoint(x * CELL_SIZE, y * CELL_SIZE);
+}
+
+function projectCellQuad(x, y, widthCells = 1, heightCells = 1) {
+  return {
+    topLeft: projectCellCorner(x, y),
+    topRight: projectCellCorner(x + widthCells, y),
+    bottomRight: projectCellCorner(x + widthCells, y + heightCells),
+    bottomLeft: projectCellCorner(x, y + heightCells)
+  };
+}
+
+function shrinkProjectedQuad(quad, amount = 0.08) {
+  const center = {
+    x: (quad.topLeft.x + quad.topRight.x + quad.bottomRight.x + quad.bottomLeft.x) / 4,
+    y: (quad.topLeft.y + quad.topRight.y + quad.bottomRight.y + quad.bottomLeft.y) / 4
+  };
+  const lerp = (point) => ({
+    x: point.x + (center.x - point.x) * amount,
+    y: point.y + (center.y - point.y) * amount
+  });
+  return {
+    topLeft: lerp(quad.topLeft),
+    topRight: lerp(quad.topRight),
+    bottomRight: lerp(quad.bottomRight),
+    bottomLeft: lerp(quad.bottomLeft)
+  };
+}
+
+function inflateProjectedQuad(quad, padding = 6) {
+  const center = {
+    x: (quad.topLeft.x + quad.topRight.x + quad.bottomRight.x + quad.bottomLeft.x) / 4,
+    y: (quad.topLeft.y + quad.topRight.y + quad.bottomRight.y + quad.bottomLeft.y) / 4
+  };
+  const expand = (point) => {
+    const dx = point.x - center.x;
+    const dy = point.y - center.y;
+    const distance = Math.hypot(dx, dy) || 1;
+    const scale = (distance + padding) / distance;
+    return {
+      x: center.x + dx * scale,
+      y: center.y + dy * scale
+    };
+  };
+  return {
+    topLeft: expand(quad.topLeft),
+    topRight: expand(quad.topRight),
+    bottomRight: expand(quad.bottomRight),
+    bottomLeft: expand(quad.bottomLeft)
+  };
+}
+
+function pointInPolygon(point, vertices) {
+  let sign = 0;
+  for (let index = 0; index < vertices.length; index += 1) {
+    const current = vertices[index];
+    const next = vertices[(index + 1) % vertices.length];
+    const cross = (next.x - current.x) * (point.y - current.y) - (next.y - current.y) * (point.x - current.x);
+    if (Math.abs(cross) < 1e-6) {
+      continue;
+    }
+    const currentSign = Math.sign(cross);
+    if (sign === 0) {
+      sign = currentSign;
+    } else if (currentSign !== sign) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function pointInProjectedQuad(point, quad, padding = 0) {
+  const hitQuad = padding > 0 ? inflateProjectedQuad(quad, padding) : quad;
+  return pointInPolygon(point, [hitQuad.topLeft, hitQuad.topRight, hitQuad.bottomRight, hitQuad.bottomLeft]);
+}
+
+function fillProjectedQuad(quad, fillStyle, strokeStyle = null, lineWidth = 0) {
+  ctx.fillStyle = fillStyle;
+  ctx.beginPath();
+  ctx.moveTo(quad.topLeft.x, quad.topLeft.y);
+  ctx.lineTo(quad.topRight.x, quad.topRight.y);
+  ctx.lineTo(quad.bottomRight.x, quad.bottomRight.y);
+  ctx.lineTo(quad.bottomLeft.x, quad.bottomLeft.y);
+  ctx.closePath();
+  ctx.fill();
+  if (strokeStyle) {
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
 }
 
 function rotateOffset(offset, turns) {
@@ -2337,6 +2655,7 @@ function enemyAlmanacEntries() {
   const orderedKeys = [
     "fast",
     "speedy",
+    "narder",
     "pentagon",
     "octagon",
     "hexagon",
@@ -2356,6 +2675,7 @@ function enemyAlmanacEntries() {
     "assassin",
     "hydra",
     "idine",
+    "xer",
     "celun",
     "celris",
     "cel",
@@ -2372,7 +2692,7 @@ function enemyAlmanacEntries() {
       continue;
     }
 
-    if (enemy.key === "idaen" || enemy.key === "adapter" || enemy.key === "hydra" || enemy.key === "behemoth") {
+    if (enemy.key === "idaen" || enemy.key === "adapter" || enemy.key === "hydra" || enemy.key === "behemoth" || enemy.key === "xer") {
       entries.push({ id: `${enemy.key}:1`, key: enemy.key, tier: 1 });
       continue;
     }
@@ -2445,9 +2765,22 @@ function enemySpecialAbilities(enemy, entry = null) {
   if (enemy.key === "kernel") {
     specials.push("Spawned by Popcorn");
     specials.push("Spreads out across a large area on release");
+    specials.push("Only 2 HP");
+  }
+  if (enemy.key === "narder") {
+    specials.push("Fast spinning triquetra");
+    specials.push("Takes 25% less slowing and stunning");
+    if ((entry?.tier || 1) >= 2) {
+      specials.push("Japper form uses denser detail loops");
+    }
   }
   if (enemy.key === "idine") {
     specials.push("Splits into 4 Celuns and 4 Celris");
+  }
+  if (enemy.key === "xer") {
+    specials.push("Very large late-game boss enemy");
+    specials.push("Diamond-shaped and packed with smaller detail plates");
+    specials.push("Splits into 3 Behemoths, 4 Idines, 4 Skreys, 6 T3 Assassins, 8 T3 Breachers, and 8 Popcorns");
   }
   if (enemy.key === "celun") {
     specials.push("Splits into 2 Cels and 2 Luns");
@@ -2478,7 +2811,7 @@ function enemySpecialAbilities(enemy, entry = null) {
   }
   if (enemy.key === "behemoth") {
     specials.push("Drops 6 Pinks on defeat");
-    specials.push("Each Pink has 250 HP");
+    specials.push("Each Pink has 600 HP");
   }
   if (enemy.key === "specialPentagon") {
     specials.push("Counts as T1 Behemoth in sandbox");
@@ -2522,6 +2855,9 @@ function enemyAlmanacDescription(enemy, entry) {
   const behaviorDescriptions = {
     fast: "Rushes the lane quickly and punishes slow reaction time.",
     speedy: "An upgraded Fast that pushes extreme movement speed, with later tiers accelerating even harder.",
+    narder: tier >= 2
+      ? "Japper is the tier 2 Narder form, a faster detailed triquetra that keeps spinning while shrugging off part of slows and stuns."
+      : "A fast spinning triquetra runner that resists part of slows and stuns.",
     pentagon: "Moves more slowly than Fast enemies but carries much more health.",
     octagon: "The final Pentagon tier uses fixed health and slower movement to act as a sturdier specialist.",
     hexagon: "A heavy elite that leans on very high health and steady forward pressure.",
@@ -2541,10 +2877,11 @@ function enemyAlmanacDescription(enemy, entry) {
       : tier >= 2
         ? "Overwatch is the middle Sentinel tier, dropping 8 Sentinels on defeat with wider split pressure."
         : "A late-game tank that becomes much more dangerous once higher Sentinel tiers start chaining splits.",
-    behemoth: "A colossal siege brute with extreme health that drops 6 Pinks on defeat.",
+    behemoth: "A colossal siege brute with extreme health that drops 6 Pinks on defeat, with cash equal to its HP.",
     specialPentagon: "The light Behemoth class that appears before full Behemoths arrive.",
     hydra: "Spawns as a four-segment chain whose heads arrive with hidden, armoured, shelled, and shielded defenses in sequence.",
     idine: "A late-game splitter elite that bursts into 4 Celuns and 4 Celris on defeat.",
+    xer: "An enormous diamond-shaped siege horror that detonates into Behemoths, Idines, Skreys, elite raiders, and Popcorn when it dies.",
     celun: "A mid-split Idine spawn that breaks into 2 Cels and 2 Luns on defeat.",
     celris: "An Idine spawn that can only be damaged by energy and explosions, then splits into 2 Cels and 2 Ris.",
     cel: "A small fragment spawned by the Idine family after larger splits break apart.",
@@ -2552,7 +2889,7 @@ function enemyAlmanacDescription(enemy, entry) {
     ris: "A small fragment produced when Celris split.",
     splitter: "Comes in 10 tiers, with each tier at double the previous tier's health, and splits into 2 of the previous tier on defeat.",
     popcorn: "Bursts into 25 kernels on defeat and scatters them across a wide area.",
-    kernel: "A fragment spawned by Popcorn and released across a broad area when Popcorn bursts."
+    kernel: "A fragile 2 HP fragment spawned by Popcorn and released across a broad area when Popcorn bursts."
   };
   const baseDescription = behaviorDescriptions[enemy.key] || enemy.description || "";
   const specials = enemySpecialAbilities(enemy, entry).filter((special) => {
@@ -2581,6 +2918,9 @@ function enemyAlmanacDisplayName(entry) {
   }
   if (entry.key === "sentinel") {
     return entry.tier >= 3 ? "Skrey" : entry.tier >= 2 ? "Overwatch" : "Sentinel";
+  }
+  if (entry.key === "narder") {
+    return entry.tier >= 2 ? "Japper" : "Narder";
   }
   if (entry.key === "assassin") {
     return `Assassin Tier ${entry.tier}`;
@@ -2665,10 +3005,22 @@ function enemyAlmanacStats(entry) {
 
   if (entry.key === "behemoth") {
     return {
-      hp: 1200,
+      hp: 8000,
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
-      reward: Math.max(1, Math.round(enemy.reward)),
-      extras: ["Drops 6 Pinks with 250 HP each", `Appears from ${sandboxWaveForEnemyTier("behemoth", 2)}`]
+      reward: 8000,
+      extras: ["Drops 6 Pinks with 600 HP each and cash equal to HP", `Appears from ${sandboxWaveForEnemyTier("behemoth", 2)}`]
+    };
+  }
+
+  if (entry.key === "xer") {
+    return {
+      hp: 24000,
+      speed: Math.max(0.58, ((((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE) * 0.56),
+      reward: 24000,
+      extras: [
+        "Drops 3 Behemoths, 4 Idines, 4 Skreys, 6 T3 Assassins, 8 T3 Breachers, and 8 Popcorns",
+        `Appears from ${sandboxWaveForEnemyTier("xer", 1)}`
+      ]
     };
   }
 
@@ -2683,10 +3035,10 @@ function enemyAlmanacStats(entry) {
 
   if (entry.key === "specialPentagon") {
     return {
-      hp: 250,
+      hp: 600,
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
-      reward: 0,
-      extras: ["T1 Behemoth class", `Appears from ${sandboxWaveForEnemyTier("specialPentagon", 1)}`]
+      reward: 600,
+      extras: ["T1 Behemoth class with cash equal to HP", `Appears from ${sandboxWaveForEnemyTier("specialPentagon", 1)}`]
     };
   }
 
@@ -2811,7 +3163,7 @@ function enemyAlmanacStats(entry) {
 
 function almanacTierPattern(entry) {
   const tier = entry.tier || 1;
-  if (tier <= 1 || entry.key === "sentinel" || entry.key === "splitter" || entry.key === "hydra" || entry.key === "idaen" || entry.key === "adapter") {
+  if (tier <= 1 || entry.key === "sentinel" || entry.key === "splitter" || entry.key === "hydra" || entry.key === "idaen" || entry.key === "adapter" || entry.key === "xer") {
     return "";
   }
   if (tier === 2) {
@@ -2849,7 +3201,7 @@ function buildEnemyAlmanacPreview(entry) {
     return null;
   }
 
-  const preview = {
+    const preview = {
     key: baseKey,
     tier,
     x: 60,
@@ -2866,7 +3218,15 @@ function buildEnemyAlmanacPreview(entry) {
     armored: false,
     armorHp: 0,
     suppressArmorVisual: false,
-    sizeScale: baseKey === "sentinel" ? (tier >= 3 ? 1.62 : tier >= 2 ? 1.34 : 1.08) : (tierConfig?.radiusMultiplier || 1),
+      sizeScale: baseKey === "sentinel"
+        ? (tier >= 3 ? 1.62 : tier >= 2 ? 1.34 : 1.08)
+        : baseKey === "behemoth"
+          ? 2.65
+          : baseKey === "xer"
+            ? 4.1
+          : baseKey === "specialPentagon"
+            ? 1.95
+            : (tierConfig?.radiusMultiplier || 1),
     coreColor: tierConfig?.coreColor || null,
     shieldRadius: 0,
     waffleSquares: baseKey === "waffle16" ? (tier >= 3 ? 16 : tier === 2 ? 4 : 1) : (enemyType.waffleSquares || 0)
@@ -2928,14 +3288,14 @@ function enemyAlmanacArtDataUrl(entry) {
 }
 
 function renderEnemyAlmanacArt(entry) {
-  const imageWidth = entry.key === "adapter" || entry.key === "idaen" || entry.key === "hydra"
+  const imageWidth = entry.key === "adapter" || entry.key === "idaen" || entry.key === "hydra" || entry.key === "xer"
     ? 76
     : entry.key.includes("Kernel") || entry.key === "kernel"
       ? 66
       : 72;
   const imageHeight = entry.key === "biscuit" || entry.key === "hydra"
     ? 48
-    : entry.key === "idaen"
+    : entry.key === "idaen" || entry.key === "xer"
       ? 54
       : 52;
   return `<img src="${enemyAlmanacArtDataUrl(entry)}" width="${imageWidth}" height="${imageHeight}" alt="${enemyAlmanacDisplayName(entry)}">`;
@@ -2943,7 +3303,6 @@ function renderEnemyAlmanacArt(entry) {
 
 function kernelVariantAlmanacStats(variant, round = Math.max(waveNumber, 1)) {
   const popcorn = ENEMY_TYPES.popcorn;
-  const baseHp = (5 + round) * popcorn.hpMultiplier * DIFFICULTIES.standard.hp;
   const baseSpeed = ((30 + round * 2 + popcorn.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1) / CELL_SIZE;
   const configs = {
     dark: { label: "Dark", hp: 3, speed: 1 },
@@ -2953,7 +3312,7 @@ function kernelVariantAlmanacStats(variant, round = Math.max(waveNumber, 1)) {
   const config = configs[variant];
   return {
     label: config.label,
-    hp: Math.round(baseHp * config.hp),
+    hp: 2,
     speed: baseSpeed * config.speed,
     reward: 0
   };
@@ -3299,11 +3658,11 @@ function deterministicRolledTierForWave(enemyKey, round, rng) {
   const thirdWave = firstWaveForEnemyTier(enemyKey, 3);
   const secondWave = firstWaveForEnemyTier(enemyKey, 2);
 
-  if (maxTier >= 3 && round >= thirdWave && rng() < Math.min(0.18 + (round - thirdWave) * 0.012, 0.58)) {
+  if (maxTier >= 3 && round >= thirdWave && rng() < Math.min(0.08 + (round - thirdWave) * 0.007, 0.46)) {
     return 3;
   }
 
-  if (maxTier >= 2 && round >= secondWave && rng() < Math.min(0.14 + (round - secondWave) * 0.03, 0.72)) {
+  if (maxTier >= 2 && round >= secondWave && rng() < Math.min(0.06 + (round - secondWave) * 0.018, 0.6)) {
     return 2;
   }
 
@@ -3487,6 +3846,9 @@ function waveAlmanacSummary(round) {
     if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 10 && roll > 0.67) {
       enemyType = ENEMY_TYPES.speedy;
     }
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 52 && roll > 0.952) {
+      enemyType = ENEMY_TYPES.narder;
+    }
     if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 7 && roll > 0.72) {
       enemyType = ENEMY_TYPES.diamond;
     }
@@ -3556,8 +3918,11 @@ function waveAlmanacSummary(round) {
     if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 68 && roll > 0.9945) {
       enemyType = ENEMY_TYPES.behemoth;
     }
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && round >= 100 && roll > 0.9972) {
+      enemyType = ENEMY_TYPES.xer;
+    }
 
-    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && enemyType.key !== "hydra" && enemyType.key !== "behemoth" && enemyType.key !== "idaen") {
+    if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && enemyType.key !== "hydra" && enemyType.key !== "behemoth" && enemyType.key !== "idaen" && enemyType.key !== "xer") {
       const naturalEliteRoll = rng();
       if (round >= 74 && naturalEliteRoll > 0.992) {
         enemyType = ENEMY_TYPES.idine;
@@ -3625,11 +3990,18 @@ function waveAlmanacSummary(round) {
     });
 
     if (enemyType.key === "behemoth" && enemy) {
-      enemy.hp = 1200;
-      enemy.maxHp = 1200;
+      enemy.hp = 4800;
+      enemy.maxHp = 4800;
       enemy.speed = Math.max(CELL_SIZE * 0.82, enemy.speed * 0.72);
-      enemy.reward = enemyCashFromHp(enemy.maxHp);
+      enemy.reward = enemyCashFromHp(enemy.maxHp) * 4;
     }
+  if (enemyType.key === "xer" && enemy) {
+    enemy.hp = 18000;
+    enemy.maxHp = 18000;
+    enemy.speed = Math.max(CELL_SIZE * 0.42, enemy.speed * 0.42);
+    enemy.reward = enemy.maxHp;
+    enemy.sizeScale = 4.9;
+  }
 
     addEnemy(enemy);
   }
@@ -3741,11 +4113,11 @@ function rolledTierForWave(enemyKey, round = waveNumber) {
   const thirdWave = firstWaveForEnemyTier(enemyKey, 3);
   const secondWave = firstWaveForEnemyTier(enemyKey, 2);
 
-  if (maxTier >= 3 && round >= thirdWave && Math.random() < Math.min(0.18 + (round - thirdWave) * 0.012, 0.58)) {
+  if (maxTier >= 3 && round >= thirdWave && Math.random() < Math.min(0.08 + (round - thirdWave) * 0.007, 0.46)) {
     return 3;
   }
 
-  if (maxTier >= 2 && round >= secondWave && Math.random() < Math.min(0.14 + (round - secondWave) * 0.03, 0.72)) {
+  if (maxTier >= 2 && round >= secondWave && Math.random() < Math.min(0.06 + (round - secondWave) * 0.018, 0.6)) {
     return 2;
   }
 
@@ -3761,7 +4133,16 @@ function splitterHpForTier(tier = 1, hpScale = 1) {
 }
 
 function maxTierForEnemy(enemyKey) {
-  return enemyKey === "splitter" ? 10 : enemyKey === "sentinel" ? 3 : 3;
+  if (enemyKey === "splitter") {
+    return 10;
+  }
+  if (enemyKey === "sentinel") {
+    return 3;
+  }
+  if (enemyKey === "narder") {
+    return 2;
+  }
+  return 3;
 }
 
 function waffleTypeForTier(tier = 3) {
@@ -3769,7 +4150,7 @@ function waffleTypeForTier(tier = 3) {
 }
 
 function enemySupportsTiers(enemyKey) {
-  return enemyKey !== "idaen" && enemyKey !== "hydra" && enemyKey !== "adapter" && enemyKey !== "behemoth" && enemyKey !== "octagon" && enemyKey !== "specialPentagon" && enemyKey !== "popcorn" && enemyKey !== "kernel" && enemyKey !== "idine" && enemyKey !== "celun" && enemyKey !== "celris" && enemyKey !== "cel" && enemyKey !== "lun" && enemyKey !== "ris";
+  return enemyKey !== "idaen" && enemyKey !== "hydra" && enemyKey !== "adapter" && enemyKey !== "behemoth" && enemyKey !== "xer" && enemyKey !== "octagon" && enemyKey !== "specialPentagon" && enemyKey !== "popcorn" && enemyKey !== "kernel" && enemyKey !== "idine" && enemyKey !== "celun" && enemyKey !== "celris" && enemyKey !== "cel" && enemyKey !== "lun" && enemyKey !== "ris";
 }
 
 function isDiamondEnemy(enemy) {
@@ -4068,7 +4449,7 @@ function populateSandboxEnemyOptions() {
     .map((key) => `<option value="${key}">${sandboxEnemyOptionLabel(key)} (${sandboxEnemyWaveLabel(key)})</option>`)
     .join("");
   sandboxEnemySelect.innerHTML = [
-    renderGroup("Main Enemies", ["fast", "speedy", "pentagon", "octagon", "hexagon", "diamond", "health", "life", "heavy", "splitter", "waffle16", "biscuit", "sentinel", "attacker", "assassin", "breacher", "hydra", "behemoth", "idaen", "adapter"]),
+    renderGroup("Main Enemies", ["fast", "speedy", "narder", "pentagon", "octagon", "hexagon", "diamond", "health", "life", "heavy", "splitter", "waffle16", "biscuit", "sentinel", "attacker", "assassin", "breacher", "hydra", "behemoth", "idaen", "adapter", "xer"]),
     renderOptions(["popcorn", "idine"])
   ].join("");
   updateSandboxTierOptions();
@@ -4193,7 +4574,7 @@ function updateSandboxTierOptions() {
     return;
   }
 
-  if (enemyKey === "hydra" || enemyKey === "adapter" || enemyKey === "octagon" || enemyKey === "specialPentagon" || enemyKey === "kernel" || enemyKey === "celun" || enemyKey === "celris" || enemyKey === "cel" || enemyKey === "lun" || enemyKey === "ris") {
+  if (enemyKey === "hydra" || enemyKey === "adapter" || enemyKey === "xer" || enemyKey === "octagon" || enemyKey === "specialPentagon" || enemyKey === "kernel" || enemyKey === "celun" || enemyKey === "celris" || enemyKey === "cel" || enemyKey === "lun" || enemyKey === "ris") {
     const familyTier = sandboxFamilyTierForEnemy(enemyKey);
     sandboxTierLabel.textContent = familyTier ? "Family Tier" : "Tier";
     sandboxTierSelect.innerHTML = `<option value="1">${familyTier ? `Tier ${familyTier}` : "Tier 1"} (${sandboxWaveForEnemyTier(enemyKey, 1)})</option>`;
@@ -4203,11 +4584,11 @@ function updateSandboxTierOptions() {
   }
 
   sandboxTierLabel.textContent = "Tier";
-  sandboxTierSelect.innerHTML = `
-    <option value="1">Tier 1 (${sandboxWaveForEnemyTier(enemyKey, 1)})</option>
-    <option value="2">Tier 2 (${sandboxWaveForEnemyTier(enemyKey, 2)})</option>
-    <option value="3">Tier 3 (${sandboxWaveForEnemyTier(enemyKey, 3)})</option>
-  `;
+  const maxTier = maxTierForEnemy(enemyKey);
+  sandboxTierSelect.innerHTML = Array.from({ length: maxTier }, (_, index) => {
+    const tier = index + 1;
+    return `<option value="${tier}">Tier ${tier} (${sandboxWaveForEnemyTier(enemyKey, tier)})</option>`;
+  }).join("");
   const tiered = enemyUsesTiers(enemyKey);
   sandboxTierSelect.disabled = !tiered;
   sandboxTierSelect.parentElement?.classList.toggle("disabled", !tiered);
@@ -4227,6 +4608,7 @@ function firstWaveForEnemyTier(enemyKey, tier = 1) {
 
   const tierWaves = {
     fast: [1, 15, 46],
+    narder: [52, 68],
     speedy: [10, 22, 40],
     pentagon: [3, 16, 46],
     octagon: [35],
@@ -4253,7 +4635,8 @@ function firstWaveForEnemyTier(enemyKey, tier = 1) {
     lun: [86],
     ris: [88],
     idaen: [50],
-    adapter: [68]
+    adapter: [68],
+    xer: [100]
   };
 
   const waves = tierWaves[enemyKey] || [1];
@@ -4825,6 +5208,22 @@ function relocateTowerTo(tower, x, y) {
   return true;
 }
 
+function clearTowerFootprint(tower) {
+  for (const cell of tower.footprintCells || [{ x: tower.x, y: tower.y }]) {
+    if (inBounds(cell.x, cell.y) && grid[cell.y][cell.x].towerId === tower.id) {
+      grid[cell.y][cell.x].towerId = null;
+    }
+  }
+}
+
+function restoreTowerFootprint(tower) {
+  for (const cell of tower.footprintCells || [{ x: tower.x, y: tower.y }]) {
+    if (inBounds(cell.x, cell.y)) {
+      grid[cell.y][cell.x].towerId = tower.id;
+    }
+  }
+}
+
 function blockAnchorCell(block) {
   const minX = Math.min(...block.cells.map((cell) => cell.x));
   const minY = Math.min(...block.cells.map((cell) => cell.y));
@@ -4840,12 +5239,25 @@ function blockHasTowerOnIt(block) {
   return block.cells.some((cell) => grid[cell.y][cell.x].towerId !== null);
 }
 
+function towersOnBlock(block) {
+  if (!block) {
+    return [];
+  }
+  const blockCellKeys = new Set(block.cells.map((cell) => `${cell.x},${cell.y}`));
+  return towers.filter((tower) => (tower.footprintCells || [{ x: tower.x, y: tower.y }]).every((cell) => blockCellKeys.has(`${cell.x},${cell.y}`)));
+}
+
 function canRelocateBlockTo(block, x, y) {
-  if (!block || block.locked || blockHasTowerOnIt(block)) {
+  if (!block || block.locked) {
     return false;
   }
 
   const cells = blockCellsFromAnchor(block, x, y);
+  const anchor = blockAnchorCell(block);
+  const offsetX = x - anchor.x;
+  const offsetY = y - anchor.y;
+  const movingTowers = towersOnBlock(block);
+  const movingTowerIds = new Set(movingTowers.map((tower) => tower.id));
   if (isFactoryMap() && !cellsShareFactoryQuarter(cells)) {
     return false;
   }
@@ -4869,13 +5281,37 @@ function canRelocateBlockTo(block, x, y) {
     if ((grid[cell.y][cell.x].blockId !== null && grid[cell.y][cell.x].blockId !== block.id) || (obstacleAt(cell.x, cell.y) && !islandAt(cell.x, cell.y))) {
       return false;
     }
-    if (grid[cell.y][cell.x].towerId !== null) {
+    if (grid[cell.y][cell.x].towerId !== null && !movingTowerIds.has(grid[cell.y][cell.x].towerId)) {
       return false;
     }
   }
 
   if (mapUsesIslandPlacement() && !cellsTouchAnchoredLand(cells)) {
     return false;
+  }
+
+  for (const tower of movingTowers) {
+    const footprint = (tower.footprintCells || [{ x: tower.x, y: tower.y }]).map((cell) => ({
+      x: cell.x + offsetX,
+      y: cell.y + offsetY
+    }));
+    for (const cell of footprint) {
+      if (!inBounds(cell.x, cell.y) || isEndpoint(cell.x, cell.y)) {
+        return false;
+      }
+      const state = grid[cell.y][cell.x];
+      const translatedOnBlock = cells.some((entry) => entry.x === cell.x && entry.y === cell.y);
+      const hasSurface = translatedOnBlock || islandAt(cell.x, cell.y) || cellAllowsTowerSurface(cell.x, cell.y);
+      if (!hasSurface || furnaceLavaPitAt(cell.x, cell.y)) {
+        return false;
+      }
+      if (state.towerId !== null && state.towerId !== tower.id && !movingTowerIds.has(state.towerId)) {
+        return false;
+      }
+    }
+    if (isFurnaceMap() && towerNearFurnaceHeat(footprint)) {
+      return false;
+    }
   }
 
   return isFactoryMap()
@@ -4888,7 +5324,14 @@ function relocateBlockTo(block, x, y) {
     return false;
   }
 
+  const movingTowers = towersOnBlock(block);
+  const anchor = blockAnchorCell(block);
+  const offsetX = x - anchor.x;
+  const offsetY = y - anchor.y;
   const cells = blockCellsFromAnchor(block, x, y);
+  for (const tower of movingTowers) {
+    clearTowerFootprint(tower);
+  }
   for (const cell of block.cells) {
     grid[cell.y][cell.x].blockId = null;
   }
@@ -4896,6 +5339,21 @@ function relocateBlockTo(block, x, y) {
     grid[cell.y][cell.x].blockId = block.id;
   }
   block.cells = cells;
+  for (const tower of movingTowers) {
+    const nextX = tower.x + offsetX;
+    const nextY = tower.y + offsetY;
+    const footprintCells = (tower.footprintCells || [{ x: tower.x, y: tower.y }]).map((cell) => ({
+      x: cell.x + offsetX,
+      y: cell.y + offsetY
+    }));
+    const center = towerPlacementCenter(tower.type, nextX, nextY);
+    tower.x = nextX;
+    tower.y = nextY;
+    tower.footprintCells = footprintCells;
+    tower.centerX = center.x;
+    tower.centerY = center.y;
+    restoreTowerFootprint(tower);
+  }
   routes = computeRoutes();
   return true;
 }
@@ -4959,6 +5417,67 @@ function towerAtCell(x, y) {
   return towers.find((tower) => tower.id === towerId) || null;
 }
 
+function towerAtPoint(point) {
+  if (!point) {
+    return null;
+  }
+
+  for (let index = towers.length - 1; index >= 0; index -= 1) {
+    const tower = towers[index];
+    const render = projectBoardPoint(tower.centerX, tower.centerY);
+    if (Math.hypot(point.x - render.x, point.y - render.y) <= Math.max(20, 24 * render.scale)) {
+      return tower;
+    }
+
+    const footprint = tower.footprintCells?.length ? tower.footprintCells : [{ x: tower.x, y: tower.y }];
+    for (const cell of footprint) {
+      if (pointInProjectedQuad(point, projectCellQuad(cell.x, cell.y), 6)) {
+        return tower;
+      }
+    }
+  }
+
+  return null;
+}
+
+function towerRelocationSelectionRadius(tower) {
+  const footprint = tower.footprintCells?.length ? tower.footprintCells : [{ x: tower.x, y: tower.y }];
+  let maxDistance = CELL_SIZE * 0.5;
+  for (const cell of footprint) {
+    const center = cellCenter(cell.x, cell.y);
+    const dx = center.x - tower.centerX;
+    const dy = center.y - tower.centerY;
+    maxDistance = Math.max(maxDistance, Math.hypot(dx, dy) + CELL_SIZE * 0.68);
+  }
+  return maxDistance + 6;
+}
+
+function relocateSelectableTowerAtPoint(point, commandTower) {
+  if (!point) {
+    return null;
+  }
+
+  const directHit = towerAtPoint(point);
+  if (directHit && directHit.id !== commandTower.id && !directHit.upgradeLocked) {
+    return directHit;
+  }
+
+  const ringThickness = 12;
+  for (let index = towers.length - 1; index >= 0; index -= 1) {
+    const tower = towers[index];
+    if (tower.id === commandTower.id || tower.upgradeLocked) {
+      continue;
+    }
+    const radius = towerRelocationSelectionRadius(tower);
+    const distance = Math.hypot(point.x - tower.centerX, point.y - tower.centerY);
+    if (distance >= radius - ringThickness && distance <= radius + ringThickness) {
+      return tower;
+    }
+  }
+
+  return null;
+}
+
 function addPresetBlock(cells, color = "#7f8d99", name = "Fort Wall", locked = true) {
   const blockId = nextBlockId;
   const block = { id: blockId, color, name, cells, locked };
@@ -4982,6 +5501,7 @@ function addPresetTower(type, x, y, overrides = {}) {
     path1: 0,
     path2: 0,
     targetPriority: "first",
+    orbType: "explosive",
     cannonPriorities: ["first", "strong", "last"],
     spent: overrides.spent ?? 0,
     totalDamageDealt: overrides.totalDamageDealt ?? 0,
@@ -5266,6 +5786,7 @@ function mockTower(type, overrides = {}) {
     path1: 0,
     path2: 0,
     targetPriority: "first",
+    orbType: "explosive",
     cannonPriorities: ["first", "strong", "last"],
     spent: towerCost(type),
     x: 0,
@@ -5322,7 +5843,7 @@ function trapperPathDescription(path, tier) {
     2: {
       1: "Path 2 T1: Reinforced Traps. +15 seconds lifetime.",
       2: "Path 2 T2: Better Engineering. Traps now hold 12 spikes.",
-      3: "Path 2 T3: Sticky Traps. Traps now slow enemies.",
+      3: "Path 2 T3: Improved Trap. Traps now slow enemies and the setter places three at once.",
       4: "Path 2 T4: Mines. Explodes after 12 steps or when time runs out.",
       5: "Path 2 T5: Mango Mines. Explosions rain slowing mango bombs."
     }
@@ -5365,8 +5886,8 @@ function shotgunPathDescription(path, tier) {
       1: "Path 2 T1: Signal Splitter. Fires 4 yellow lines.",
       2: "Path 2 T2: Harmonic Fan. Fires 5 yellow lines.",
       3: "Path 2 T3: Broadwave. Converts to a wide tuned blast for lane coverage.",
-      4: "Path 2 T4: Golden Spectrum. Splits into dual tuned cannons with independent priorities.",
-      5: "Path 2 T5: Wavelength V. A third cannon joins the battery for expensive precision coverage."
+      4: "Path 2 T4: Golden Spectrum. Fires a huge 120 degree wave with 15 bullets.",
+      5: "Path 2 T5: Wavelength V. Fires 36 bullets across a full 180 degree wave."
     }
   };
 
@@ -5439,18 +5960,60 @@ function crossbowPathDescription(path, tier) {
 function supportPathDescription(path, tier) {
   const descriptions = {
     1: {
-      1: "Path 1 T1: Budget Desk. Gives extra cash at the end of each wave.",
-      2: "Path 1 T2: Counting House. End-of-wave income increases.",
-      3: "Path 1 T3: Treasury Office. Stronger income payout each wave.",
-      4: "Path 1 T4: Revenue Bureau. Big end-of-wave cash boost.",
-      5: "Path 1 T5: Golden Reserve. Massive bonus cash every wave."
+      1: "Path 1 T1: Outer Sentry. The fort mounts a sentry gun and starts firing on enemies.",
+      2: "Path 1 T2: Reinforced Emplacement. Adds another sentry and hardens the fort's firepower.",
+      3: "Path 1 T3: Bastion Keep. Upgrades to a heavier fortress battery with more sentry coverage.",
+      4: "Path 1 T4: Courtyard Mortar. The fort adds a mortar battery for explosive support fire.",
+      5: "Path 1 T5: Iron Citadel. Sentries hit much harder while missile racks join the fortress battery."
     },
     2: {
       1: "Path 2 T1: Packed Crates. Support radius increases.",
       2: "Path 2 T2: Better Logistics. Nearby towers attack faster.",
       3: "Path 2 T3: Logistics Net. Nearby towers attack even faster.",
       4: "Path 2 T4: Telescope. Nearby towers attack faster and can also see hidden enemies.",
-      5: "Path 2 T5: Munitions Hub. Nearby towers gain explosive anti-armour attacks and the hub fires small support rockets every 3 seconds."
+      5: "Path 2 T5: War Supply Depot. Nearby towers gain explosive anti-armour attacks, but the depot stays focused on logistics instead of launching missiles."
+    }
+  };
+
+  return descriptions[path][tier];
+}
+
+function treasuryPathDescription(path, tier) {
+  const descriptions = {
+    1: {
+      1: "Path 1 T1: Increased Trading. Gains 2 more cash per round.",
+      2: "Path 1 T2: Trade Surplus. Gains 5 more cash per round.",
+      3: "Path 1 T3: Merchant Syndicate. Gains 18 more cash per round.",
+      4: "Path 1 T4: Sovereign Fund. Gains 80 more cash per round.",
+      5: "Path 1 T5: Trade Empire. Generates 800 cash per round and nearby treasuries generate 20% more."
+    },
+    2: {
+      1: "Path 2 T1: Tax Registry. Enemy cash drops increase slightly.",
+      2: "Path 2 T2: Customs Office. Enemy cash drops increase further.",
+      3: "Path 2 T3: Credit Bank. Enemy cash drops increase and this treasury stores round cash in a collectable bank up to 120.",
+      4: "Path 2 T4: Bond Vault. Better enemy cash and a much larger bank.",
+      5: "Path 2 T5: National Reserve. Big enemy cash gains and an enormous bank."
+    }
+  };
+
+  return descriptions[path][tier];
+}
+
+function orbPathDescription(path, tier) {
+  const descriptions = {
+    1: {
+      1: "Path 1 T1: Faster Spin. Orb rotation speed increases.",
+      2: "Path 1 T2: Third Orb. Adds a third orb to the ring.",
+      3: "Path 1 T3: Orb Swarm. Increases the ring to five orbs.",
+      4: "Path 1 T4: Ultra Orb. The ring spins faster and each orb hits harder.",
+      5: "Path 1 T5: Astral Array. Expands to eight orbs, spins faster, gains extra pierce, survives more hits, and improves regeneration."
+    },
+    2: {
+      1: "Path 2 T1: Rapid Reforge. Orb regeneration rate improves significantly.",
+      2: "Path 2 T2: Dense Shell. Orbs gain more pierce.",
+      3: "Path 2 T3: Smart Orbs. Unlocks Energy, Concentrated, and Explosive orb types. Energy burns and strips shields, Concentrated heavily slows, and Explosive splashes.",
+      4: "Path 2 T4: Adaptive Orbs. Unlocks Adaptive orb type, which swaps modes automatically for crowds, armour, shields, and strong enemies.",
+      5: "Path 2 T5: Singularity Halo. Orbs become empowered, with every hit burning, exploding, and briefly stunning while surviving more hits and regenerating faster."
     }
   };
 
@@ -5461,10 +6024,10 @@ function gatePathDescription(path, tier) {
   const descriptions = {
     1: {
       1: "Path 1 T1: Sour Additive. Keeps ally damage at 1x with no extra boost yet.",
-      2: "Path 1 T2: Etching Mix. Ally damage on acidified targets rises to 1.05x.",
-      3: "Path 1 T3: Corrosion Marker. Acid lasts 0.75s longer and ally damage rises to 1.18x.",
-      4: "Path 1 T4: Exposed Weakness. Acid lasts 3.1s longer and ally damage rises to 1.52x.",
-      5: "Path 1 T5: Meltdown Solvent. Acid lasts 6.5s longer and ally damage rises to 3.45x."
+      2: "Path 1 T2: Etching Mix. Ally damage on acidified targets rises to 1.05x and enemy drops gain +1 cash.",
+      3: "Path 1 T3: Corrosion Marker. Acid lasts 0.75s longer, ally damage rises to 1.18x, and enemy drops gain +2 cash.",
+      4: "Path 1 T4: Exposed Weakness. Acid lasts 3.1s longer, ally damage rises to 1.52x, and enemy drops gain +4 cash.",
+      5: "Path 1 T5: Meltdown Solvent. Acid lasts 6.5s longer, ally damage rises to 3.45x, and enemy drops gain +8 cash."
     },
     2: {
       1: "Path 2 T1: Faster Pump. Sprays acid more often.",
@@ -5553,7 +6116,7 @@ function dronePathDescription(path, tier) {
       2: "Path 2 T2: Sharper Bullets. Bullets pierce twice.",
       3: "Path 2 T3: Escort Wing. Gains 2 extra support drones and the wing can relocate towers.",
       4: "Path 2 T4: Additional Weapons. Main drone gets four guns and support drones get two guns each.",
-      5: "Path 2 T5: Drone Commander. Gains 2 more support drones, much stronger escort fire, and can relocate blocks too."
+      5: "Path 2 T5: Drone Commander. Commands 7 mini drones, relocates towers twice as fast, and gains Relocate Block to move whole blocks with towers on them."
     }
   };
 
@@ -5615,6 +6178,14 @@ function canUpgradeSupportPath(tower, path) {
   return canUpgradeTeslaPath(tower, path);
 }
 
+function canUpgradeTreasuryPath(tower, path) {
+  return canUpgradeTeslaPath(tower, path);
+}
+
+function canUpgradeOrbPath(tower, path) {
+  return canUpgradeTeslaPath(tower, path);
+}
+
 function canUpgradeCrossbowPath(tower, path) {
   return canUpgradeTeslaPath(tower, path);
 }
@@ -5658,6 +6229,14 @@ function pathDescriptionForTower(tower, path, tier) {
 
   if (tower.type === "support") {
     return supportPathDescription(path, tier);
+  }
+
+  if (tower.type === "treasury") {
+    return treasuryPathDescription(path, tier);
+  }
+
+  if (tower.type === "orb") {
+    return orbPathDescription(path, tier);
   }
 
   if (tower.type === "gate") {
@@ -5728,6 +6307,14 @@ function canUpgradeTowerPath(tower, path) {
     return canUpgradeSupportPath(tower, path);
   }
 
+  if (tower.type === "treasury") {
+    return canUpgradeTreasuryPath(tower, path);
+  }
+
+  if (tower.type === "orb") {
+    return canUpgradeOrbPath(tower, path);
+  }
+
   if (tower.type === "gate") {
     return canUpgradeTeslaPath(tower, path);
   }
@@ -5746,7 +6333,7 @@ function formatRange(value) {
 function towerStatSummary(typeOrTower, overrides = {}) {
   const tower = typeof typeOrTower === "string" ? mockTower(typeOrTower, overrides) : typeOrTower;
   const type = tower.type;
-  const stats = towerStats(tower);
+  const stats = applySupportBuffsToStats(tower, towerStats(tower));
   const armoredProbe = { armored: true, armorHp: 4, hidden: false };
   const hitsArmored = canTowerDamageEnemy(tower, armoredProbe, stats);
   const safeDivide = (amount, interval) => Number.isFinite(interval) && interval > 0 ? amount / interval : 0;
@@ -5759,6 +6346,8 @@ function towerStatSummary(typeOrTower, overrides = {}) {
   const droneRocketExplosionDamage = (stats.rocketDamage || 0) * 0.82;
   const droneRocketVolley = Math.max(stats.attackDroneMissileVolley || 1, 1);
   const droneRocketDps = safeDivide(droneRocketExplosionDamage * droneRocketVolley, stats.rocketCooldown || Infinity);
+  const droneBulletShotDamage = (stats.bulletDamage || 0) * Math.max(stats.bulletGuns || 1, 1);
+  const droneBulletDps = safeDivide(droneBulletShotDamage, stats.cooldown || Infinity);
   const supportDroneShotDamage = (stats.supportDamage || 0) * Math.max(stats.supportGuns || 1, 1);
   const supportDroneDps = safeDivide((stats.supportDamage || 0) * Math.max(stats.supportGuns || 1, 1) * Math.max(stats.supportCount || 0, 0), stats.supportCooldown || Infinity);
   const cooldown = type === "support"
@@ -5767,10 +6356,6 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     ? stats.turretCooldown
     : type === "trapper" && stats.mine
     ? stats.cooldown
-    : type === "drone" && stats.rocket
-    ? stats.rocketCooldown
-    : type === "drone" && (stats.supportCount || 0) > 0
-    ? stats.supportCooldown
     : stats.cooldown;
   const damage = type === "trapper" && stats.turretMode
     ? turretShotDamage
@@ -5778,19 +6363,11 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     ? trapTotalDamage
     : type === "trapper"
     ? trapSpikeDamage
-    : type === "drone" && stats.rocket
-    ? droneRocketExplosionDamage
-    : type === "drone" && (stats.supportCount || 0) > 0
-    ? supportDroneShotDamage
     : type === "drone"
-    ? (stats.bulletDamage || 0) * Math.max(stats.bulletGuns || 1, 1)
+    ? droneBulletShotDamage
     : stats.damage;
   const range = type === "trapper" && stats.turretMode
     ? stats.turretRange
-    : type === "drone" && stats.rocket
-    ? stats.droneRange
-    : type === "drone" && (stats.supportCount || 0) > 0
-    ? stats.supportRange
     : type === "drone"
     ? stats.droneRange
     : stats.range;
@@ -5801,10 +6378,8 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     ? aps * trapTotalDamage
     : type === "trapper"
     ? aps * trapSpikeDamage
-    : type === "drone" && stats.rocket
-    ? droneRocketDps
-    : type === "drone" && (stats.supportCount || 0) > 0
-    ? supportDroneDps
+    : type === "drone"
+    ? estimateTowerDpsFromStats(type, tower, stats)
     : estimateTowerDpsFromStats(type, tower, stats);
   const chainLength = type === "tesla" && stats.chainCount ? stats.chainCount : null;
   const burnStat = (type === "fireball" || type === "laser") && stats.burnDamage > 0 && stats.burnDuration > 0
@@ -5919,6 +6494,10 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     extras.push(`Mini drone DPS ${formatNumber(supportDroneDps)}`);
   }
   if (type === "drone") {
+    specialRows.push({ label: "Main drone DPS", value: formatNumber(droneBulletDps + (stats.rocket ? droneRocketDps : 0)), deltaValue: droneBulletDps + (stats.rocket ? droneRocketDps : 0) });
+    if ((stats.supportCount || 0) > 0) {
+      specialRows.push({ label: "Mini drone DPS", value: formatNumber(supportDroneDps), deltaValue: supportDroneDps });
+    }
     if (stats.rocket) {
       specialRows.push({ label: "Rocket damage", value: formatNumber(droneRocketExplosionDamage), deltaValue: droneRocketExplosionDamage });
       specialRows.push({ label: "Rocket launch speed", value: `${formatNumber(1 / Math.max(stats.rocketCooldown || 1, 0.001))}/s`, deltaValue: 1 / Math.max(stats.rocketCooldown || 1, 0.001), deltaSuffix: "/s" });
@@ -5937,9 +6516,6 @@ function towerStatSummary(typeOrTower, overrides = {}) {
   }
   if (type === "crossbow" && stats.boltPierce > 0) {
     extras.push(`Bolt pierce ${stats.boltPierce}`);
-  }
-  if (type === "crossbow") {
-    extras.push("Unlocked via Outpost secret");
   }
   if (type === "dippy") {
     extras.push(`Splash ${formatNumber(stats.splash)}`);
@@ -5976,11 +6552,13 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     extras.push(`Shake ${formatNumber(stats.screenShake)}`);
   }
   if (type === "support") {
-    extras.push(`Wave cash ${formatNumber(stats.waveCash)}`);
-    if ((stats.enemyDropMultiplier || 1) > 1) {
-      extras.push(`Enemy drops x${formatNumber(stats.enemyDropMultiplier)}`);
+    if (stats.damage > 0) {
+      extras.push(`Sentries ${formatNumber(stats.sentryCount || 1)}`);
     }
     extras.push(`Aura radius ${formatRange(stats.auraRadius)}`);
+    if (stats.mortar) {
+      extras.push(`Mortar every ${formatNumber(stats.mortarCooldown)}s`);
+    }
     if (stats.attackSpeedAura > 1) {
       extras.push(`Attack speed x${formatNumber(stats.attackSpeedAura)}`);
     }
@@ -5994,8 +6572,43 @@ function towerStatSummary(typeOrTower, overrides = {}) {
       extras.push("Nearby towers detect hidden");
     }
     if (stats.helpMissile) {
-      extras.push(`Support missile every ${formatNumber(stats.helpMissileCooldown)}s`);
+      extras.push(`Fortress missile every ${formatNumber(stats.helpMissileCooldown)}s`);
     }
+  }
+  if (type === "treasury") {
+    extras.push(`Wave cash ${formatNumber(stats.waveCash)}`);
+    if ((stats.enemyDropMultiplier || 1) > 1) {
+      extras.push(`Enemy drops x${formatNumber(stats.enemyDropMultiplier)}`);
+    }
+    if ((stats.enemyDropFlatBonus || 0) > 0) {
+      extras.push(`Enemy drops +$${formatNumber(stats.enemyDropFlatBonus)}`);
+    }
+    if (stats.bankEnabled) {
+      extras.push(`Bank cap $${formatNumber(stats.bankCap)}`);
+    }
+    if (stats.tradeEmpireAura > 1) {
+      extras.push(`Nearby treasury income x${formatNumber(stats.tradeEmpireAura)}`);
+      extras.push(`Trade radius ${formatRange(stats.auraRadius)}`);
+    }
+    if (stats.loanAmount > 0) {
+      extras.push(`Loans +$${formatNumber(stats.loanAmount)} for $${formatNumber(stats.loanRepayTotal)} over ${formatNumber(stats.loanRounds)} rounds`);
+    }
+  }
+  if (type === "orb") {
+    extras.push(`Orbs ${formatNumber(stats.orbCount || 0)}`);
+    if (stats.splash > 0) {
+      extras.push(`Splash ${formatNumber(stats.splash)}`);
+    }
+    if (stats.burnDamage > 0) {
+      extras.push(`Burn ${formatNumber(stats.burnDamage)}/s for ${formatNumber(stats.burnDuration)}s`);
+    }
+    if (stats.orbStun > 0) {
+      extras.push(`Stun ${formatNumber(stats.orbStun)}s`);
+    }
+    if ((stats.orbSlow || 1) < 1 && (stats.orbSlowDuration || 0) > 0) {
+      extras.push(`Concentrated slow ${formatNumber((1 - stats.orbSlow) * 100)}% for ${formatNumber(stats.orbSlowDuration)}s`);
+    }
+    extras.push(`Orb health ${formatNumber(stats.orbHitsToLive || 0)}`);
   }
   if (type === "gate") {
     specialRows.push({ label: "Acid damage", value: formatNumber(stats.acidDot || 0), deltaValue: stats.acidDot || 0 });
@@ -6004,6 +6617,9 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     extras.push(`Acid life ${formatNumber(stats.acidDuration)}s`);
     extras.push(`Ally damage x${formatNumber(stats.acidAmp)}`);
     extras.push(`Spray rate ${formatNumber(1 / stats.cooldown)}/s`);
+    if ((stats.enemyDropFlatBonus || 0) > 0) {
+      extras.push(`Enemy drops +$${formatNumber(stats.enemyDropFlatBonus)}`);
+    }
     extras.push("Hits hidden");
     extras.push("Cannot hit armoured");
   }
@@ -6025,16 +6641,21 @@ function towerStatSummary(typeOrTower, overrides = {}) {
   }
 
   return {
+    towerType: type,
     damage,
     cooldown,
     range,
     aps,
     dps,
+    pierce: stats.pierce || 0,
+    rotationsPerSecond: stats.rotationsPerSecond || 0,
+    regenerationTime: stats.regenerationTime || 0,
     chainLength,
     burnStat,
     specialRows,
     extras,
-    hitsArmored
+    hitsArmored,
+    bankCap: type === "treasury" ? (stats.bankCap || 0) : 0
   };
 }
 
@@ -6098,8 +6719,8 @@ function upgradeUtilityPremium(type, previousTower, nextTower, previousSummary, 
     }
     premium += Math.max(0, (nextStats.syrupTowerBuff || 1) - (previousStats.syrupTowerBuff || 1)) * 180;
   } else if (type === "support") {
-    premium += Math.max(0, (nextStats.waveCash || 0) - (previousStats.waveCash || 0)) * 18;
-    premium += Math.max(0, (nextStats.enemyDropMultiplier || 1) - (previousStats.enemyDropMultiplier || 1)) * 220;
+    premium += Math.max(0, (nextStats.sentryCount || 0) - (previousStats.sentryCount || 0)) * 24;
+    premium += Math.max(0, (nextStats.mortarDamage || 0) - (previousStats.mortarDamage || 0)) * 10;
     premium += Math.max(0, (nextStats.attackSpeedAura || 1) - (previousStats.attackSpeedAura || 1)) * 260;
     if (!previousStats.detectHiddenAura && nextStats.detectHiddenAura) {
       premium += 50;
@@ -6109,6 +6730,24 @@ function upgradeUtilityPremium(type, previousTower, nextTower, previousSummary, 
     }
     if (!previousStats.helpMissile && nextStats.helpMissile) {
       premium += 40;
+    }
+  } else if (type === "treasury") {
+    premium += Math.max(0, (nextStats.waveCash || 0) - (previousStats.waveCash || 0)) * 18;
+    premium += Math.max(0, (nextStats.enemyDropMultiplier || 1) - (previousStats.enemyDropMultiplier || 1)) * 260;
+    premium += Math.max(0, (nextStats.loanAmount || 0) - (previousStats.loanAmount || 0)) * 0.35;
+    if (!previousStats.tradeEmpireAura && nextStats.tradeEmpireAura) {
+      premium += 240;
+    }
+  } else if (type === "orb") {
+    premium += Math.max(0, (nextStats.orbCount || 0) - (previousStats.orbCount || 0)) * 85;
+    premium += Math.max(0, (nextStats.pierce || 0) - (previousStats.pierce || 0)) * 8;
+    premium += Math.max(0, (nextStats.rotationsPerSecond || 0) - (previousStats.rotationsPerSecond || 0)) * 65;
+    premium += Math.max(0, (previousStats.regenerationTime || 0) - (nextStats.regenerationTime || 0)) * 24;
+    if (!previousStats.smartOrbs && nextStats.smartOrbs) {
+      premium += 120;
+    }
+    if (!previousStats.adaptiveOrbs && nextStats.adaptiveOrbs) {
+      premium += 180;
     }
   } else if (type === "gate") {
     premium += Math.max(0, (nextStats.acidAmp || 1) - (previousStats.acidAmp || 1)) * 220;
@@ -6175,6 +6814,59 @@ function effectiveShotgunPelletCount(stats) {
 }
 
 function towerCoreStatRows(summary, preview = null) {
+  if (summary.towerType === "treasury") {
+    const rows = [
+      {
+        label: "Cash per wave",
+        value: formatNumber(summary.damage),
+        previewValue: preview ? formatNumber(preview.damage) : null,
+        deltaValue: summary.damage,
+        previewDeltaValue: preview ? preview.damage : null
+      }
+    ];
+    if ((summary.bankCap || 0) > 0) {
+      rows.push({
+        label: "Bank max",
+        value: `$${formatNumber(summary.bankCap)}`,
+        previewValue: preview ? `$${formatNumber(preview.bankCap || summary.bankCap)}` : null,
+        deltaValue: summary.bankCap,
+        previewDeltaValue: preview ? (preview.bankCap || summary.bankCap) : summary.bankCap,
+        deltaSuffix: ""
+      });
+    }
+    return rows;
+  }
+  if (summary.towerType === "orb") {
+    const rows = [
+      { label: "Damage", value: formatNumber(summary.damage) },
+      { label: "Orb pierce", value: formatNumber(summary.pierce || 0), previewValue: preview ? formatNumber(preview.pierce || 0) : null, deltaValue: summary.pierce || 0, previewDeltaValue: preview ? (preview.pierce || 0) : null },
+      { label: "Rotation speed", value: `${formatNumber(summary.rotationsPerSecond || 0)} rps`, previewValue: preview ? `${formatNumber(preview.rotationsPerSecond || 0)} rps` : null, deltaValue: summary.rotationsPerSecond || 0, previewDeltaValue: preview ? (preview.rotationsPerSecond || 0) : null, deltaSuffix: " rps" },
+      { label: "Regeneration rate", value: `${formatNumber(summary.regenerationTime || 0)}s`, previewValue: preview ? `${formatNumber(preview.regenerationTime || 0)}s` : null, deltaValue: -(summary.regenerationTime || 0), previewDeltaValue: preview ? -(preview.regenerationTime || 0) : null, deltaSuffix: "s" }
+    ];
+
+    if (Array.isArray(summary.specialRows)) {
+      for (const row of summary.specialRows) {
+        const previewMatch = Array.isArray(preview?.specialRows)
+          ? preview.specialRows.find((entry) => entry.label === row.label)
+          : null;
+        rows.push({
+          label: row.label,
+          value: row.value,
+          previewValue: previewMatch ? previewMatch.value : null,
+          deltaValue: row.deltaValue,
+          previewDeltaValue: previewMatch ? previewMatch.deltaValue : null,
+          deltaSuffix: row.deltaSuffix || ""
+        });
+      }
+    }
+
+    if (summary.burnStat) {
+      rows.push({ label: "Burn", value: summary.burnStat, previewValue: preview ? (preview.burnStat || summary.burnStat) : null });
+    }
+
+    rows.push({ label: "DPS", value: formatNumber(summary.dps), previewValue: preview ? formatNumber(preview.dps) : null });
+    return rows;
+  }
   const apsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? `${formatNumber(summary.aps)}` : "Passive";
   const rows = [
     { label: "Damage", value: formatNumber(summary.damage) },
@@ -6230,6 +6922,15 @@ function renderTowerStatsPreviewRows(current, preview) {
           ? formatPreviewDelta((preview.aps || 0) - (current.aps || 0))
           : "";
         return `<div><span>${row.label}</span><strong>${row.value} ${apsDelta}</strong></div>`;
+      }
+      if (row.label === "Orb pierce") {
+        return `<div><span>${row.label}</span><strong>${row.value} ${formatPreviewDelta((preview.pierce || 0) - (current.pierce || 0))}</strong></div>`;
+      }
+      if (row.label === "Rotation speed") {
+        return `<div><span>${row.label}</span><strong>${row.value} ${formatPreviewDelta((preview.rotationsPerSecond || 0) - (current.rotationsPerSecond || 0), " rps")}</strong></div>`;
+      }
+      if (row.label === "Regeneration rate") {
+        return `<div><span>${row.label}</span><strong>${row.value} ${formatPreviewDelta((current.regenerationTime || 0) - (preview.regenerationTime || 0), "s")}</strong></div>`;
       }
       if (row.label === "Range") {
         return `<div><span>${row.label}</span><strong>${row.value} ${formatPreviewDelta((preview.range - current.range) / CELL_SIZE, " tiles")}</strong></div>`;
@@ -6352,7 +7053,15 @@ function armoredUnlockText(type) {
   }
 
   if (type === "support") {
-    return "Support tower does not attack. Path 2 T5 lets nearby towers hit armoured.";
+    return "Path 1 turns the fort into a defensive battery. Path 2 stays focused on logistics support.";
+  }
+
+  if (type === "treasury") {
+    return "Treasury does not attack. It pays out each round and can improve cash drops or issue loans.";
+  }
+
+  if (type === "orb") {
+    return "Hits armoured from level 1 and can shift into shield-breaking, burning, slowing, explosive, or adaptive orb modes.";
   }
 
   if (type === "gate") {
@@ -6491,11 +7200,25 @@ function estimateTowerDpsFromStats(type, tower, stats) {
     return dps;
   }
   if (type === "support") {
-    return (stats.helpMissile ? safeDivide(stats.damage, stats.helpMissileCooldown || Infinity) * 1.15 : 0)
-      + (stats.waveCash || 0) * 0.4
+    return safeDivide((stats.damage || 0) * Math.max(stats.sentryCount || 1, 1), stats.cooldown || Infinity)
+      + safeDivide((stats.mortarDamage || 0) * 1.2, stats.mortarCooldown || Infinity)
+      + (stats.helpMissile ? safeDivide(stats.damage, stats.helpMissileCooldown || Infinity) * 1.15 : 0)
       + Math.max(0, (stats.attackSpeedAura || 1) - 1) * 180
       + (stats.detectHiddenAura ? 15 : 0)
       + (stats.munitions ? 620 : 0);
+  }
+  if (type === "treasury") {
+    return (stats.waveCash || 0) * 0.42
+      + Math.max(0, (stats.enemyDropMultiplier || 1) - 1) * 260
+      + Math.max(0, (stats.tradeEmpireAura || 1) - 1) * 420
+      + (stats.loanAmount || 0) * 0.08;
+  }
+  if (type === "orb") {
+    return safeDivide((stats.damage || 0) * Math.max(stats.orbCount || 1, 1) * Math.max(stats.pierce || 1, 1) * 0.55, stats.cooldown || Infinity)
+      + safeDivide((stats.splash || 0) * Math.max(stats.orbCount || 1, 1), stats.cooldown || Infinity) * 0.08
+      + (stats.burnDamage || 0) * 0.55
+      + (stats.orbStun || 0) * 120
+      + Math.max(0, 1 - (stats.orbSlow || 1)) * Math.max(stats.orbSlowDuration || 0, 0) * 95;
   }
   if (type === "gate") {
     return safeDivide(stats.damage, stats.cooldown)
@@ -6579,9 +7302,19 @@ function scaleLateTierStats(type, tower, stats, scale) {
       stats.burst = Math.round(stats.burst * (1 + (scale - 1) * 0.2));
     }
   } else if (type === "support") {
-    stats.waveCash *= 1 + (scale - 1) * 0.65;
-    stats.attackSpeedAura = 1 + ((stats.attackSpeedAura || 1) - 1) * (1 + (scale - 1) * 0.5);
     stats.damage *= 1 + (scale - 1) * 0.8;
+    stats.mortarDamage *= 1 + (scale - 1) * 0.75;
+    stats.attackSpeedAura = 1 + ((stats.attackSpeedAura || 1) - 1) * (1 + (scale - 1) * 0.5);
+  } else if (type === "treasury") {
+    stats.waveCash *= 1 + (scale - 1) * 0.65;
+    stats.loanAmount *= 1 + (scale - 1) * 0.35;
+    stats.loanRepayTotal *= 1 + (scale - 1) * 0.35;
+  } else if (type === "orb") {
+    stats.damage *= 1 + (scale - 1) * 0.9;
+    stats.burnDamage *= 1 + (scale - 1) * 0.8;
+    stats.splash *= 1 + (scale - 1) * 0.55;
+    stats.orbStun *= 1 + (scale - 1) * 0.45;
+    stats.orbSlowDuration *= 1 + (scale - 1) * 0.35;
   } else if (type === "gate") {
     stats.damage *= 1 + (scale - 1) * 0.6;
     stats.acidDot *= 1 + (scale - 1) * 0.9;
@@ -6643,6 +7376,61 @@ function applyLateTierPowerScale(tower, stats) {
         const finalGap = minDps / Math.max(adjustedDps, 0.001);
         bestStats.damage *= finalGap;
       }
+    }
+  }
+
+  if (PATH_TOWER_TYPES.has(type) && ((tower.path1 || 0) > 0 || (tower.path2 || 0) > 0)) {
+    const predecessorTowers = [];
+    if ((tower.path1 || 0) > 0) {
+      predecessorTowers.push({ ...tower, path1: Math.max(0, (tower.path1 || 0) - 1) });
+    }
+    if ((tower.path2 || 0) > 0) {
+      predecessorTowers.push({ ...tower, path2: Math.max(0, (tower.path2 || 0) - 1) });
+    }
+    const previousDps = predecessorTowers.reduce((best, previousTower) => {
+      const previousStats = towerStats(previousTower);
+      return Math.max(best, estimateTowerDpsFromStats(type, previousTower, previousStats));
+    }, 0);
+    let adjustedDps = estimateTowerDpsFromStats(type, tower, bestStats);
+    if (adjustedDps < previousDps) {
+      const dpsGap = previousDps / Math.max(adjustedDps, 0.001);
+      if (type === "drone") {
+        bestStats.bulletDamage *= 1 + (dpsGap - 1) * 0.85;
+        bestStats.rocketDamage *= 1 + (dpsGap - 1) * 0.9;
+        bestStats.supportDamage *= 1 + (dpsGap - 1) * 0.8;
+      } else if (type === "laser") {
+        bestStats.damage *= dpsGap;
+        bestStats.burnDamage *= 1 + (dpsGap - 1) * 0.9;
+      } else {
+        bestStats.damage = Math.max(bestStats.damage || 0, (bestStats.damage || 0) * dpsGap);
+        if ((bestStats.burnDamage || 0) > 0) {
+          bestStats.burnDamage *= 1 + (dpsGap - 1) * 0.75;
+        }
+      }
+      adjustedDps = estimateTowerDpsFromStats(type, tower, bestStats);
+      if (adjustedDps < previousDps && (bestStats.damage || 0) > 0) {
+        bestStats.damage *= previousDps / Math.max(adjustedDps, 0.001);
+      }
+    }
+  }
+
+  if (type === "laser" && ((tower.path1 || 0) > 0 || (tower.path2 || 0) > 0)) {
+    const predecessorTowers = [];
+    if ((tower.path1 || 0) > 0) {
+      predecessorTowers.push({ ...tower, path1: Math.max(0, (tower.path1 || 0) - 1) });
+    }
+    if ((tower.path2 || 0) > 0) {
+      predecessorTowers.push({ ...tower, path2: Math.max(0, (tower.path2 || 0) - 1) });
+    }
+    for (const previousTower of predecessorTowers) {
+      const previousStats = towerStats(previousTower);
+      bestStats.range = Math.max(bestStats.range || 0, previousStats.range || 0);
+      bestStats.damage = Math.max(bestStats.damage || 0, previousStats.damage || 0);
+      bestStats.burnDamage = Math.max(bestStats.burnDamage || 0, previousStats.burnDamage || 0);
+      bestStats.burnDuration = Math.max(bestStats.burnDuration || 0, previousStats.burnDuration || 0);
+      bestStats.beamWidth = Math.max(bestStats.beamWidth || 0, previousStats.beamWidth || 0);
+      bestStats.beamTtl = Math.max(bestStats.beamTtl || 0, previousStats.beamTtl || 0);
+      bestStats.cooldown = Math.min(bestStats.cooldown || Infinity, previousStats.cooldown || Infinity);
     }
   }
 
@@ -6734,6 +7522,9 @@ function towerCanDetectHidden(tower) {
 }
 
 function availablePrioritiesForTower(tower) {
+  if (tower.type === "orb") {
+    return ORB_SPIN_PRIORITIES;
+  }
   return TARGET_PRIORITIES.filter((priority) => {
     if (priority === "hidden" && !towerCanDetectHidden(tower)) {
       return false;
@@ -6748,7 +7539,7 @@ function availablePrioritiesForTower(tower) {
 function normalizeTowerPriority(tower) {
   const allowed = availablePrioritiesForTower(tower);
   if (!allowed.includes(tower.targetPriority)) {
-    tower.targetPriority = "first";
+    tower.targetPriority = tower.type === "orb" ? "clockwise" : "first";
   }
   if (tower.type === "shotgun") {
     const defaults = ["first", "strong", "last"];
@@ -6757,6 +7548,16 @@ function normalizeTowerPriority(tower) {
       if (!allowed.includes(tower.cannonPriorities[slot])) {
         tower.cannonPriorities[slot] = defaults[slot];
       }
+    }
+  }
+  if (tower.type === "orb") {
+    const allowedOrbTypes = (tower.path2 || 0) >= 4
+      ? ORB_TYPE_PRIORITIES
+      : (tower.path2 || 0) >= 3
+        ? ORB_TYPE_PRIORITIES.slice(0, 3)
+        : ["explosive"];
+    if (!allowedOrbTypes.includes(tower.orbType)) {
+      tower.orbType = "explosive";
     }
   }
 }
@@ -6768,7 +7569,35 @@ function towerCapabilityText(tower) {
       : "Frozen until next round.";
   }
   if (tower.type === "support") {
-    return "Passive support aura.";
+    return towerStats(tower).damage > 0 ? "Fortress battery online." : "Passive logistics aura.";
+  }
+  if (tower.type === "treasury") {
+    const offer = treasuryLoanOffer(tower);
+    const cap = treasuryBankCap(tower);
+    if (cap > 0) {
+      const loanText = (tower.loanDebtRemaining || 0) > 0
+        ? ` Loan active: $${formatNumber(tower.loanDebtRemaining || 0)} left.`
+        : offer
+          ? ` Loan ready: +$${offer.amount} now.`
+          : "";
+      return `Bank: $${formatNumber(Math.round(tower.bankStored || 0))}/$${formatNumber(cap)}.${loanText}`;
+    }
+    if ((tower.loanDebtRemaining || 0) > 0) {
+      return `Loan active: $${formatNumber(tower.loanDebtRemaining || 0)} left over ${formatNumber(tower.loanRoundsRemaining || 0)} rounds.`;
+    }
+    if (offer) {
+      return `Loan ready: +$${offer.amount} now, repay $${offer.repayTotal}.`;
+    }
+    return "Passive economy tower.";
+  }
+  if (tower.type === "orb") {
+    const stats = towerStats(tower);
+    const selectedType = tower.orbType || "explosive";
+    const shownType = displayedOrbType(tower, stats);
+    const adaptiveText = selectedType === "adaptive" && shownType !== "adaptive"
+      ? ` Adaptive mode: ${TARGET_LABELS[shownType]}.`
+      : "";
+    return `Spin ${TARGET_LABELS[tower.targetPriority || "clockwise"]}. Orb type: ${TARGET_LABELS[shownType]}.${adaptiveText}`;
   }
   if (tower.type === "gate") {
     return "Sprays acid that deals corrosive damage over time and weakens enemies for follow-up damage.";
@@ -6830,6 +7659,7 @@ function cancelDroneCommand(messageText = "") {
     const targetTower = towers.find((entry) => entry.id === droneCommandState.targetTowerId);
     if (targetTower?.carried) {
       targetTower.carried = false;
+      restoreTowerFootprint(targetTower);
       const center = towerPlacementCenter(targetTower.type, targetTower.x, targetTower.y);
       targetTower.centerX = center.x;
       targetTower.centerY = center.y;
@@ -6844,6 +7674,22 @@ function cancelDroneCommand(messageText = "") {
   }
 }
 
+function appendOrbControlButtons(container, tower) {
+  const directionButton = document.createElement("button");
+  directionButton.className = "tower-upgrade secondary";
+  directionButton.dataset.orbSpinTowerId = tower.id;
+  directionButton.textContent = `Spin: ${TARGET_LABELS[tower.targetPriority || "clockwise"]}`;
+  container.appendChild(directionButton);
+
+  if ((tower.path2 || 0) >= 3) {
+    const typeButton = document.createElement("button");
+    typeButton.className = "tower-upgrade secondary";
+    typeButton.dataset.orbTypeTowerId = tower.id;
+    typeButton.textContent = `Orb Type: ${TARGET_LABELS[tower.orbType || "explosive"]}`;
+    container.appendChild(typeButton);
+  }
+}
+
 function droneTowerCommandButtonMarkup(tower) {
   if (tower?.type !== "drone") {
     return "";
@@ -6855,19 +7701,49 @@ function droneTowerCommandButtonMarkup(tower) {
   }
 
   const commandActive = droneCommandState && droneCommandState.towerId === tower.id && droneCommandState.mode === "tower";
-  const commandBusy = commandActive && (droneCommandState.stage === "pickup" || droneCommandState.stage === "transport" || droneCommandState.stage === "return");
   const label = commandActive
-    ? commandBusy ? "Relocating Tower..." : "Cancel Relocate Tower"
+    ? "Cancel Relocate Tower"
     : "Relocate Tower";
 
-  return `<button class="tower-upgrade secondary" type="button" data-drone-command-tower-id="${tower.id}" data-drone-command-mode="tower" style="display:block; width:100%; margin-top:8px; font-size:0.72em;"${commandBusy ? " disabled" : ""}>${label}</button>`;
+  return `<button class="tower-upgrade secondary" type="button" data-drone-command-tower-id="${tower.id}" data-drone-command-mode="tower" style="display:block; width:100%; margin-top:8px; font-size:0.72em;">${label}</button>`;
+}
+
+function treasuryLoanButtonMarkup(tower) {
+  const offer = treasuryLoanOffer(tower);
+  if (!offer) {
+    return "";
+  }
+  return `<button class="tower-upgrade secondary" type="button" data-treasury-loan-tower-id="${tower.id}" style="display:block; width:100%; margin-top:8px; font-size:0.72em;">Take Loan (+$${offer.amount})</button>`;
+}
+
+function appendTreasuryBankButtons(container, tower) {
+  if (tower?.type !== "treasury") {
+    return;
+  }
+  const cap = treasuryBankCap(tower);
+  if (cap <= 0) {
+    return;
+  }
+  const collectButton = document.createElement("button");
+  collectButton.className = "tower-upgrade secondary";
+  collectButton.dataset.treasuryCollectTowerId = tower.id;
+  setTowerUpgradeButtonContent(
+    collectButton,
+    `Collect Bank ($${Math.round(tower.bankStored || 0)})`,
+    `Stored: $${Math.round(tower.bankStored || 0)} / $${cap}`
+  );
+  collectButton.disabled = Math.round(tower.bankStored || 0) <= 0;
+  container.appendChild(collectButton);
 }
 
 function towerPopupTitleMarkup(tower) {
-  return `${towerDisplayName(tower)}<span style="display:block; font-size:0.6em; font-weight:600; color:#9fb6c8; margin-top:4px;">${formatNumber(Math.round(tower.totalDamageDealt || 0))}</span>${droneTowerCommandButtonMarkup(tower)}`;
+  const titleStat = tower.type === "treasury" && (tower.path2 || 0) >= 3
+    ? `$${formatNumber(Math.round(tower.bankStored || 0))} / $${formatNumber(treasuryBankCap(tower))}`
+    : formatNumber(Math.round(tower.totalDamageDealt || 0));
+  return `${towerDisplayName(tower)}<span style="display:block; font-size:0.6em; font-weight:600; color:#9fb6c8; margin-top:4px;">${titleStat}</span>${droneTowerCommandButtonMarkup(tower)}${treasuryLoanButtonMarkup(tower)}`;
 }
 
-function refreshOpenTowerPopupDamage(towerId) {
+function refreshOpenTowerPopup(towerId) {
   if (towerPopup.hidden || selectedTowerId !== towerId) {
     return;
   }
@@ -6875,7 +7751,7 @@ function refreshOpenTowerPopupDamage(towerId) {
   if (!tower) {
     return;
   }
-  towerPopupTitle.innerHTML = towerPopupTitleMarkup(tower);
+  openTowerPopup(tower);
 }
 
 function openTowerPopup(tower) {
@@ -6897,9 +7773,9 @@ function openTowerPopup(tower) {
       const extraPriorityText = tower.type === "shotgun" && (tower.path2 || 0) >= 4
         ? ` Cannon priorities: ${(tower.cannonPriorities || ["first", "strong", "last"]).map((priority) => TARGET_LABELS[priority] || TARGET_LABELS.first).join(" / ")}.`
         : "";
-      return `<strong>Upgrade ${upgradeCount}</strong><br>${renderInlineTowerStats(currentSummary)}<br>${towerDisplayName(tower)}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5.${tower.type === "support" ? "" : ` Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}.`}${extraPriorityText} ${towerCapabilityText(tower)}`;
+      return `<strong>Upgrade ${upgradeCount}</strong><br>${renderInlineTowerStats(currentSummary)}<br>${towerDisplayName(tower)}. Path 1: ${tower.path1}/5. Path 2: ${tower.path2}/5.${tower.type === "support" || tower.type === "treasury" ? "" : ` Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}.`}${extraPriorityText} ${towerCapabilityText(tower)}`;
     })()
-    : `<strong>Upgrade ${upgradeCount}</strong><br>${renderInlineTowerStats(currentSummary)}<br>${TOWER_INFO[tower.type].description} ${tower.type === "support" ? "" : `Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}. `}${towerCapabilityText(tower)}`;
+    : `<strong>Upgrade ${upgradeCount}</strong><br>${renderInlineTowerStats(currentSummary)}<br>${TOWER_INFO[tower.type].description} ${tower.type === "support" || tower.type === "treasury" ? "" : `Priority: ${TARGET_LABELS[tower.targetPriority || "first"]}. `}${towerCapabilityText(tower)}`;
   towerPopupSummary.innerHTML = defaultPopupSummary;
 
   towerPopupActions.innerHTML = "";
@@ -6962,7 +7838,9 @@ function openTowerPopup(tower) {
       });
     }
     primaryActions.appendChild(button2);
-    if (tower.type !== "support") {
+    if (tower.type === "orb") {
+      appendOrbControlButtons(utilityActions, tower);
+    } else if (tower.type !== "support" && tower.type !== "treasury") {
       if (tower.type === "shotgun" && (tower.path2 || 0) >= 4) {
         appendShotgunPriorityButtons(utilityActions, tower);
       } else {
@@ -6976,6 +7854,7 @@ function openTowerPopup(tower) {
       setTowerUpgradeButtonContent(defrostButton, "Defrost");
       utilityActions.appendChild(defrostButton);
     }
+    appendTreasuryBankButtons(utilityActions, tower);
     appendSellButton(utilityActions, tower);
     if (commandActions.childElementCount > 0) {
       towerPopupActions.appendChild(commandActions);
@@ -7021,7 +7900,9 @@ function openTowerPopup(tower) {
     );
   }
   primaryActions.appendChild(upgradeButton);
-  if (tower.type !== "support") {
+  if (tower.type === "orb") {
+    appendOrbControlButtons(utilityActions, tower);
+  } else if (tower.type !== "support") {
     appendPriorityButton(utilityActions, tower);
   }
   if (canDefrost) {
@@ -7031,6 +7912,7 @@ function openTowerPopup(tower) {
     setTowerUpgradeButtonContent(defrostButton, "Defrost");
     utilityActions.appendChild(defrostButton);
   }
+  appendTreasuryBankButtons(utilityActions, tower);
   appendSellButton(utilityActions, tower);
   if (commandActions.childElementCount > 0) {
     towerPopupActions.appendChild(commandActions);
@@ -7264,16 +8146,16 @@ function eraseAt(x, y) {
   return false;
 }
 
-function applyTool(x, y) {
+function applyTool(x, y, point = null) {
   if (gameMode !== "playing" || !inBounds(x, y) || isEndpoint(x, y)) {
     return;
   }
 
-  const clickedTower = towerAtCell(x, y);
+  const clickedTower = towerAtPoint(point) || towerAtCell(x, y);
   selectedTowerId = clickedTower ? clickedTower.id : null;
 
   if (clickedTower) {
-  towerDescription.textContent = `${towerDisplayName(clickedTower)}: ${TOWER_INFO[clickedTower.type].description} ${towerCapabilityText(clickedTower)}`;
+    towerDescription.textContent = `${towerDisplayName(clickedTower)}: ${TOWER_INFO[clickedTower.type].description} ${towerCapabilityText(clickedTower)}`;
     openTowerPopup(clickedTower);
   } else if (grid[y][x].blockId !== null) {
     const block = blocks.get(grid[y][x].blockId);
@@ -7290,7 +8172,7 @@ function applyTool(x, y) {
   } else if (currentTool === "tower") {
     changed = placeTower(x, y);
   } else if (currentTool === "upgrade") {
-    changed = upgradeTower(x, y);
+    changed = upgradeTower(clickedTower || x, clickedTower ? null : y);
   }
 
   if (!changed && currentTool === "tower") {
@@ -7365,8 +8247,13 @@ function createEnemy(enemyType, options = {}) {
   const shieldTier = shielded && !breacherShielded ? shieldTierConfig(tier) : null;
   const genericTier = !diamondTier && !shieldTier && enemyUsesTiers(resolvedEnemyType.key) && resolvedEnemyType.key !== "splitter" ? genericTierConfig(tier) : null;
   const tierConfig = diamondTier || shieldTier || genericTier;
+  const waveScale = Math.max(0, waveNumber - 100);
+  const hpWaveBase = 5 + waveScale;
+  const speedWaveBase = 30 + waveScale * 2;
   const hp = options.hp ?? (resolvedEnemyType.key === "specialPentagon"
-    ? 250
+    ? 600
+    : resolvedEnemyType.key === "kernel"
+    ? 2
     : resolvedEnemyType.key === "assassin"
     ? Math.round(80 * (genericTierConfig(tier)?.hpMultiplier || 1))
     : resolvedEnemyType.key === "idaen"
@@ -7376,11 +8263,10 @@ function createEnemy(enemyType, options = {}) {
     : resolvedEnemyType.key === "splitter"
     ? splitterHpForTier(tier, DIFFICULTIES[selectedDifficulty].hp)
     : resolvedEnemyType.key === "sentinel"
-      ? Math.round((5 + waveNumber) * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tier >= 3 ? 7.8 : tier >= 2 ? 2.6 : 1))
-    : Math.round((5 + waveNumber) * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tierConfig?.hpMultiplier || 1)));
+      ? Math.round(hpWaveBase * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tier >= 3 ? 7.8 : tier >= 2 ? 2.6 : 1))
+    : Math.round(hpWaveBase * resolvedEnemyType.hpMultiplier * DIFFICULTIES[selectedDifficulty].hp * (tierConfig?.hpMultiplier || 1)));
   const armored = options.armored ?? (Boolean(resolvedEnemyType.armored) || resolvedEnemyType.key === "armored");
-  const armorBase = resolvedEnemyType.armor || 0;
-  const armorValue = options.armorHp ?? (armored ? armorBase + Math.floor((waveNumber - 9) / 4) : 0);
+  const armorValue = options.armorHp ?? (armored ? Math.max(1, Math.round(hp * 0.5)) : 0);
   const waffleRewardMultiplier = resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? 1 : tier === 2 ? 0.3 : 0.1) : 1;
   const waffleSpeedBonus = resolvedEnemyType.key === "waffle16" ? (tier >= 3 ? -10 : tier === 2 ? -2 : 10) : 0;
   const strengthRewardBoost = Math.max(
@@ -7397,11 +8283,13 @@ function createEnemy(enemyType, options = {}) {
       0.22
     )
   );
-  const reward = options.reward ?? (resolvedEnemyType.key === "splitter"
-    ? Math.max(1, Math.round(resolvedEnemyType.reward * Math.pow(1.46, Math.max(0, tier - 1)) * rewardMultiplier() * strengthRewardBoost))
-    : resolvedEnemyType.key === "sentinel"
-      ? Math.max(1, Math.round(resolvedEnemyType.reward * (tier >= 3 ? 10.8 : tier === 2 ? 3.2 : 1) * rewardMultiplier() * strengthRewardBoost))
-      : Math.max(1, Math.round(resolvedEnemyType.reward * waffleRewardMultiplier * rewardMultiplier() * (tierConfig?.rewardMultiplier || 1) * strengthRewardBoost)));
+  const reward = options.reward ?? (resolvedEnemyType.key === "behemoth" || resolvedEnemyType.key === "specialPentagon"
+    ? Math.max(1, Math.round(hp))
+    : resolvedEnemyType.key === "splitter"
+      ? Math.max(1, Math.round(resolvedEnemyType.reward * Math.pow(1.46, Math.max(0, tier - 1)) * enemyRewardMultiplier() * strengthRewardBoost))
+      : resolvedEnemyType.key === "sentinel"
+        ? Math.max(1, Math.round(resolvedEnemyType.reward * (tier >= 3 ? 10.8 : tier === 2 ? 3.2 : 1) * enemyRewardMultiplier() * strengthRewardBoost))
+        : Math.max(1, Math.round(resolvedEnemyType.reward * waffleRewardMultiplier * enemyRewardMultiplier() * (tierConfig?.rewardMultiplier || 1) * strengthRewardBoost)));
   const sentinelTierSpeedBonus = resolvedEnemyType.key === "sentinel"
     ? (tier >= 3 ? 24 : tier >= 2 ? 30 : 0)
     : 0;
@@ -7411,8 +8299,8 @@ function createEnemy(enemyType, options = {}) {
     : resolvedEnemyType.key === "octagon"
       ? CELL_SIZE * 0.42 * (activeMap.enemySpeed || 1)
     : resolvedEnemyType.key === "speedy"
-      ? ((((30 + waveNumber * 2 + ENEMY_TYPES.fast.speedBonus) / DIFFICULTIES[selectedDifficulty].interval) * (activeMap.enemySpeed || 1)) * (speedyMultipliers[tier] || 2))
-    : (((30 + waveNumber * 2 + (resolvedEnemyType.speedBonus + waffleSpeedBonus + sentinelTierSpeedBonus)) / DIFFICULTIES[selectedDifficulty].interval) * (tierConfig?.speedMultiplier || 1) * (activeMap.enemySpeed || 1)));
+      ? ((((speedWaveBase + ENEMY_TYPES.fast.speedBonus) / DIFFICULTIES[selectedDifficulty].interval) * (activeMap.enemySpeed || 1)) * (speedyMultipliers[tier] || 2))
+    : (((speedWaveBase + (resolvedEnemyType.speedBonus + waffleSpeedBonus + sentinelTierSpeedBonus)) / DIFFICULTIES[selectedDifficulty].interval) * (tierConfig?.speedMultiplier || 1) * (activeMap.enemySpeed || 1)));
   const regenRate = options.regenRate ?? (resolvedEnemyType.key === "health"
     ? (tier >= 3 ? 1.1 : tier === 2 ? 0.75 : 0.45)
     : resolvedEnemyType.key === "life"
@@ -7433,7 +8321,11 @@ function createEnemy(enemyType, options = {}) {
     key: resolvedEnemyType.key,
     portalIndex,
     route,
-    type: resolvedEnemyType.key === "sentinel" ? (tier >= 3 ? "Skrey" : tier >= 2 ? "Overwatch" : "Sentinel") : resolvedEnemyType.name,
+    type: resolvedEnemyType.key === "sentinel"
+      ? (tier >= 3 ? "Skrey" : tier >= 2 ? "Overwatch" : "Sentinel")
+      : resolvedEnemyType.key === "narder"
+        ? (tier >= 2 ? "Japper" : "Narder")
+        : resolvedEnemyType.name,
     shapeSides: resolvedEnemyType.shape,
     reward,
     color: options.color || ((shielded && !breacherShielded) ? "#79beff" : null) || tierConfig?.color || resolvedEnemyType.color,
@@ -7448,7 +8340,17 @@ function createEnemy(enemyType, options = {}) {
     maxHp: hp,
     tier,
     coreColor: tierConfig?.coreColor || null,
-    sizeScale: options.sizeScale ?? (resolvedEnemyType.key === "sentinel" ? (tier >= 3 ? 1.62 : tier >= 2 ? 1.34 : 1.08) : (tierConfig?.radiusMultiplier || 1)),
+    sizeScale: options.sizeScale ?? (
+      resolvedEnemyType.key === "sentinel"
+        ? (tier >= 3 ? 1.62 : tier >= 2 ? 1.34 : 1.08)
+        : resolvedEnemyType.key === "behemoth"
+          ? 2.65
+          : resolvedEnemyType.key === "xer"
+            ? 4.9
+          : resolvedEnemyType.key === "specialPentagon"
+            ? 1.95
+            : (tierConfig?.radiusMultiplier || 1)
+    ),
     shielded,
     shieldHp,
     maxShieldHp: shieldHp,
@@ -7493,6 +8395,9 @@ function createEnemy(enemyType, options = {}) {
     bossOwnerId: options.bossOwnerId || null,
     bossShieldMinion: Boolean(options.bossShieldMinion),
     summonStunRadius: options.summonStunRadius || 0,
+    slowResistance: options.slowResistance ?? (resolvedEnemyType.slowResistance || 1),
+    stunResistance: options.stunResistance ?? (resolvedEnemyType.stunResistance || 1),
+    spinRate: options.spinRate ?? (resolvedEnemyType.spinRate || 0),
     regenRate,
     healRadius,
     healPower,
@@ -7602,7 +8507,7 @@ function spawnIdaenSummons(enemy) {
       armored: false,
       shielded: false,
       armorHp: 0,
-      reward: Math.max(1, Math.round(waffleType.reward * rewardMultiplier()))
+      reward: Math.max(1, Math.round(waffleType.reward * enemyRewardMultiplier()))
     });
     pushEnemy(prepareSummonedChild(waffle, enemy));
   }
@@ -7624,7 +8529,7 @@ function spawnAdapterEscorts(enemy) {
       armorHp: ENEMY_TYPES.attacker.armor + Math.max(1, Math.floor((waveNumber - 10) / 4)),
       bossOwnerId: enemy.id,
       ghostAdapterEscort: true,
-      reward: Math.max(2, Math.round(ENEMY_TYPES.attacker.reward * rewardMultiplier()))
+      reward: Math.max(2, Math.round(ENEMY_TYPES.attacker.reward * enemyRewardMultiplier()))
     });
     if (escort) {
       const prepared = prepareSummonedChild(escort, enemy);
@@ -7903,6 +8808,9 @@ function spawnEnemy() {
   if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 10 && roll > 0.67) {
     enemyType = ENEMY_TYPES.speedy;
   }
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 52 && roll > 0.952) {
+    enemyType = ENEMY_TYPES.narder;
+  }
 
   if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 7 && roll > 0.72) {
     enemyType = ENEMY_TYPES.diamond;
@@ -7994,8 +8902,11 @@ function spawnEnemy() {
   if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 68 && roll > 0.9945) {
     enemyType = ENEMY_TYPES.behemoth;
   }
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && waveNumber >= 100 && roll > 0.9972) {
+    enemyType = ENEMY_TYPES.xer;
+  }
 
-  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && enemyType.key !== "hydra" && enemyType.key !== "behemoth" && enemyType.key !== "idaen") {
+  if (!forcedNatural && !shieldedAttackerWave && !popcornRushWave && enemyType.key !== "hydra" && enemyType.key !== "behemoth" && enemyType.key !== "idaen" && enemyType.key !== "xer") {
     const naturalEliteRoll = Math.random();
     if (waveNumber >= 74 && naturalEliteRoll > 0.992) {
       enemyType = ENEMY_TYPES.idine;
@@ -8069,10 +8980,17 @@ function spawnEnemy() {
         : (forceShielded || (waveNumber >= 31 && enemyType.key !== "attacker" && Math.random() < Math.min(0.05 + (waveNumber - 31) * 0.008, 0.22)))
   });
   if (enemyType.key === "behemoth" && enemy) {
-    enemy.hp = 1200;
-    enemy.maxHp = 1200;
+    enemy.hp = 8000;
+    enemy.maxHp = 8000;
     enemy.speed = Math.max(CELL_SIZE * 0.82, enemy.speed * 0.72);
-    enemy.reward = Math.max(1, Math.round(ENEMY_TYPES.behemoth.reward * rewardMultiplier()));
+    enemy.reward = enemy.maxHp;
+  }
+  if (enemyType.key === "xer" && enemy) {
+    enemy.hp = 18000;
+    enemy.maxHp = 18000;
+    enemy.speed = Math.max(CELL_SIZE * 0.42, enemy.speed * 0.42);
+    enemy.reward = enemy.maxHp;
+    enemy.sizeScale = 4.9;
   }
   pushEnemy(enemy);
 }
@@ -8097,6 +9015,8 @@ function updateWave(deltaTime) {
     const supportTotal = supportIncome.reduce((total, entry) => total + entry.amount, 0);
     money += Math.max(2, Math.round((5 + waveNumber) * rewardMultiplier()));
     money += supportTotal;
+    processTreasuryBanks();
+    processTreasuryLoans();
     if (supportTotal > 0) {
       for (const entry of supportIncome) {
         addPulse(entry.tower.centerX, entry.tower.centerY, 18, "rgba(255, 228, 122, 0.48)");
@@ -8282,6 +9202,9 @@ function updateEnemies(deltaTime) {
     }
     const targetAngle = Math.atan2(next.y - current.y, next.x - current.x);
     enemy.facingAngle = smoothAngle(enemy.facingAngle || targetAngle, targetAngle, deltaTime * (enemy.turnRate || 3.4));
+    if ((enemy.spinRate || 0) !== 0) {
+      enemy.facingAngle = normalizeAngle((enemy.facingAngle || 0) + enemy.spinRate * deltaTime);
+    }
     survivors.push(enemy);
   }
 
@@ -8325,17 +9248,17 @@ function towerStats(tower) {
     const increasedDamage = path2 >= 3;
     const photon = path2 >= 5;
     const doubleBeam = path2 >= 4 && !photon;
-    const doubleBeamDamageBoost = path2 >= 4 ? (photon ? 24 : 6.8) : 0;
-    const photonBurnBoost = path2 >= 4 && photon ? 2.4 : 0;
+    const doubleBeamDamageBoost = path2 >= 4 ? (photon ? 30 : 9.2) : 0;
+    const photonBurnBoost = path2 >= 4 && photon ? 3.8 : 0;
     return finalizeStats({
       range: CELL_SIZE * (4.85 + path2 * 0.22 + path1 * 0.08 + (plasma ? 0.42 : 0) + (path2 >= 4 ? 0.38 : 0) + (photon ? 0.58 : 0)),
       cooldown: photon
         ? Math.max(0.98 - path1 * 0.07 - path2 * 0.09, 0.42)
         : plasma
           ? 0.02
-          : Math.max(0.84 - path1 * 0.08 - path2 * 0.05 - (path2 >= 4 ? 0.06 : 0), 0.09),
+          : Math.max(0.84 - path1 * 0.08 - path2 * 0.05 - (path2 >= 4 ? 0.1 : 0), 0.09),
       damage: 2.75 + path2 * 1.92 + (increasedDamage ? 2.9 : 0) + doubleBeamDamageBoost + (photon ? 24 : 0),
-      burnDamage: path1 > 0 || path2 > 0 ? 0.65 + path2 * 1.08 + (increasedDamage ? 1.2 : 0) + (path1 >= 4 ? 2.8 : 0) + (path2 >= 4 ? 2.4 : 0) + (photon ? 4.2 + photonBurnBoost : 0) : 0,
+      burnDamage: path1 > 0 || path2 > 0 ? 0.65 + path2 * 1.08 + (increasedDamage ? 1.2 : 0) + (path1 >= 4 ? 2.8 : 0) + (path2 >= 4 ? 3.2 : 0) + (photon ? 5.4 + photonBurnBoost : 0) : 0,
       burnDuration: path1 > 0 || path2 > 0 ? 1.2 + path1 * 0.5 + path2 * 0.34 + (plasma ? 1.1 : 0) + (path1 >= 4 ? 1.4 : 0) + (path1 >= 5 ? 2.8 : 0) + (photon ? 4.6 : 0) : 0,
       beamWidth: photon ? 24 : 8,
       beamColor: photon ? "#ffe35c" : plasma ? "#ffffff" : "#ff96b8",
@@ -8354,8 +9277,8 @@ function towerStats(tower) {
     const brassHurricane = path1 >= 5;
     const wavelength = path2 >= 3;
     const goldenSpectrum = path2 >= 4;
-    const lines = path2 >= 5 ? 7 : path2 >= 4 ? 6 : wavelength ? 5 : Math.max(bulletStorm ? 4 : 3, 3 + Math.min(path2, 1));
-    const waveSpread = path2 >= 5 ? 0.34 : path2 >= 4 ? 0.42 : 0.52;
+    const lines = path2 >= 5 ? 36 : path2 >= 4 ? 15 : path2 >= 3 ? 10 : path2 === 2 ? 7 : path2 === 1 ? 4 : Math.max(bulletStorm ? 4 : 3, 3);
+    const waveSpread = path2 >= 5 ? Math.PI : path2 >= 4 ? (Math.PI * 2) / 3 : path2 >= 3 ? 0.95 : path2 === 2 ? 0.78 : 0.62;
     return finalizeStats({
       range: CELL_SIZE * (4.05 + path2 * 0.1 + (path2 >= 4 ? 0.1 : 0) + (path2 >= 5 ? 0.12 : 0)),
       cooldown: (
@@ -8515,28 +9438,95 @@ function towerStats(tower) {
   if (tower.type === "support") {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
-    const invested = UPGRADE_COSTS.support.path1.slice(0, path1).reduce((total, cost) => total + cost, 0);
-    const enemyDropMultiplier = path1 >= 5 ? 1.35 : path1 >= 4 ? 1.18 : path1 >= 3 ? 1.1 : path1 >= 2 ? 1.05 : 1;
+    const sentryCount = path1 >= 5 ? 4 : path1 >= 3 ? 3 : path1 >= 2 ? 2 : path1 >= 1 ? 1 : 0;
     return finalizeStats({
-      range: CELL_SIZE * (2 + path2 * 0.18 + (path2 >= 5 ? 0.22 : 0)),
-      cooldown: Infinity,
-      damage: 0,
-      waveCash: invested / 10 + (path1 >= 3 ? 8 : 0) + (path1 >= 4 ? 42 : 0) + (path1 >= 5 ? 140 : 0),
-      enemyDropMultiplier,
+      range: CELL_SIZE * (2.55 + path1 * 0.28 + path2 * 0.14 + (path1 >= 4 ? 0.24 : 0) + (path1 >= 5 ? 0.4 : 0)),
+      cooldown: sentryCount > 0 ? Math.max(0.92 - path1 * 0.08 - (path1 >= 3 ? 0.1 : 0) - (path1 >= 5 ? 0.06 : 0), 0.18) : Infinity,
+      damage: sentryCount > 0 ? 1.35 + path1 * 1.05 + (path1 >= 3 ? 1.8 : 0) + (path1 >= 4 ? 2.2 : 0) + (path1 >= 5 ? 5.8 : 0) : 0,
+      sentryCount,
+      mortar: path1 >= 4,
+      mortarCooldown: path1 >= 5 ? 2.6 : 4.2,
+      mortarDamage: path1 >= 5 ? 20 : path1 >= 4 ? 11 : 0,
+      mortarSplash: path1 >= 5 ? 68 : path1 >= 4 ? 46 : 0,
+      mortarSpeed: path1 >= 5 ? 410 : 340,
       munitions: path2 >= 5,
       detectHiddenAura: path2 >= 4,
-      attackSpeedAura: path2 >= 5 ? 1.72 : path2 >= 4 ? 1.42 : path2 >= 3 ? 1.2 : path2 >= 2 ? 1.08 : 1,
-      helpMissile: path2 >= 5,
-      helpMissileCooldown: path2 >= 5 ? 1.9 : 8.8,
-      speed: path2 >= 5 ? 196 : 142,
-      acceleration: path2 >= 5 ? 760 : 560,
-      damage: path2 >= 5 ? 11.5 : 0,
-      splash: path2 >= 5 ? 28 : 0,
+      attackSpeedAura: path2 >= 5 ? 1.58 : path2 >= 4 ? 1.34 : path2 >= 3 ? 1.18 : path2 >= 2 ? 1.08 : 1,
+      helpMissile: path1 >= 5,
+      helpMissileCooldown: path1 >= 5 ? 2.4 : 8.8,
+      speed: path1 >= 5 ? 196 : 142,
+      acceleration: path1 >= 5 ? 760 : 560,
+      helpMissileDamage: path1 >= 5 ? 55 : 0,
+      splash: path1 >= 5 ? 28 : 0,
       homing: 9.5,
       shrapnel: false,
       clusters: false,
       rain: false,
       auraRadius: CELL_SIZE * (2 + path2 * 0.18 + (path2 >= 5 ? 0.22 : 0))
+    });
+  }
+
+  if (tower.type === "treasury") {
+    const path1 = tower.path1 || 0;
+    const path2 = tower.path2 || 0;
+    const waveCash = path1 >= 5
+      ? 800
+      : 5
+        + (path1 >= 1 ? 2 : 0)
+        + (path1 >= 2 ? 5 : 0)
+        + (path1 >= 3 ? 18 : 0)
+        + (path1 >= 4 ? 80 : 0);
+    const loanAmount = path2 >= 5 ? 900 : path2 >= 4 ? 320 : 0;
+    const loanRepayTotal = path2 >= 5 ? 1200 : path2 >= 4 ? 430 : 0;
+    const loanRounds = path2 >= 5 ? 5 : path2 >= 4 ? 4 : 0;
+    return finalizeStats({
+      range: CELL_SIZE * (2.15 + (path1 >= 5 ? 0.55 : 0)),
+      cooldown: Infinity,
+      damage: 0,
+      waveCash,
+      enemyDropMultiplier: path2 >= 5 ? 1.8 : path2 >= 4 ? 1.5 : path2 >= 3 ? 1.32 : path2 >= 2 ? 1.18 : path2 >= 1 ? 1.08 : 1,
+      enemyDropFlatBonus: 0,
+      bankEnabled: path2 >= 3,
+      bankCap: path2 >= 5 ? 2400 : path2 >= 4 ? 600 : path2 >= 3 ? 120 : 0,
+      loanAmount,
+      loanRepayTotal,
+      loanRounds,
+      tradeEmpireAura: path1 >= 5 ? 1.2 : 0,
+      auraRadius: CELL_SIZE * (2.2 + (path1 >= 5 ? 0.8 : 0))
+    });
+  }
+
+  if (tower.type === "orb") {
+    const path1 = tower.path1 || 0;
+    const path2 = tower.path2 || 0;
+    const orbCount = path1 >= 5 ? 8 : path1 >= 3 ? 5 : path1 >= 2 ? 3 : 2;
+    const rotationsPerSecond = 0.7
+      + path1 * 0.18
+      + (path1 >= 4 ? 0.32 : 0)
+      + (path1 >= 5 ? 0.26 : 0);
+    const cooldown = 1 / Math.max(orbCount * rotationsPerSecond, 0.01);
+    return finalizeStats({
+      range: CELL_SIZE * 1.65,
+      cooldown,
+      damage: 3.2 + path1 * 1.1 + (path1 >= 4 ? 3.4 : 0) + (path1 >= 5 ? 7.6 : 0) + (path2 >= 5 ? 10.4 : 0),
+      orbitRadius: CELL_SIZE,
+      orbCount,
+      rotationsPerSecond,
+      regenerationTime: Math.max(0.7, 4.8 - (path2 >= 1 ? 1.7 : 0) - (path1 >= 5 ? 0.7 : 0) - (path2 >= 5 ? 0.9 : 0)),
+      orbHitsToLive: 10 + (path2 >= 2 ? 4 : 0) + (path1 >= 5 ? 4 : 0) + (path2 >= 5 ? 10 : 0),
+      pierce: 10 + (path2 >= 2 ? 4 : 0) + (path1 >= 5 ? 4 : 0) + (path2 >= 5 ? 10 : 0),
+      contactRadius: 14 + (path1 >= 4 ? 2 : 0) + (path1 >= 5 ? 2 : 0),
+      smartOrbs: path2 >= 3,
+      adaptiveOrbs: path2 >= 4,
+      empoweredOrbs: path2 >= 5,
+      splash: path2 >= 3 ? 20 + (path2 >= 5 ? 18 : 0) : 0,
+      burnDamage: path2 >= 3 ? 2.8 + (path1 >= 4 ? 1.3 : 0) + (path2 >= 5 ? 4.1 : 0) : 0,
+      burnDuration: path2 >= 3 ? 2.8 + (path2 >= 5 ? 1.4 : 0) : 0,
+      orbStun: path2 >= 3 ? 0.12 : 0,
+      singularityStun: path2 >= 5 ? 0.12 : 0,
+      orbSlow: path2 >= 3 ? (path2 >= 5 ? 0.42 : 0.6) : 1,
+      orbSlowDuration: path2 >= 3 ? 1.15 + (path2 >= 5 ? 0.65 : 0) : 0,
+      shieldMultiplier: path2 >= 3 ? 5 + (path2 >= 5 ? 4 : 0) : 1
     });
   }
 
@@ -8558,6 +9548,8 @@ function towerStats(tower) {
       acidDot: 1.45 + path2 * 0.62 + path1 * 0.26 + (path2 >= 4 ? 1.7 : 0) + (path2 >= 5 ? 4.6 : 0),
       acidDuration,
       acidAmp,
+      enemyDropFlatBonus: path1 >= 5 ? 8 : path1 >= 4 ? 4 : path1 >= 3 ? 2 : path1 >= 2 ? 1 : 0,
+      enemyDropMultiplier: 1,
       spraySlow: Math.max(0.96 - path2 * 0.03, 0.8),
       spraySlowDuration: 0.36 + path2 * 0.06,
       detectHidden: true
@@ -8607,11 +9599,18 @@ function towerStats(tower) {
     const path2 = tower.path2 || 0;
     const heavyDart = path2 >= 3;
     const blastCore = path1 >= 3;
+    const baseSplash = path1 >= 2 ? 22 : path1 >= 1 ? 16 : 12;
     return finalizeStats({
       range: CELL_SIZE * (4.8 + path1 * 0.34 + (path1 >= 5 ? 0.5 : 0)),
       cooldown: heavyDart ? Math.max(0.96 - (path2 - 3) * 0.12 - (path2 >= 5 ? 0.04 : 0), 0.38) : Math.max(0.92 - path1 * 0.05 - (path1 >= 4 ? 0.12 : 0) - (path1 >= 5 ? 0.06 : 0), 0.24),
-      damage: heavyDart ? (path2 >= 5 ? 102 : 11 + path2 * 3.35 + (path2 >= 3 ? 2.6 : 0) + (path2 >= 4 ? 7.4 : 0)) : 4.6 + path2 * 1.55 + (path1 >= 3 ? 2 : 0) + (path1 >= 4 ? 3.4 : 0) + (path1 >= 5 ? 10.2 : 0),
-      splash: heavyDart ? 0 : blastCore ? (40 + path1 * 4 + 12 + (path1 >= 4 ? 18 : 0) + (path1 >= 5 ? 42 : 0)) / 1.5 : 0,
+      damage: heavyDart
+        ? (path2 >= 5 ? 102 : 11 + path2 * 3.35 + (path2 >= 3 ? 2.6 : 0) + (path2 >= 4 ? 7.4 : 0))
+        : path1 >= 5
+          ? 81
+          : path1 >= 4
+            ? 55
+            : 4.6 + path2 * 1.55 + (path1 >= 3 ? 2 : 0),
+      splash: heavyDart ? 0 : blastCore ? (40 + path1 * 4 + 12 + (path1 >= 4 ? 18 : 0) + (path1 >= 5 ? 42 : 0)) / 1.5 : baseSplash,
       speed: heavyDart ? 520 + (path2 - 3) * 60 + (path2 >= 5 ? 80 : 0) : 120 + (path1 >= 3 ? 120 : 0) + (path1 >= 4 ? 40 : 0) + (path1 >= 5 ? 95 : 0),
       acceleration: heavyDart ? 0 : 520 + (path1 >= 3 ? 220 : 0) + (path1 >= 4 ? 120 : 0) + (path1 >= 5 ? 240 : 0),
       burst: path1 >= 5 ? 14 : path1 >= 4 ? 4 : 1,
@@ -8640,9 +9639,11 @@ function towerStats(tower) {
       sticky: path2 >= 3,
       slow: path2 >= 3 ? 0.55 : 1,
       duration: path2 >= 3 ? 1.9 + path2 * 0.25 + (path2 >= 4 ? 0.9 : 0) + (path2 >= 5 ? 1.9 : 0) : 0,
+      constructCount: path2 >= 3 ? 3 : 1,
       mine: path2 >= 4,
       mango: path2 >= 5,
       turretMode,
+      detectHidden: !turretMode,
       turretCap: path1 >= 5 ? 42 : path1 >= 4 ? 22 : path1 >= 3 ? 8 : 0,
       turretCooldown: Math.max(0.78 - (path1 >= 4 ? 0.18 : 0) - (path1 >= 5 ? 0.3 : 0), 0.1),
       turretDamage: 2.4 + path2 * 0.72 + (path1 >= 3 ? 0.8 : 0) + (path1 >= 4 ? 2.8 : 0) + (path1 >= 5 ? 6.8 : 0),
@@ -8655,8 +9656,8 @@ function towerStats(tower) {
     const path1 = tower.path1 || 0;
     const path2 = tower.path2 || 0;
     const baseRange = CELL_SIZE * (5.75 + levelBonus * 0.14 + (path1 >= 1 ? 0.42 : 0) + (path1 >= 2 ? 0.22 : 0)) * (path1 >= 5 ? 1.08 : 1);
-    const supportCount = path2 >= 5 ? 4 : path2 >= 3 ? 3 : 0;
-    const mainGuns = path2 >= 4 ? 4 : path1 >= 2 ? 2 : 1;
+    const supportCount = path2 >= 5 ? 7 : path2 >= 3 ? 3 : 0;
+    const mainGuns = path1 >= 5 ? 5 : path2 >= 4 ? 4 : path1 >= 2 ? 2 : 1;
     const supportGuns = path2 >= 4 ? 2 : 1;
     return finalizeStats({
       range: baseRange,
@@ -8666,11 +9667,11 @@ function towerStats(tower) {
       droneSpeed: 238 + levelBonus * 12 + path2 * 34 + (path1 >= 4 ? 26 : 0) + (path1 >= 5 ? 58 : 0),
       detectHidden: path1 >= 1,
       bulletGuns: mainGuns,
-      bulletDamage: 1.05 + levelBonus * 0.3 + (path2 >= 4 ? 0.9 : 0) + (path2 >= 5 ? 2.1 : 0),
+      bulletDamage: 1.05 + levelBonus * 0.3 + (path1 >= 3 ? 0.25 : 0),
       bulletPierce: path2 >= 5 ? 4 : path2 >= 4 ? 3 : path2 >= 2 ? 2 : 0,
       rocket: path1 >= 3,
       rocketCooldown: path1 >= 5 ? 0.18 : path1 >= 4 ? 0.42 : 0.7,
-      rocketDamage: 3.2 + levelBonus * 0.5 + (path1 >= 3 ? 0.9 : 0) + (path1 >= 4 ? 3.4 : 0) + (path1 >= 5 ? 6.6 : 0),
+      rocketDamage: path1 >= 5 ? 65 : path1 >= 4 ? 32 : path1 >= 3 ? 14 : 0,
       rocketSplash: path1 >= 5 ? 72 : path1 >= 4 ? 48 : path1 >= 3 ? 28 : 24,
       rocketSpeed: path1 >= 5 ? 240 : path1 >= 4 ? 170 : 132,
       rocketHoming: path1 >= 5 ? 15.5 : path1 >= 4 ? 13.2 : 11.4,
@@ -8682,7 +9683,8 @@ function towerStats(tower) {
       attackDrone: path1 >= 5,
       attackDroneMissileVolley: path1 >= 5 ? 6 : 1,
       relocateTower: path2 >= 3,
-      relocateBlock: path2 >= 5
+      relocateBlock: path2 >= 5,
+      relocateTowerSpeedMultiplier: path2 >= 5 ? 2 : 1
     });
   }
 
@@ -8737,9 +9739,39 @@ function supportBuffsForTower(tower) {
   return buffs;
 }
 
-function towerHasHiddenDetection(tower, stats = towerStats(tower)) {
+function applySupportBuffsToStats(tower, baseStats = towerStats(tower)) {
+  if (!tower) {
+    return { ...baseStats };
+  }
+
   const buffs = supportBuffsForTower(tower);
-  return Boolean(stats.detectHidden || buffs.detectHidden);
+  const stats = { ...baseStats };
+  const attackSpeedMultiplier = Math.max(stats.attackSpeedMultiplier || 1, buffs.attackSpeedMultiplier || 1);
+  const scaleCooldown = (value) => Number.isFinite(value) && value > 0 ? value / attackSpeedMultiplier : value;
+
+  stats.attackSpeedMultiplier = attackSpeedMultiplier;
+  stats.detectHidden = tower.type === "trapper" && stats.turretMode
+    ? Boolean(stats.detectHidden)
+    : Boolean(stats.detectHidden || buffs.detectHidden);
+  stats.munitions = Boolean(stats.munitions || buffs.munitions);
+  stats.cooldown = scaleCooldown(stats.cooldown);
+  stats.fieldCooldown = scaleCooldown(stats.fieldCooldown);
+  stats.pulseCooldown = scaleCooldown(stats.pulseCooldown);
+  stats.turretCooldown = scaleCooldown(stats.turretCooldown);
+  stats.rocketCooldown = scaleCooldown(stats.rocketCooldown);
+  stats.supportCooldown = scaleCooldown(stats.supportCooldown);
+  stats.helpMissileCooldown = scaleCooldown(stats.helpMissileCooldown);
+  stats.mortarCooldown = scaleCooldown(stats.mortarCooldown);
+  stats.burstDelay = scaleCooldown(stats.burstDelay);
+  stats.holdDelay = scaleCooldown(stats.holdDelay);
+  stats.podReloadStep = scaleCooldown(stats.podReloadStep);
+  stats.regenerationTime = scaleCooldown(stats.regenerationTime);
+
+  return stats;
+}
+
+function towerHasHiddenDetection(tower, stats = towerStats(tower)) {
+  return Boolean(stats.detectHidden || supportBuffsForTower(tower).detectHidden);
 }
 
 function effectiveTowerDamageType(tower, baseType, stats = towerStats(tower)) {
@@ -8790,12 +9822,16 @@ function addTowerDamage(towerId, amount) {
   const tower = towers.find((entry) => entry.id === towerId);
   if (tower) {
     tower.totalDamageDealt = (tower.totalDamageDealt || 0) + amount;
-    refreshOpenTowerPopupDamage(towerId);
+    refreshOpenTowerPopup(towerId);
   }
 }
 
-function handleDroneCommandClick(x, y) {
+function handleDroneCommandClick(x, y, point = null) {
   if (!droneCommandState) {
+    return false;
+  }
+
+  if (droneCommandState.stage === "return") {
     return false;
   }
 
@@ -8807,15 +9843,16 @@ function handleDroneCommandClick(x, y) {
 
   if (droneCommandState.stage === "selectTarget") {
     if (droneCommandState.mode === "tower") {
-      const targetTower = towerAtCell(x, y);
+      const targetTower = relocateSelectableTowerAtPoint(point, commandTower) || towerAtCell(x, y);
       if (!targetTower || targetTower.id === commandTower.id || targetTower.upgradeLocked) {
         setMessage("Select a tower to relocate.", 1.4);
         return true;
       }
+      addPulse(targetTower.centerX, targetTower.centerY, towerRelocationSelectionRadius(targetTower), "rgba(255, 225, 92, 0.72)");
       droneCommandState.targetTowerId = targetTower.id;
       droneCommandState.targetType = targetTower.type;
       droneCommandState.stage = "selectDestination";
-      setMessage("Select a location for that tower.", 1.5);
+      setMessage("Select destination.", 6);
       return true;
     }
 
@@ -8825,13 +9862,9 @@ function handleDroneCommandClick(x, y) {
       setMessage("Click a movable block to relocate.", 1.4);
       return true;
     }
-    if (blockHasTowerOnIt(block)) {
-      setMessage("Move any towers off that block first.", 1.4);
-      return true;
-    }
     droneCommandState.blockId = block.id;
     droneCommandState.stage = "selectDestination";
-    setMessage("Now click the destination anchor for that block.", 1.5);
+    setMessage("Now click the destination anchor for that block and its towers.", 1.5);
     return true;
   }
 
@@ -8915,6 +9948,14 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
   }
   const shieldMultiplier = options.shieldMultiplier || 1;
   let { stun = 0, slow = null, slowDuration = 0, burnDamage = 0, burnDuration = 0, dotBarColor = null } = options;
+  if (stun > 0) {
+    stun *= enemy.stunResistance || 1;
+  }
+  if (slow !== null && slow < 1) {
+    const slowResistance = enemy.slowResistance || 1;
+    slow = 1 - (1 - slow) * slowResistance;
+    slowDuration *= slowResistance;
+  }
   const shieldSource = activeShieldSourceForEnemy(enemy);
   if (shieldSource) {
     if (options.shieldHitTracker?.hitShield) {
@@ -9069,6 +10110,13 @@ function damageEnemy(enemy, amount, damageType, options = {}) {
   return true;
 }
 
+function applyEnemyKnockback(enemy, amount) {
+  if (!enemy || amount <= 0) {
+    return;
+  }
+  enemy.progress = Math.max(-1.5, (enemy.progress || 0) - amount);
+}
+
 function canTowerDamageEnemy(tower, enemy, stats = towerStats(tower)) {
   if (enemy?.key === "hydra") {
     return true;
@@ -9079,6 +10127,8 @@ function canTowerDamageEnemy(tower, enemy, stats = towerStats(tower)) {
     ? (stats.mine ? "explosion" : "trap")
     : tower.type === "drone"
     ? (stats.rocket ? "explosion" : "bullet")
+    : tower.type === "orb"
+    ? "explosion"
     : tower.type === "fireball"
     ? "explosion"
     : "bullet", stats);
@@ -9091,7 +10141,7 @@ function canTowerDamageEnemy(tower, enemy, stats = towerStats(tower)) {
     return true;
   }
 
-  if (tower.type === "support") {
+  if (tower.type === "support" || tower.type === "treasury") {
     return false;
   }
 
@@ -9135,6 +10185,10 @@ function canTowerDamageEnemy(tower, enemy, stats = towerStats(tower)) {
 
   if (tower.type === "drone") {
     return canHitArmored(enemy, effectiveType);
+  }
+
+  if (tower.type === "orb") {
+    return true;
   }
 
   return canHitArmored(enemy, "laser");
@@ -9217,6 +10271,236 @@ function towerHasLineOfSightToPoint(tower, x, y) {
     return true;
   }
   return hasLineOfSight(tower.centerX, tower.centerY, x, y);
+}
+
+function ensureOrbState(tower, stats) {
+  const desiredCount = Math.max(0, stats.orbCount || 0);
+  if (!Array.isArray(tower.orbs)) {
+    tower.orbs = [];
+  }
+  while (tower.orbs.length < desiredCount) {
+    tower.orbs.push({
+      slot: tower.orbs.length,
+      strikeCooldown: 0,
+      hitCount: 0,
+      regenerationTimer: 0
+    });
+  }
+  if (tower.orbs.length > desiredCount) {
+    tower.orbs = tower.orbs.slice(0, desiredCount);
+  }
+  tower.orbs.forEach((orb, index) => {
+    orb.slot = index;
+    orb.strikeCooldown = Math.max(0, orb.strikeCooldown || 0);
+    orb.hitCount = Math.max(0, orb.hitCount || 0);
+    orb.regenerationTimer = Math.max(0, orb.regenerationTimer || 0);
+  });
+  tower.orbRotation = tower.orbRotation || 0;
+}
+
+function orbTypeForEnemy(tower, stats, enemy) {
+  const selected = tower.orbType || "explosive";
+  if (selected !== "adaptive" || !stats.adaptiveOrbs) {
+    return selected;
+  }
+  if ((activeShieldSourceForEnemy(enemy) || (enemy.shieldHp || 0) > 0 || enemy.shielded) && stats.smartOrbs) {
+    return "energy";
+  }
+  const nearbyCount = enemies.filter((entry) => Math.hypot(entry.x - enemy.x, entry.y - enemy.y) <= CELL_SIZE * 1.2).length;
+  if (nearbyCount >= 4 || enemy.armored || (enemy.shellHp || 0) > 0) {
+    return "explosive";
+  }
+  if ((enemy.hp || 0) >= 45 || (enemy.reward || 0) >= 8) {
+    return "concentrated";
+  }
+  return "explosive";
+}
+
+function displayedOrbType(tower, stats = towerStats(tower)) {
+  const selected = tower.orbType || "explosive";
+  if (selected !== "adaptive" || !stats.adaptiveOrbs) {
+    return selected;
+  }
+  const candidates = enemiesInRange(tower.centerX, tower.centerY, stats.range, false, false);
+  for (const mode of ["energy", "explosive", "concentrated"]) {
+    if (candidates.some((enemy) => orbTypeForEnemy(tower, stats, enemy) === mode)) {
+      return mode;
+    }
+  }
+  return "adaptive";
+}
+
+function orbPalette(mode, stats = null) {
+  if (mode === "energy") {
+    return {
+      fill: "#dcc2ff",
+      glow: "rgba(220, 194, 255, 0.76)"
+    };
+  }
+  if (mode === "concentrated") {
+    return {
+      fill: "#b8efff",
+      glow: "rgba(184, 239, 255, 0.76)"
+    };
+  }
+  if (mode === "adaptive") {
+    return {
+      fill: "#d7c4ff",
+      glow: "rgba(215, 196, 255, 0.7)"
+    };
+  }
+  if (mode === "explosive" && stats?.smartOrbs) {
+    return {
+      fill: "#ffd0a8",
+      glow: "rgba(255, 208, 168, 0.82)"
+    };
+  }
+  return {
+    fill: "#ffffff",
+    glow: "rgba(255, 255, 255, 0.82)"
+  };
+}
+
+function orbTargetsNearPoint(tower, stats, x, y) {
+  return enemies
+    .filter((enemy) => canSeeEnemy(enemy, false))
+    .filter((enemy) => Math.hypot(enemy.x - x, enemy.y - y) <= (stats.contactRadius || 14))
+    .sort((left, right) => {
+      const leftDistance = Math.hypot(left.x - x, left.y - y);
+      const rightDistance = Math.hypot(right.x - x, right.y - y);
+      return leftDistance - rightDistance;
+    });
+}
+
+function triggerOrbSplash(tower, stats, centerEnemy, centerX, centerY) {
+  const splash = stats.splash || 0;
+  if (splash <= 0) {
+    return;
+  }
+  addPulse(centerX, centerY, splash, "rgba(159, 208, 255, 0.26)");
+  for (const enemy of enemies) {
+    const distance = Math.hypot(enemy.x - centerX, enemy.y - centerY);
+    if (distance > splash) {
+      continue;
+    }
+    damageEnemy(enemy, stats.damage * 0.55 * (1 - distance / Math.max(splash, 1) * 0.45), "explosion", {
+      sourceTowerId: tower.id
+    });
+  }
+}
+
+function fireOrbHit(tower, orb, enemy, stats, mode, orbX, orbY) {
+  const empowered = Boolean(stats.empoweredOrbs);
+  if (mode === "energy") {
+    const hit = damageEnemy(enemy, stats.damage, "laser", {
+      burnDamage: stats.burnDamage,
+      burnDuration: stats.burnDuration,
+      stun: empowered ? (stats.singularityStun || 0) : 0,
+      shieldMultiplier: stats.shieldMultiplier,
+      sourceTowerId: tower.id
+    });
+    if (hit && empowered) {
+      triggerOrbSplash(tower, stats, enemy, enemy.x, enemy.y);
+    }
+    return hit;
+  }
+  if (mode === "concentrated") {
+    const hit = damageEnemy(enemy, stats.damage, "bullet", {
+      burnDamage: empowered ? stats.burnDamage : 0,
+      burnDuration: empowered ? stats.burnDuration : 0,
+      stun: empowered ? (stats.singularityStun || 0) : 0,
+      slow: stats.orbSlow < 1 ? stats.orbSlow : null,
+      slowDuration: stats.orbSlowDuration || 0,
+      sourceTowerId: tower.id
+    });
+    if (hit) {
+      if (empowered) {
+        triggerOrbSplash(tower, stats, enemy, enemy.x, enemy.y);
+      }
+      addBeam(orbX, orbY, enemy.x, enemy.y, "rgba(184, 239, 255, 0.88)", 1.8, 0.05);
+    }
+    return hit;
+  }
+  const hit = damageEnemy(enemy, stats.damage, "explosion", {
+    burnDamage: empowered ? stats.burnDamage : 0,
+    burnDuration: empowered ? stats.burnDuration : 0,
+    stun: empowered ? (stats.singularityStun || 0) : 0,
+    sourceTowerId: tower.id
+  });
+  if (hit) {
+    triggerOrbSplash(tower, stats, enemy, enemy.x, enemy.y);
+  }
+  return hit;
+}
+
+function updateOrbTower(tower, stats, deltaTime) {
+  ensureOrbState(tower, stats);
+  const direction = (tower.targetPriority || "clockwise") === "anticlockwise" ? -1 : 1;
+  tower.orbRotation = normalizeAngle((tower.orbRotation || 0) + direction * deltaTime * Math.PI * 2 * (stats.rotationsPerSecond || 0));
+  const spacing = tower.orbs.length > 0 ? (Math.PI * 2) / tower.orbs.length : 0;
+  const maxHits = Math.max(1, Math.round(stats.orbHitsToLive || 1));
+  const waveRunning = isWaveRunning();
+
+  for (const orb of tower.orbs) {
+    orb.strikeCooldown = Math.max(0, orb.strikeCooldown - deltaTime);
+    orb.hitCount = Math.min(maxHits, Math.max(0, orb.hitCount || 0));
+    if (waveRunning && orb.hitCount > 0) {
+      orb.regenerationTimer = Math.max(0, (orb.regenerationTimer || 0) - deltaTime);
+      if (orb.regenerationTimer === 0) {
+        orb.hitCount = Math.max(0, orb.hitCount - 1);
+        orb.regenerationTimer = orb.hitCount > 0 ? (stats.regenerationTime || 1) : 0;
+      }
+    } else if (!waveRunning) {
+      orb.regenerationTimer = Math.max(0, orb.regenerationTimer || 0);
+    }
+
+    const orbDisabled = orb.hitCount >= maxHits;
+    const angle = tower.orbRotation + spacing * orb.slot;
+    orb.angle = angle;
+    orb.x = tower.centerX + Math.cos(angle) * (stats.orbitRadius || CELL_SIZE);
+    orb.y = tower.centerY + Math.sin(angle) * (stats.orbitRadius || CELL_SIZE);
+    if (orbDisabled || orb.strikeCooldown > 0) {
+      continue;
+    }
+
+    const nearbyEnemies = orbTargetsNearPoint(tower, stats, orb.x, orb.y);
+    if (nearbyEnemies.length === 0) {
+      continue;
+    }
+
+    const pierceLimit = Math.max(1, Math.round(stats.pierce || 1));
+    let hitsThisPass = 0;
+    for (const enemy of nearbyEnemies.slice(0, pierceLimit)) {
+      const mode = orbTypeForEnemy(tower, stats, enemy);
+      if (fireOrbHit(tower, orb, enemy, stats, mode, orb.x, orb.y)) {
+        hitsThisPass += 1;
+        addPulse(
+          orb.x,
+          orb.y,
+          8,
+          mode === "energy"
+            ? "rgba(220, 194, 255, 0.46)"
+            : mode === "concentrated"
+              ? "rgba(184, 239, 255, 0.44)"
+              : stats.smartOrbs
+                ? "rgba(255, 208, 168, 0.44)"
+                : "rgba(255, 255, 255, 0.4)"
+        );
+      }
+    }
+
+    if (hitsThisPass > 0) {
+      orb.hitCount += hitsThisPass;
+      orb.strikeCooldown = stats.cooldown;
+      if (orb.hitCount >= maxHits) {
+        orb.hitCount = maxHits;
+        orb.regenerationTimer = waveRunning ? (stats.regenerationTime || 1) : Math.max(orb.regenerationTimer || 0, stats.regenerationTime || 1);
+        addBurstParticles(orb.x, orb.y, 6, "rgba(181, 225, 255, 0.75)", 20, 60, 0.05, 0.14);
+      } else if (waveRunning && orb.hitCount > 0 && orb.regenerationTimer === 0) {
+        orb.regenerationTimer = stats.regenerationTime || 1;
+      }
+    }
+  }
 }
 
 function clampPointToRadius(point, centerX, centerY, radius) {
@@ -9372,7 +10656,7 @@ function addEnemyDeathAnimation(enemy) {
   });
   nextEffectId += 1;
 
-  if (enemy.boss || (enemy.tier || 1) >= 3 || enemy.key === "behemoth") {
+  if (enemy.boss || (enemy.tier || 1) >= 3 || enemy.key === "behemoth" || enemy.key === "xer") {
     triggerScreenShake(enemy.boss ? 0.28 : 0.16, enemy.boss ? 0.18 : 0.12);
   }
 }
@@ -9727,14 +11011,18 @@ function applyFreezeEffect(enemy, damage, slow, slowDuration, freezeDuration = 0
   }
 
   if ((!enemy.armored || enemy.armorHp <= 0) && slow < 1 && slowDuration > 0) {
-    enemy.slowFactor = Math.min(enemy.slowFactor, slow);
-    enemy.slowTimer = Math.max(enemy.slowTimer, slowDuration);
-    enemy.freezeTintTimer = Math.max(enemy.freezeTintTimer || 0, Math.max(0.12, slowDuration));
+    const slowResistance = enemy.slowResistance || 1;
+    const adjustedSlow = 1 - (1 - slow) * slowResistance;
+    const adjustedDuration = slowDuration * slowResistance;
+    enemy.slowFactor = Math.min(enemy.slowFactor, adjustedSlow);
+    enemy.slowTimer = Math.max(enemy.slowTimer, adjustedDuration);
+    enemy.freezeTintTimer = Math.max(enemy.freezeTintTimer || 0, Math.max(0.12, adjustedDuration));
   }
 
   if ((!enemy.armored || enemy.armorHp <= 0) && freezeDuration > 0) {
-    enemy.stunTimer = Math.max(enemy.stunTimer, freezeDuration);
-    enemy.freezeTintTimer = Math.max(enemy.freezeTintTimer || 0, freezeDuration);
+    const adjustedFreeze = freezeDuration * (enemy.stunResistance || 1);
+    enemy.stunTimer = Math.max(enemy.stunTimer, adjustedFreeze);
+    enemy.freezeTintTimer = Math.max(enemy.freezeTintTimer || 0, adjustedFreeze);
   }
 
   return dealtDamage;
@@ -9799,7 +11087,7 @@ function launchSupportAirstrike(tower, target, stats) {
       swayAmplitude: 0.085,
       swayRate: 7.5 + Math.random() * 2.5,
       swayPhase: Math.random() * Math.PI * 2,
-      damage: stats.damage || 11.5,
+      damage: stats.helpMissileDamage || stats.damage || 11.5,
       impactDamage: 0,
       splash: stats.splash || 28,
       shrapnel: false,
@@ -9913,10 +11201,10 @@ function randomPointInCell(x, y, padding = 8) {
   };
 }
 
-function spawnTrapperConstruct(tower) {
-  const stats = towerStats(tower);
+function spawnTrapperConstruct(tower, stats = applySupportBuffsToStats(tower, towerStats(tower))) {
   const trapDamageType = effectiveTowerDamageType(tower, stats.mine ? "explosion" : "trap", stats);
   const turretDamageType = effectiveTowerDamageType(tower, "bullet", stats);
+  const spawnCount = Math.max(1, Math.round(stats.constructCount || 1));
   if (stats.turretMode && stats.turretCap > 0) {
     const activeTurrets = traps.filter((trap) => trap.ownerTowerId === tower.id && trap.kind === "turret").length;
     if (activeTurrets >= stats.turretCap) {
@@ -9938,32 +11226,36 @@ function spawnTrapperConstruct(tower) {
     return false;
   }
 
-  const choice = candidates[Math.floor(Math.random() * candidates.length)];
-  const center = randomPointInCell(choice.x, choice.y, stats.turretMode ? 10 : 7);
-  effects.push({
-    id: nextEffectId,
-    kind: "constructLaunch",
-    x1: tower.centerX,
-    y1: tower.centerY,
-    x2: center.x,
-    y2: center.y,
-    color: stats.turretMode ? "#d9ffb7" : stats.mine ? "#ffd067" : "#9de67b",
-    ttl: 0.18,
-    maxTtl: 0.18
-  });
-  nextEffectId += 1;
-  traps.push({
-    id: nextTrapId,
-    ownerTowerId: tower.id,
-    kind: stats.turretMode ? "turret" : stats.mine ? "mine" : "trap",
-    x: choice.x,
-    y: choice.y,
-    centerX: center.x,
-    centerY: center.y,
-    damage: stats.turretMode ? stats.turretDamage : stats.damage,
-    slow: stats.slow,
-    duration: stats.duration,
-    radius: stats.trapRadius,
+  let spawned = false;
+  const availableCandidates = candidates.slice();
+  for (let index = 0; index < spawnCount && availableCandidates.length > 0; index += 1) {
+    const choiceIndex = Math.floor(Math.random() * availableCandidates.length);
+    const [choice] = availableCandidates.splice(choiceIndex, 1);
+    const center = randomPointInCell(choice.x, choice.y, stats.turretMode ? 10 : 7);
+    effects.push({
+      id: nextEffectId,
+      kind: "constructLaunch",
+      x1: tower.centerX,
+      y1: tower.centerY,
+      x2: center.x,
+      y2: center.y,
+      color: stats.turretMode ? "#d9ffb7" : stats.mine ? "#ffd067" : "#9de67b",
+      ttl: 0.18,
+      maxTtl: 0.18
+    });
+    nextEffectId += 1;
+    traps.push({
+      id: nextTrapId,
+      ownerTowerId: tower.id,
+      kind: stats.turretMode ? "turret" : stats.mine ? "mine" : "trap",
+      x: choice.x,
+      y: choice.y,
+      centerX: center.x,
+      centerY: center.y,
+      damage: stats.turretMode ? stats.turretDamage : stats.damage,
+      slow: stats.slow,
+      duration: stats.duration,
+      radius: stats.trapRadius,
       damageType: stats.turretMode ? turretDamageType : trapDamageType,
       usesRemaining: stats.trapUses,
       ttl: stats.trapLifetime,
@@ -9974,10 +11266,18 @@ function spawnTrapperConstruct(tower) {
       range: stats.turretRange,
       barrels: stats.turretBarrels,
       attackCooldown: stats.turretCooldown,
-    mango: stats.mango
-  });
-  nextTrapId += 1;
-  return true;
+      mango: stats.mango
+    });
+    nextTrapId += 1;
+    spawned = true;
+    if (stats.turretMode && stats.turretCap > 0) {
+      const activeTurrets = traps.filter((trap) => trap.ownerTowerId === tower.id && trap.kind === "turret").length;
+      if (activeTurrets >= stats.turretCap) {
+        break;
+      }
+    }
+  }
+  return spawned;
 }
 
 function explodeTrap(trap, options = {}) {
@@ -10005,6 +11305,29 @@ function explodeTrap(trap, options = {}) {
   }
 
   return [];
+}
+
+function launchSupportMortar(tower, target, stats) {
+  const targetX = target.x + (target.vx || 0) * 0.12;
+  const targetY = target.y + (target.vy || 0) * 0.12;
+  projectiles.push({
+    id: nextProjectileId,
+    kind: "mangoBomb",
+    x: tower.centerX,
+    y: tower.centerY - 8,
+    targetId: target.id ?? null,
+    targetX,
+    targetY,
+    angle: Math.atan2(targetY - tower.centerY, targetX - tower.centerX),
+    speed: stats.mortarSpeed || 340,
+    acceleration: 160,
+    damage: stats.mortarDamage || 11,
+    splash: stats.mortarSplash || 46,
+    impactDamage: (stats.mortarDamage || 11) * 1.2,
+    ownerTowerId: tower.id,
+    ttl: 1.4
+  });
+  nextProjectileId += 1;
 }
 
 function droneCommandTargetPoint(command) {
@@ -10058,9 +11381,12 @@ function updateDroneMoveCommands(deltaTime) {
 
   const stats = towerStats(tower);
   const wing = drones.filter((entry) => entry.towerId === tower.id);
+  const towerRelocationSpeed = droneCommandState.mode === "tower"
+    ? (stats.relocateTowerSpeedMultiplier || 1)
+    : 1;
   const pickupDestination = droneCommandState.stage === "pickup" ? droneCommandTargetPoint(droneCommandState) : null;
   const finalDestination = droneCommandState.stage === "transport" ? droneCommandDestinationPoint(droneCommandState) : null;
-  const destination = droneCommandState.stage === "pickup"
+  let destination = droneCommandState.stage === "pickup"
     ? pickupDestination
     : droneCommandState.stage === "transport"
       ? (droneCommandState.transportCenter || finalDestination)
@@ -10070,6 +11396,7 @@ function updateDroneMoveCommands(deltaTime) {
     return;
   }
 
+  let transportComplete = false;
   if (droneCommandState.stage === "transport" && finalDestination) {
     const dx = finalDestination.x - destination.x;
     const dy = finalDestination.y - destination.y;
@@ -10079,11 +11406,13 @@ function updateDroneMoveCommands(deltaTime) {
     if (carriedTower?.type === "dippy" || carriedTower?.type === "fireball") {
       speedMultiplier *= 0.55;
     }
-    const travel = Math.min(distance, stats.droneSpeed * speedMultiplier * deltaTime);
+    const travel = Math.min(distance, stats.droneSpeed * speedMultiplier * towerRelocationSpeed * deltaTime);
     const nextCenter = distance > 0
       ? { x: destination.x + (dx / distance) * travel, y: destination.y + (dy / distance) * travel }
       : finalDestination;
     droneCommandState.transportCenter = nextCenter;
+    destination = nextCenter;
+    transportComplete = Math.hypot(finalDestination.x - nextCenter.x, finalDestination.y - nextCenter.y) <= 2;
   }
 
   let allArrived = wing.length > 0;
@@ -10094,17 +11423,25 @@ function updateDroneMoveCommands(deltaTime) {
     const orbitRadius = drone.support ? 14 : 20;
     const targetX = destination.x + Math.cos(orbitAngle) * orbitRadius;
     const targetY = destination.y + Math.sin(orbitAngle) * orbitRadius;
+    if (droneCommandState.stage === "transport" && droneCommandState.mode === "tower") {
+      const previousCenter = droneCommandState.previousTransportCenter || destination;
+      const carryDx = destination.x - previousCenter.x;
+      const carryDy = destination.y - previousCenter.y;
+      drone.x += carryDx;
+      drone.y += carryDy;
+      drone.angle += deltaTime * 1.8;
+      drone.x += (targetX - drone.x) * Math.min(1, deltaTime * 8);
+      drone.y += (targetY - drone.y) * Math.min(1, deltaTime * 8);
+      if (Math.hypot(targetX - drone.x, targetY - drone.y) > 12) {
+        allArrived = false;
+      }
+      continue;
+    }
+
     const dx = targetX - drone.x;
     const dy = targetY - drone.y;
     const distance = Math.hypot(dx, dy) || 1;
-    let speedMultiplier = droneCommandState.stage === "transport" ? 0.25 : 1.15;
-    if (droneCommandState.stage === "transport" && droneCommandState.mode === "tower") {
-      const carriedTower = towers.find((entry) => entry.id === droneCommandState.targetTowerId);
-      if (carriedTower?.type === "dippy" || carriedTower?.type === "fireball") {
-        speedMultiplier *= 0.55;
-      }
-    }
-    const travel = Math.min(distance, stats.droneSpeed * speedMultiplier * deltaTime);
+    const travel = Math.min(distance, stats.droneSpeed * 1.15 * towerRelocationSpeed * deltaTime);
     drone.x += (dx / distance) * travel;
     drone.y += (dy / distance) * travel;
     drone.angle += deltaTime * 1.8;
@@ -10112,15 +11449,17 @@ function updateDroneMoveCommands(deltaTime) {
       allArrived = false;
     }
   }
+  droneCommandState.previousTransportCenter = destination;
 
-  if (!allArrived) {
-    if (droneCommandState.stage === "transport" && droneCommandState.mode === "tower") {
-      const targetTower = towers.find((entry) => entry.id === droneCommandState.targetTowerId);
-      if (targetTower && droneCommandState.transportCenter) {
-        targetTower.centerX = droneCommandState.transportCenter.x;
-        targetTower.centerY = droneCommandState.transportCenter.y;
-      }
+  if (droneCommandState.stage === "transport" && droneCommandState.mode === "tower") {
+    const targetTower = towers.find((entry) => entry.id === droneCommandState.targetTowerId);
+    if (targetTower && droneCommandState.transportCenter) {
+      targetTower.centerX = droneCommandState.transportCenter.x;
+      targetTower.centerY = droneCommandState.transportCenter.y;
     }
+  }
+
+  if (!allArrived || (droneCommandState.stage === "transport" && !transportComplete)) {
     return;
   }
 
@@ -10135,9 +11474,11 @@ function updateDroneMoveCommands(deltaTime) {
         return;
       }
       targetTower.carried = true;
+      clearTowerFootprint(targetTower);
       targetTower.cooldown = Math.max(targetTower.cooldown || 0, 0.2);
       targetTower.stunnedTimer = Math.max(targetTower.stunnedTimer || 0, 0.2);
       droneCommandState.transportCenter = { x: targetTower.centerX, y: targetTower.centerY };
+      droneCommandState.previousTransportCenter = { x: targetTower.centerX, y: targetTower.centerY };
       droneCommandState.stage = "transport";
       setMessage("Drone wing transporting tower.", 1.4);
       if (selectedTowerId === targetTower.id) {
@@ -10175,6 +11516,7 @@ function updateDroneMoveCommands(deltaTime) {
     }
     targetTower.carried = false;
     droneCommandState.transportCenter = null;
+    droneCommandState.previousTransportCenter = null;
     droneCommandState.stage = "return";
     if (selectedTowerId === targetTower.id) {
       openTowerPopup(targetTower);
@@ -10205,6 +11547,7 @@ function updateDroneMoveCommands(deltaTime) {
 function spawnDormantMangoMiniMines(trap) {
   const spawned = [];
   const count = 5;
+  const splitGeneration = (trap.splitGeneration || 0) + 1;
   const orbit = Math.max(12, trap.radius * 0.95);
   for (let index = 0; index < count; index += 1) {
     const angle = (Math.PI * 2 * index) / count + Math.random() * 0.2;
@@ -10228,12 +11571,14 @@ function spawnDormantMangoMiniMines(trap) {
       cooldown: 0,
       tickRate: 0.08,
       mango: true,
-      miniMine: true
+      miniMine: true,
+      splitGeneration,
+      triggerRadius: CELL_SIZE * 1.5
     };
     nextTrapId += 1;
-    const enemyInBlast = enemies.some((enemy) => enemy.hp > 0 && Math.hypot(enemy.x - miniTrap.centerX, enemy.y - miniTrap.centerY) <= miniTrap.splashRadius);
+    const enemyInBlast = enemies.some((enemy) => enemy.hp > 0 && Math.hypot(enemy.x - miniTrap.centerX, enemy.y - miniTrap.centerY) <= miniTrap.triggerRadius);
     if (enemyInBlast) {
-      explodeTrap(miniTrap, { spawnMiniMines: false });
+      explodeTrap(miniTrap, { spawnMiniMines: splitGeneration < 2 });
     } else {
       spawned.push(miniTrap);
     }
@@ -10368,8 +11713,7 @@ function fireTeslaZap(tower, target, stats) {
   }
 }
 
-function fireTower(tower, target) {
-  const stats = towerStats(tower);
+function fireTower(tower, target, stats = applySupportBuffsToStats(tower, towerStats(tower))) {
   const detectHidden = towerHasHiddenDetection(tower, stats);
   const supportDamageType = effectiveTowerDamageType(tower, "bullet", stats);
   tower.aimAngle = Math.atan2(target.y - tower.centerY, target.x - tower.centerX);
@@ -10400,7 +11744,9 @@ function fireTower(tower, target) {
     for (const group of targetGroups) {
       const aimAngle = Math.atan2(group.target.y - tower.centerY, group.target.x - tower.centerX);
       for (let index = 0; index < stats.pellets; index += 1) {
-        const spread = (Math.random() - 0.5) * stats.spread;
+        const spread = stats.pellets <= 1
+          ? 0
+          : (-stats.spread / 2) + (stats.spread * index) / Math.max(stats.pellets - 1, 1);
         projectiles.push({
           id: nextProjectileId,
           kind: "shotgunPellet",
@@ -10475,19 +11821,11 @@ function fireTower(tower, target) {
   }
 
   if (tower.type === "trapper") {
-    spawnTrapperConstruct(tower);
+    spawnTrapperConstruct(tower, stats);
     return;
   }
 
   if (tower.type === "support") {
-    if (stats.helpMissile && tower.cooldown === 0) {
-      const supportTarget = nearestSupportMissileTarget(tower, stats.auraRadius * 1.45, detectHidden);
-      if (supportTarget) {
-        tower.aimAngle = Math.atan2(supportTarget.y - tower.centerY, supportTarget.x - tower.centerX);
-        launchSupportAirstrike(tower, supportTarget, stats);
-        tower.cooldown = stats.helpMissileCooldown;
-      }
-    }
     return;
   }
 
@@ -10504,10 +11842,8 @@ function fireTower(tower, target) {
 function updateTowers(deltaTime) {
   for (const tower of towers) {
     tower.currentTargetId = null;
-    const stats = towerStats(tower);
-    const supportBuffs = supportBuffsForTower(tower);
+    const stats = applySupportBuffsToStats(tower, towerStats(tower));
     const detectHidden = towerHasHiddenDetection(tower, stats);
-    const cooldownRate = supportBuffs.attackSpeedMultiplier || 1;
     if (tower.type === "dippy") {
       tower.dippyAmmo = tower.dippyAmmo ?? stats.burst;
       tower.dippyAmmo = Math.min(tower.dippyAmmo, stats.burst);
@@ -10529,7 +11865,7 @@ function updateTowers(deltaTime) {
         }
         const reloadPod = 1 - tower.dippyActivePod;
         const reloadStep = stats.podReloadStep || Math.max(stats.cooldown / 6, 0.26);
-        tower.dippyReloadTimer -= deltaTime * cooldownRate;
+        tower.dippyReloadTimer -= deltaTime;
         if ((tower.dippyPodAmmo[reloadPod] || 0) < perPod && tower.dippyReloadTimer <= 0) {
           tower.dippyPodAmmo[reloadPod] += 1;
           tower.dippyReloadTimer = reloadStep;
@@ -10541,7 +11877,7 @@ function updateTowers(deltaTime) {
         }
         tower.dippyAmmo = tower.dippyPodAmmo[0] + tower.dippyPodAmmo[1];
       } else if (tower.burstShotsRemaining === 0 && tower.cooldown > 0 && tower.dippyAmmo < stats.burst) {
-        tower.dippyReloadTimer -= deltaTime * cooldownRate;
+        tower.dippyReloadTimer -= deltaTime;
         const reloadStep = (stats.cooldown / Math.max(stats.burst, 1)) * 1.12;
         if (tower.dippyReloadTimer <= 0) {
           tower.dippyAmmo += 1;
@@ -10552,9 +11888,10 @@ function updateTowers(deltaTime) {
       }
     }
     tower.stunnedTimer = Math.max(0, (tower.stunnedTimer || 0) - deltaTime);
-    tower.cooldown = Math.max(0, tower.cooldown - deltaTime * cooldownRate);
-    tower.burstTimer = Math.max(0, (tower.burstTimer || 0) - deltaTime * cooldownRate);
-    tower.fieldCooldown = Math.max(0, (tower.fieldCooldown || 0) - deltaTime * cooldownRate);
+    tower.cooldown = Math.max(0, tower.cooldown - deltaTime);
+    tower.burstTimer = Math.max(0, (tower.burstTimer || 0) - deltaTime);
+    tower.fieldCooldown = Math.max(0, (tower.fieldCooldown || 0) - deltaTime);
+    tower.supportMissileCooldown = Math.max(0, (tower.supportMissileCooldown || 0) - deltaTime);
 
     if (tower.mapFrozen) {
       continue;
@@ -10613,6 +11950,51 @@ function updateTowers(deltaTime) {
         addPulse(tower.centerX, tower.centerY, stats.auraRadius, "rgba(196, 243, 255, 0.7)");
       }
       tower.fieldCooldown = stats.auraTick;
+    }
+
+    if (tower.type === "support") {
+      if (stats.mortar && tower.fieldCooldown === 0) {
+        const mortarTarget = nearestSupportMissileTarget(tower, stats.range * 1.1, detectHidden);
+        if (mortarTarget) {
+          launchSupportMortar(tower, mortarTarget, stats);
+          tower.fieldCooldown = stats.mortarCooldown;
+        }
+      }
+
+      if (stats.helpMissile && tower.supportMissileCooldown === 0) {
+        const supportTarget = nearestSupportMissileTarget(tower, stats.range * 1.35, detectHidden);
+        if (supportTarget) {
+          tower.aimAngle = Math.atan2(supportTarget.y - tower.centerY, supportTarget.x - tower.centerX);
+          launchSupportAirstrike(tower, supportTarget, stats);
+          tower.supportMissileCooldown = stats.helpMissileCooldown;
+        }
+      }
+
+      if (tower.cooldown === 0 && (stats.sentryCount || 0) > 0) {
+        const primaryTarget = nearestEnemyInRange(tower, stats.range, detectHidden);
+        if (primaryTarget) {
+          tower.currentTargetId = primaryTarget.id;
+          tower.aimAngle = Math.atan2(primaryTarget.y - tower.centerY, primaryTarget.x - tower.centerX);
+          const extraTargets = enemiesInRange(tower.centerX, tower.centerY, stats.range, detectHidden, true)
+            .filter((enemy) => enemy.id !== primaryTarget.id)
+            .filter((enemy) => canTowerDamageEnemy(tower, enemy, stats))
+            .sort((left, right) => Math.hypot(left.x - tower.centerX, left.y - tower.centerY) - Math.hypot(right.x - tower.centerX, right.y - tower.centerY))
+            .slice(0, Math.max(0, (stats.sentryCount || 1) - 1));
+          const sentryTargets = [primaryTarget, ...extraTargets];
+          for (const sentryTarget of sentryTargets) {
+            damageEnemy(sentryTarget, stats.damage, effectiveTowerDamageType(tower, "bullet", stats), { sourceTowerId: tower.id });
+            addBeam(tower.centerX, tower.centerY, sentryTarget.x, sentryTarget.y, "rgba(255, 223, 168, 0.78)", 1.6, 0.06);
+            addBurstParticles(sentryTarget.x, sentryTarget.y, 2, "rgba(255, 236, 192, 0.8)", 10, 28, 0.03, 0.08);
+          }
+          tower.cooldown = stats.cooldown;
+        }
+      }
+      continue;
+    }
+
+    if (tower.type === "orb") {
+      updateOrbTower(tower, stats, deltaTime);
+      continue;
     }
 
     if (tower.type === "gate" && tower.cooldown === 0) {
@@ -10739,21 +12121,11 @@ function updateTowers(deltaTime) {
     }
 
     if (tower.type === "trapper") {
-      if (spawnTrapperConstruct(tower)) {
-        tower.cooldown = stats.cooldown;
+      if (!isWaveRunning()) {
+        continue;
       }
-      continue;
-    }
-
-    if (tower.type === "support") {
-      if (stats.helpMissile && tower.cooldown === 0) {
-        const supportTarget = nearestSupportMissileTarget(tower, stats.auraRadius * 1.45, detectHidden);
-        if (supportTarget) {
-          tower.currentTargetId = supportTarget.id;
-          tower.aimAngle = Math.atan2(supportTarget.y - tower.centerY, supportTarget.x - tower.centerX);
-          launchSupportAirstrike(tower, supportTarget, stats);
-          tower.cooldown = stats.helpMissileCooldown;
-        }
+      if (spawnTrapperConstruct(tower, stats)) {
+        tower.cooldown = stats.cooldown;
       }
       continue;
     }
@@ -10775,7 +12147,7 @@ function updateTowers(deltaTime) {
     if (tower.type === "drone") {
       continue;
     }
-    fireTower(tower, target);
+    fireTower(tower, target, stats);
     if ((tower.type !== "missile" && tower.type !== "dippy" && tower.type !== "fireball" && tower.type !== "tesla") || tower.burstShotsRemaining === 0) {
       tower.cooldown = stats.cooldown;
     }
@@ -10857,7 +12229,7 @@ function ensureDroneWing(tower, stats) {
 
 function updateDrones(deltaTime) {
   for (const tower of towers.filter((entry) => entry.type === "drone")) {
-    ensureDroneWing(tower, towerStats(tower));
+    ensureDroneWing(tower, applySupportBuffsToStats(tower, towerStats(tower)));
   }
 
   updateDroneMoveCommands(deltaTime);
@@ -10873,8 +12245,8 @@ function updateDrones(deltaTime) {
       continue;
     }
 
-    const stats = towerStats(tower);
-    if (droneCommandState && droneCommandState.towerId === tower.id && (droneCommandState.stage === "pickup" || droneCommandState.stage === "return")) {
+    const stats = applySupportBuffsToStats(tower, towerStats(tower));
+    if (droneCommandState && droneCommandState.towerId === tower.id && (droneCommandState.stage === "pickup" || droneCommandState.stage === "transport" || droneCommandState.stage === "return")) {
       continue;
     }
     const isSupport = drone.support;
@@ -11077,8 +12449,10 @@ function updateTraps(deltaTime) {
       }
     } else {
       const touching = enemies.filter((enemy) =>
-        enemyTouchesTrap(enemy, trap) &&
-        canHitArmored(enemy, trap.damageType || "trap")
+        ((trap.kind === "miniMine" && (trap.triggerRadius || 0) > 0)
+          ? Math.hypot(enemy.x - trap.centerX, enemy.y - trap.centerY) <= (trap.triggerRadius || 0)
+          : enemyTouchesTrap(enemy, trap))
+        && canHitArmored(enemy, trap.damageType || "trap")
       );
 
       if (touching.length > 0) {
@@ -11098,7 +12472,9 @@ function updateTraps(deltaTime) {
 
         if (trap.usesRemaining <= 0) {
           if (trap.kind === "mine" || trap.kind === "miniMine") {
-            spawnedTraps.push(...explodeTrap(trap, { spawnMiniMines: false }));
+            spawnedTraps.push(...explodeTrap(trap, {
+              spawnMiniMines: Boolean(trap.mango) && (trap.kind === "mine" || (trap.splitGeneration || 0) < 2)
+            }));
           }
           removeTrap = true;
         }
@@ -11108,7 +12484,9 @@ function updateTraps(deltaTime) {
     }
 
     if (!removeTrap && (trap.kind === "mine" || trap.kind === "miniMine") && trap.ttl <= 0) {
-      spawnedTraps.push(...explodeTrap(trap, { spawnMiniMines: trap.kind === "mine" && trap.mango }));
+      spawnedTraps.push(...explodeTrap(trap, {
+        spawnMiniMines: Boolean(trap.mango) && (trap.kind === "mine" || (trap.splitGeneration || 0) < 2)
+      }));
       removeTrap = true;
     }
 
@@ -12155,14 +13533,62 @@ function spawnBehemothChildren(enemy) {
       portalIndex: enemy.portalIndex,
       startCell: spawnPath.startCell,
       route: spawnPath.route,
-      reward: 0,
-      hp: 250,
+      reward: 600,
+      hp: 600,
       speed: Math.max(CELL_SIZE * 0.92, enemy.speed * 0.86),
-      sizeScale: 1.16
+      sizeScale: 1.95
     });
 
     if (child) {
       pushEnemy(prepareSummonedChild(child, enemy));
+    }
+  }
+}
+
+function spawnXerChildren(enemy) {
+  const originCell = {
+    x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x / CELL_SIZE))),
+    y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y / CELL_SIZE)))
+  };
+  const spawnPlan = [
+    { type: ENEMY_TYPES.behemoth, count: 3, hp: 8000, sizeScale: 2.65 },
+    { type: ENEMY_TYPES.idine, count: 4, hp: 1200, sizeScale: 1.55 },
+    { type: ENEMY_TYPES.sentinel, count: 4, tier: 3, hp: 1100, sizeScale: 1.72 },
+    { type: ENEMY_TYPES.assassin, count: 6, tier: 3, hp: 520, sizeScale: 1.26 },
+    { type: ENEMY_TYPES.breacher, count: 8, tier: 3, hp: 720, sizeScale: 1.3 },
+    { type: ENEMY_TYPES.popcorn, count: 8, hp: 240, sizeScale: 1.08 }
+  ];
+  const usedCells = new Set();
+
+  for (const group of spawnPlan) {
+    for (let index = 0; index < group.count; index += 1) {
+      const candidateCells = [];
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const angle = ((Math.PI * 2) / Math.max(group.count, 1)) * index + (attempt * 0.31);
+        const distance = 3 + (index % 6) + (attempt % 4);
+        candidateCells.push({
+          x: Math.round(originCell.x + Math.cos(angle) * distance),
+          y: Math.round(originCell.y + Math.sin(angle) * distance)
+        });
+      }
+      const filteredCandidates = candidateCells.filter((cell) => !usedCells.has(`${cell.x},${cell.y}`));
+      const spawnPath = resolveChildSpawnPath(enemy.portalIndex, filteredCandidates, originCell, 12);
+      if (!spawnPath) {
+        continue;
+      }
+      usedCells.add(`${spawnPath.startCell.x},${spawnPath.startCell.y}`);
+      const child = createEnemy(group.type, {
+        portalIndex: enemy.portalIndex,
+        startCell: spawnPath.startCell,
+        route: spawnPath.route,
+        tier: group.tier || 1,
+        reward: 0,
+        hp: group.hp,
+        sizeScale: group.sizeScale
+      });
+      if (child) {
+        pushEnemy(prepareSummonedChild(child, enemy));
+      }
     }
   }
 }
@@ -12384,14 +13810,14 @@ function spawnPopcornChildren(enemy) {
     if (!spawnPath) {
       continue;
     }
-    const child = createEnemy(ENEMY_TYPES.kernel, {
-      portalIndex: enemy.portalIndex,
-      startCell: spawnPath.startCell,
-      route: spawnPath.route,
-      reward: 1,
-      hp: Math.max(1, Math.round(enemy.maxHp * variant.hpMult)),
-      speed: Math.max(enemy.speed * variant.speedMult, CELL_SIZE * 2.7),
-      sizeScale: 0.5,
+      const child = createEnemy(ENEMY_TYPES.kernel, {
+        portalIndex: enemy.portalIndex,
+        startCell: spawnPath.startCell,
+        route: spawnPath.route,
+        reward: 1,
+        hp: 2,
+        speed: Math.max(enemy.speed * variant.speedMult, CELL_SIZE * 2.7),
+        sizeScale: 0.5,
       color: variant.color,
       kernelVariant: variant.key,
       hidden: enemy.hidden,
@@ -12507,6 +13933,8 @@ function purgeDefeatedEnemies() {
         spawnDiamondChildren(enemy);
       } else if (enemy.key === "behemoth") {
         spawnBehemothChildren(enemy);
+      } else if (enemy.key === "xer") {
+        spawnXerChildren(enemy);
       } else if (enemy.key === "sentinel" && (enemy.tier || 1) > 1) {
         spawnSentinelChildren(enemy);
       } else if (enemy.key === "splitter" && (enemy.tier || 1) > 1) {
@@ -12516,7 +13944,7 @@ function purgeDefeatedEnemies() {
       } else if ((enemy.tier || 1) > 1) {
         spawnGenericTierChildren(enemy);
       }
-      money += Math.max(1, Math.round(enemy.reward * supportEnemyDropMultiplier()));
+      money += enemyCashDropFromKill(enemy);
     }
   }
 
@@ -12695,45 +14123,87 @@ function updateAmbientEffects(deltaTime) {
 }
 
 function drawGrid() {
+  const perspective = boardPerspective();
+  const sampleCount = 16;
+
   if (activeMap.scenery === "factory") {
     ctx.strokeStyle = "rgba(230, 237, 245, 0.16)";
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo((COLS * CELL_SIZE) / 2, 0);
-    ctx.lineTo((COLS * CELL_SIZE) / 2, ROWS * CELL_SIZE);
-    ctx.moveTo(0, (ROWS * CELL_SIZE) / 2);
-    ctx.lineTo(COLS * CELL_SIZE, (ROWS * CELL_SIZE) / 2);
+    const centerLineTop = projectBoardPoint(perspective.boardWidth / 2, perspective.horizonY);
+    const centerLineBottom = projectBoardPoint(perspective.boardWidth / 2, perspective.boardHeight);
+    ctx.moveTo(centerLineTop.x, centerLineTop.y);
+    ctx.lineTo(centerLineBottom.x, centerLineBottom.y);
+    const middleRow = projectBoardPoint(0, perspective.boardHeight / 2);
+    ctx.moveTo(projectBoardPoint(0, perspective.boardHeight / 2).x, middleRow.y);
+    ctx.lineTo(projectBoardPoint(perspective.boardWidth, perspective.boardHeight / 2).x, middleRow.y);
     ctx.stroke();
     if (factoryState) {
       const hole = factoryQuarterBounds(factoryState.holeIndex);
       ctx.fillStyle = "rgba(10, 14, 18, 0.78)";
-      ctx.fillRect(hole.x * CELL_SIZE, hole.y * CELL_SIZE, hole.width * CELL_SIZE, hole.height * CELL_SIZE);
+      const holeQuad = projectCellQuad(hole.x, hole.y, hole.width, hole.height);
+      ctx.beginPath();
+      ctx.moveTo(holeQuad.topLeft.x, holeQuad.topLeft.y);
+      ctx.lineTo(holeQuad.topRight.x, holeQuad.topRight.y);
+      ctx.lineTo(holeQuad.bottomRight.x, holeQuad.bottomRight.y);
+      ctx.lineTo(holeQuad.bottomLeft.x, holeQuad.bottomLeft.y);
+      ctx.closePath();
+      ctx.fill();
       ctx.fillStyle = "rgba(255, 245, 210, 0.08)";
       for (let x = hole.x; x < hole.x + hole.width; x += 1) {
         for (let y = hole.y; y < hole.y + hole.height; y += 1) {
           if ((x + y) % 3 === 0) {
-            ctx.fillRect(x * CELL_SIZE + 4, y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+            const cellQuad = projectCellQuad(x, y);
+            ctx.beginPath();
+            ctx.moveTo(cellQuad.topLeft.x + 2, cellQuad.topLeft.y + 2);
+            ctx.lineTo(cellQuad.topRight.x - 2, cellQuad.topRight.y + 2);
+            ctx.lineTo(cellQuad.bottomRight.x - 2, cellQuad.bottomRight.y - 2);
+            ctx.lineTo(cellQuad.bottomLeft.x + 2, cellQuad.bottomLeft.y - 2);
+            ctx.closePath();
+            ctx.fill();
           }
         }
       }
     }
   }
-  ctx.strokeStyle = "rgba(217, 196, 164, 0.72)";
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(
+    perspective.screenOffsetX,
+    perspective.screenOffsetY + perspective.horizonY * perspective.screenScale,
+    perspective.boardWidth * perspective.screenScale,
+    (perspective.boardHeight - perspective.horizonY) * perspective.screenScale
+  );
+  ctx.clip();
+
+  ctx.strokeStyle = "rgba(217, 196, 164, 0.62)";
   ctx.lineWidth = 1;
 
   for (let x = 0; x <= COLS; x += 1) {
     ctx.beginPath();
-    ctx.moveTo(x * CELL_SIZE, 0);
-    ctx.lineTo(x * CELL_SIZE, ROWS * CELL_SIZE);
+    for (let step = 0; step <= sampleCount; step += 1) {
+      const y = (step / sampleCount) * perspective.boardHeight;
+      const point = projectBoardPoint(x * CELL_SIZE, y);
+      if (step === 0) {
+        ctx.moveTo(point.x, point.y);
+      } else {
+        ctx.lineTo(point.x, point.y);
+      }
+    }
     ctx.stroke();
   }
 
   for (let y = 0; y <= ROWS; y += 1) {
+    const pointLeft = projectBoardPoint(0, y * CELL_SIZE);
+    const pointRight = projectBoardPoint(perspective.boardWidth, y * CELL_SIZE);
     ctx.beginPath();
-    ctx.moveTo(0, y * CELL_SIZE);
-    ctx.lineTo(COLS * CELL_SIZE, y * CELL_SIZE);
+    ctx.moveTo(pointLeft.x, pointLeft.y);
+    ctx.lineTo(pointRight.x, pointRight.y);
     ctx.stroke();
   }
+
+  ctx.restore();
 }
 
 function drawMapScenery() {
@@ -13191,101 +14661,93 @@ function drawMapScenery() {
 
   if (!activeMap.hidePortals) {
     for (const portal of activePortals()) {
-      const center = cellCenter(portal.x, portal.y);
+      const center = projectCellCenterPoint(portal.x, portal.y);
       ctx.fillStyle = "rgba(45, 108, 223, 0.18)";
       ctx.beginPath();
-      ctx.arc(center.x, center.y, 16, 0, Math.PI * 2);
+      ctx.arc(center.x, center.y, 16 * center.scale, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = "#2d6cdf";
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3 * center.scale;
       ctx.stroke();
     }
   }
 
   for (const obstacle of activeMap.obstacles) {
+    const render = projectCellCenterPoint(obstacle.x, obstacle.y);
+    const quad = shrinkProjectedQuad(projectCellQuad(obstacle.x, obstacle.y), 0.08);
+    const innerQuad = shrinkProjectedQuad(projectCellQuad(obstacle.x, obstacle.y), 0.16);
     if (activeMap.scenery === "furnace") {
       const isCore = activeMap.furnaceCore?.some((cell) => cell.x === obstacle.x && cell.y === obstacle.y);
       const isPit = (activeMap.lavaGrates || []).some((cell) => obstacle.x >= cell.x && obstacle.x < cell.x + cell.width && obstacle.y >= cell.y && obstacle.y < cell.y + cell.height);
       if (isCore || isPit) {
-        const left = obstacle.x * CELL_SIZE;
-        const top = obstacle.y * CELL_SIZE;
-        const inset = isCore ? 3 : 5;
         ctx.save();
         ctx.shadowColor = isCore ? "rgba(255, 126, 48, 0.7)" : "rgba(255, 98, 28, 0.62)";
         ctx.shadowBlur = isCore ? 20 : 14;
         ctx.fillStyle = isCore ? "#f07a24" : "#d95f1d";
-        ctx.fillRect(left + inset, top + inset, CELL_SIZE - inset * 2, CELL_SIZE - inset * 2);
+        fillProjectedQuad(isCore ? innerQuad : quad, ctx.fillStyle);
         ctx.restore();
         ctx.strokeStyle = "rgba(58, 39, 26, 0.92)";
-        ctx.lineWidth = isCore ? 3 : 2.5;
-        ctx.strokeRect(left + inset, top + inset, CELL_SIZE - inset * 2, CELL_SIZE - inset * 2);
+        ctx.lineWidth = (isCore ? 3 : 2.5) * render.scale;
+        ctx.beginPath();
+        ctx.moveTo((isCore ? innerQuad : quad).topLeft.x, (isCore ? innerQuad : quad).topLeft.y);
+        ctx.lineTo((isCore ? innerQuad : quad).topRight.x, (isCore ? innerQuad : quad).topRight.y);
+        ctx.lineTo((isCore ? innerQuad : quad).bottomRight.x, (isCore ? innerQuad : quad).bottomRight.y);
+        ctx.lineTo((isCore ? innerQuad : quad).bottomLeft.x, (isCore ? innerQuad : quad).bottomLeft.y);
+        ctx.closePath();
+        ctx.stroke();
         ctx.fillStyle = "rgba(255, 224, 138, 0.25)";
         ctx.beginPath();
-        ctx.arc(left + CELL_SIZE * 0.38, top + CELL_SIZE * 0.4, isCore ? 4.2 : 3.2, 0, Math.PI * 2);
-        ctx.arc(left + CELL_SIZE * 0.62, top + CELL_SIZE * 0.6, isCore ? 3.6 : 2.8, 0, Math.PI * 2);
+        ctx.arc(render.x - 5 * render.scale, render.y - 4 * render.scale, isCore ? 4.2 * render.scale : 3.2 * render.scale, 0, Math.PI * 2);
+        ctx.arc(render.x + 5 * render.scale, render.y + 4 * render.scale, isCore ? 3.6 * render.scale : 2.8 * render.scale, 0, Math.PI * 2);
         ctx.fill();
       } else {
         ctx.fillStyle = "#6b747c";
-        ctx.fillRect(obstacle.x * CELL_SIZE + 4, obstacle.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+        fillProjectedQuad(innerQuad, ctx.fillStyle, "rgba(255,255,255,0.12)", 1.4 * render.scale);
       }
     } else if (selectedMap === "acidcaves") {
-      const left = obstacle.x * CELL_SIZE;
-      const top = obstacle.y * CELL_SIZE;
       ctx.fillStyle = "#173a2d";
-      ctx.fillRect(left + 2, top + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+      fillProjectedQuad(innerQuad, ctx.fillStyle);
       ctx.strokeStyle = "rgba(154, 255, 196, 0.4)";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 * render.scale;
       ctx.beginPath();
-      ctx.moveTo(left + CELL_SIZE * 0.5, top + 2);
-      ctx.lineTo(left + CELL_SIZE - 4, top + CELL_SIZE * 0.34);
-      ctx.lineTo(left + CELL_SIZE * 0.68, top + CELL_SIZE - 4);
-      ctx.lineTo(left + 5, top + CELL_SIZE * 0.7);
+      ctx.moveTo(quad.topLeft.x + (quad.topRight.x - quad.topLeft.x) * 0.5, quad.topLeft.y + (quad.bottomLeft.y - quad.topLeft.y) * 0.1);
+      ctx.lineTo(quad.topRight.x - (quad.topRight.x - quad.topLeft.x) * 0.08, quad.topRight.y + (quad.bottomRight.y - quad.topRight.y) * 0.26);
+      ctx.lineTo(quad.bottomRight.x - (quad.bottomRight.x - quad.bottomLeft.x) * 0.32, quad.bottomRight.y - (quad.bottomRight.y - quad.topRight.y) * 0.08);
+      ctx.lineTo(quad.bottomLeft.x + (quad.bottomRight.x - quad.bottomLeft.x) * 0.16, quad.bottomLeft.y - (quad.bottomLeft.y - quad.topLeft.y) * 0.3);
       ctx.closePath();
       ctx.stroke();
       ctx.fillStyle = "rgba(126, 255, 171, 0.16)";
       ctx.fill();
     } else if (selectedMap === "freezingmountains") {
-      const left = obstacle.x * CELL_SIZE;
-      const top = obstacle.y * CELL_SIZE;
       ctx.fillStyle = "#eef7ff";
-      ctx.fillRect(left + 2, top + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+      fillProjectedQuad(innerQuad, ctx.fillStyle);
       ctx.strokeStyle = "rgba(129, 190, 240, 0.5)";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 * render.scale;
       ctx.beginPath();
-      ctx.moveTo(left + 5, top + CELL_SIZE * 0.3);
-      ctx.lineTo(left + CELL_SIZE * 0.42, top + 4);
-      ctx.lineTo(left + CELL_SIZE - 5, top + CELL_SIZE * 0.26);
-      ctx.lineTo(left + CELL_SIZE * 0.74, top + CELL_SIZE - 5);
-      ctx.lineTo(left + CELL_SIZE * 0.22, top + CELL_SIZE - 4);
+      ctx.moveTo(quad.bottomLeft.x + (quad.topLeft.x - quad.bottomLeft.x) * 0.18, quad.bottomLeft.y - (quad.bottomLeft.y - quad.topLeft.y) * 0.7);
+      ctx.lineTo(quad.topLeft.x + (quad.topRight.x - quad.topLeft.x) * 0.42, quad.topLeft.y + (quad.bottomLeft.y - quad.topLeft.y) * 0.08);
+      ctx.lineTo(quad.topRight.x - (quad.topRight.x - quad.topLeft.x) * 0.08, quad.topRight.y + (quad.bottomRight.y - quad.topRight.y) * 0.28);
+      ctx.lineTo(quad.bottomRight.x - (quad.bottomRight.x - quad.bottomLeft.x) * 0.26, quad.bottomRight.y - (quad.bottomRight.y - quad.topRight.y) * 0.08);
+      ctx.lineTo(quad.bottomLeft.x + (quad.bottomRight.x - quad.bottomLeft.x) * 0.22, quad.bottomLeft.y - (quad.bottomLeft.y - quad.topLeft.y) * 0.06);
       ctx.closePath();
       ctx.stroke();
       ctx.fillStyle = "rgba(196, 233, 255, 0.28)";
       ctx.fill();
     } else if (activeMap.scenery === "ruins" || activeMap.scenery === "shoals") {
-      const left = obstacle.x * CELL_SIZE;
-      const top = obstacle.y * CELL_SIZE;
       ctx.fillStyle = activeMap.scenery === "shoals" ? "#7e6843" : "#4d5047";
-      ctx.fillRect(left, top, CELL_SIZE, CELL_SIZE);
+      fillProjectedQuad(quad, ctx.fillStyle);
       ctx.strokeStyle = activeMap.scenery === "shoals" ? "rgba(220, 197, 138, 0.82)" : "rgba(178, 186, 166, 0.62)";
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3 * render.scale;
       ctx.beginPath();
-      ctx.moveTo(left + 2, top + 2);
-      ctx.lineTo(left + CELL_SIZE - 2, top + 2);
-      ctx.moveTo(left + CELL_SIZE - 2, top + 2);
-      ctx.lineTo(left + CELL_SIZE - 2, top + CELL_SIZE - 2);
-      ctx.moveTo(left + CELL_SIZE - 2, top + CELL_SIZE - 2);
-      ctx.lineTo(left + 2, top + CELL_SIZE - 2);
-      ctx.moveTo(left + 2, top + CELL_SIZE - 2);
-      ctx.lineTo(left + 2, top + 2);
+      ctx.moveTo(quad.topLeft.x, quad.topLeft.y);
+      ctx.lineTo(quad.topRight.x, quad.topRight.y);
+      ctx.lineTo(quad.bottomRight.x, quad.bottomRight.y);
+      ctx.lineTo(quad.bottomLeft.x, quad.bottomLeft.y);
+      ctx.closePath();
       ctx.stroke();
     } else {
-      const left = obstacle.x * CELL_SIZE;
-      const top = obstacle.y * CELL_SIZE;
       ctx.fillStyle = "#474f56";
-      ctx.fillRect(left, top, CELL_SIZE, CELL_SIZE);
-      ctx.strokeStyle = "rgba(140, 150, 162, 0.44)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(left + 1, top + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+      fillProjectedQuad(quad, ctx.fillStyle, "rgba(140, 150, 162, 0.44)", 2 * render.scale);
     }
   }
 }
@@ -13333,7 +14795,7 @@ function drawRoute() {
     ctx.beginPath();
 
     path.forEach((point, index) => {
-      const center = cellCenter(point.x, point.y);
+      const center = projectCellCenterPoint(point.x, point.y);
       if (index === 0) {
         ctx.moveTo(center.x, center.y);
       } else {
@@ -13355,7 +14817,7 @@ function drawRoute() {
     ctx.lineJoin = "round";
     ctx.beginPath();
     route.forEach((point, index) => {
-      const center = cellCenter(point.x, point.y);
+      const center = projectCellCenterPoint(point.x, point.y);
       if (index === 0) {
         ctx.moveTo(center.x, center.y);
       } else {
@@ -13384,7 +14846,7 @@ function drawGhostRoutes(previewRoutes) {
     ctx.lineJoin = "round";
     ctx.beginPath();
     path.forEach((point, index) => {
-      const center = cellCenter(point.x, point.y);
+      const center = projectCellCenterPoint(point.x, point.y);
       if (index === 0) {
         ctx.moveTo(center.x, center.y);
       } else {
@@ -13402,45 +14864,55 @@ function drawFactoryRouteOverlays() {
 
 function drawBlock(block) {
   const offset = entityRenderOffset(block);
-  ctx.save();
-  ctx.translate(offset.x, offset.y);
-  for (const cell of block.cells) {
-    ctx.fillStyle = block.color;
-    ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-  }
-
-  ctx.strokeStyle = "rgba(255, 248, 240, 0.9)";
-  ctx.lineWidth = 3;
+  const fillFace = (points, fillStyle) => {
+    ctx.fillStyle = fillStyle;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let index = 1; index < points.length; index += 1) {
+      ctx.lineTo(points[index].x, points[index].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+  };
 
   for (const cell of block.cells) {
     const has = (dx, dy) => block.cells.some((other) => other.x === cell.x + dx && other.y === cell.y + dy);
-    const left = cell.x * CELL_SIZE;
-    const top = cell.y * CELL_SIZE;
-    const right = left + CELL_SIZE;
-    const bottom = top + CELL_SIZE;
+    const quad = projectCellQuad(cell.x, cell.y);
+    const render = projectCellCenterPoint(cell.x, cell.y);
+    const depth = 8 * render.scale;
+    const topLeft = { x: quad.topLeft.x + offset.x, y: quad.topLeft.y + offset.y };
+    const topRight = { x: quad.topRight.x + offset.x, y: quad.topRight.y + offset.y };
+    const bottomRight = { x: quad.bottomRight.x + offset.x, y: quad.bottomRight.y + offset.y };
+    const bottomLeft = { x: quad.bottomLeft.x + offset.x, y: quad.bottomLeft.y + offset.y };
+    const drop = { x: 0, y: depth };
+    const lowerRight = {
+      topRight: { x: topRight.x + drop.x, y: topRight.y + drop.y },
+      bottomRight: { x: bottomRight.x + drop.x, y: bottomRight.y + drop.y }
+    };
+    const lowerBottom = {
+      bottomLeft: { x: bottomLeft.x + drop.x, y: bottomLeft.y + drop.y },
+      bottomRight: { x: bottomRight.x + drop.x, y: bottomRight.y + drop.y }
+    };
 
-    ctx.beginPath();
-
-    if (!has(0, -1)) {
-      ctx.moveTo(left + 2, top + 2);
-      ctx.lineTo(right - 2, top + 2);
-    }
     if (!has(1, 0)) {
-      ctx.moveTo(right - 2, top + 2);
-      ctx.lineTo(right - 2, bottom - 2);
+      fillFace([topRight, bottomRight, lowerRight.bottomRight, lowerRight.topRight], "rgba(0, 0, 0, 0.24)");
     }
     if (!has(0, 1)) {
-      ctx.moveTo(right - 2, bottom - 2);
-      ctx.lineTo(left + 2, bottom - 2);
-    }
-    if (!has(-1, 0)) {
-      ctx.moveTo(left + 2, bottom - 2);
-      ctx.lineTo(left + 2, top + 2);
+      fillFace([bottomLeft, bottomRight, lowerBottom.bottomRight, lowerBottom.bottomLeft], "rgba(0, 0, 0, 0.18)");
     }
 
+    fillFace([topLeft, topRight, bottomRight, bottomLeft], block.color);
+
+    ctx.strokeStyle = "rgba(255, 248, 240, 0.95)";
+    ctx.lineWidth = Math.max(1.2, 2 * render.scale);
+    ctx.beginPath();
+    ctx.moveTo(topLeft.x + 2, topLeft.y + 2);
+    ctx.lineTo(topRight.x - 2, topRight.y + 2);
+    ctx.lineTo(bottomRight.x - 2, bottomRight.y - 2);
+    ctx.lineTo(bottomLeft.x + 2, bottomLeft.y - 2);
+    ctx.closePath();
     ctx.stroke();
   }
-  ctx.restore();
 }
 
 function drawPreview() {
@@ -13464,12 +14936,19 @@ function drawPreview() {
         continue;
       }
 
+      const quad = projectCellQuad(cell.x, cell.y);
       ctx.fillStyle = valid ? "rgba(113, 235, 126, 0.4)" : "rgba(204, 63, 92, 0.35)";
-      ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      ctx.beginPath();
+      ctx.moveTo(quad.topLeft.x, quad.topLeft.y);
+      ctx.lineTo(quad.topRight.x, quad.topRight.y);
+      ctx.lineTo(quad.bottomRight.x, quad.bottomRight.y);
+      ctx.lineTo(quad.bottomLeft.x, quad.bottomLeft.y);
+      ctx.closePath();
+      ctx.fill();
       if (valid) {
         ctx.strokeStyle = "rgba(184, 255, 196, 0.92)";
         ctx.lineWidth = 2;
-        ctx.strokeRect(cell.x * CELL_SIZE + 2, cell.y * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+        ctx.stroke();
       }
     }
     ctx.restore();
@@ -13510,13 +14989,14 @@ function drawArmedAbilityPreview() {
   ctx.restore();
 }
 
-function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, ghost = false, invalid = false, tower = null) {
+function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, ghost = false, invalid = false, tower = null, renderScale = 1) {
   const stats = tower ? towerStats(tower) : null;
   const path1 = tower?.path1 || 0;
   const path2 = tower?.path2 || 0;
   ctx.save();
   ctx.translate(centerX, centerY);
   ctx.rotate(aimAngle);
+  ctx.scale(renderScale, renderScale);
 
   if (type === "crossbow") {
     ctx.strokeStyle = ghost ? (invalid ? "rgba(255, 225, 225, 0.95)" : "rgba(231, 209, 184, 0.72)") : "#f4dcc1";
@@ -14068,6 +15548,98 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
       ctx.arc(0, -22, 3, 0, Math.PI * 2);
       ctx.stroke();
     }
+    if (path1 >= 1) {
+      ctx.strokeStyle = ghost ? "rgba(255, 232, 188, 0.92)" : "#ffe7ba";
+      ctx.lineWidth = 2.1;
+      ctx.beginPath();
+      ctx.moveTo(-13, -8);
+      ctx.lineTo(-18, -14);
+      ctx.moveTo(13, -8);
+      ctx.lineTo(18, -14);
+      ctx.stroke();
+    }
+    if (path1 >= 3) {
+      ctx.beginPath();
+      ctx.moveTo(-14, 8);
+      ctx.lineTo(-18, 14);
+      ctx.moveTo(14, 8);
+      ctx.lineTo(18, 14);
+      ctx.stroke();
+    }
+    if (path1 >= 4) {
+      ctx.fillStyle = ghost ? "rgba(255, 184, 120, 0.86)" : "#ffbf72";
+      ctx.beginPath();
+      ctx.arc(0, -16, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (path1 >= 5) {
+      ctx.fillStyle = ghost ? "rgba(255, 132, 98, 0.86)" : "#ff8462";
+      ctx.fillRect(-16, -4, 5, 10);
+      ctx.fillRect(11, -4, 5, 10);
+    }
+  } else if (type === "treasury") {
+    ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(255, 212, 106, 0.5)") : "#ffd46a";
+    ctx.beginPath();
+    ctx.moveTo(0, -13);
+    ctx.lineTo(12, -3);
+    ctx.lineTo(9, 12);
+    ctx.lineTo(-9, 12);
+    ctx.lineTo(-12, -3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = ghost ? "rgba(255, 246, 220, 0.92)" : "#fff2cc";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = ghost ? "rgba(255, 245, 196, 0.9)" : "#fff1b8";
+    ctx.fillRect(-6, -7, 12, 4);
+    ctx.fillRect(-2, -11, 4, 16);
+    if (path1 >= 1) {
+      ctx.fillStyle = ghost ? "rgba(255, 231, 130, 0.9)" : "#ffe782";
+      ctx.beginPath();
+      ctx.arc(0, 3, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (path2 >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(194, 255, 215, 0.92)" : "#b9ffd0";
+      ctx.beginPath();
+      ctx.arc(0, 0, 17, 0.25, Math.PI * 1.75);
+      ctx.stroke();
+    }
+    if (path1 >= 5) {
+      ctx.strokeStyle = ghost ? "rgba(255, 205, 122, 0.96)" : "#ffcd7a";
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.arc(0, 0, 19, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else if (type === "orb") {
+    ctx.fillStyle = ghost ? (invalid ? "rgba(212, 73, 96, 0.85)" : "rgba(159, 208, 255, 0.5)") : "#9fd0ff";
+    ctx.beginPath();
+    ctx.arc(0, 0, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = ghost ? "rgba(235, 246, 255, 0.92)" : "#edf6ff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = ghost ? "rgba(255, 255, 255, 0.76)" : "#ffffff";
+    ctx.beginPath();
+    ctx.arc(0, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
+    if (path1 >= 4) {
+      ctx.strokeStyle = ghost ? "rgba(255, 245, 176, 0.84)" : "#fff5b0";
+      ctx.lineWidth = 2.1;
+      ctx.beginPath();
+      ctx.arc(0, 0, 16, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (path2 >= 3) {
+      ctx.strokeStyle = ghost ? "rgba(255, 184, 120, 0.78)" : "#ffb878";
+      ctx.beginPath();
+      ctx.moveTo(-8, -14);
+      ctx.lineTo(8, 14);
+      ctx.moveTo(8, -14);
+      ctx.lineTo(-8, 14);
+      ctx.stroke();
+    }
   }
 
   ctx.restore();
@@ -14083,7 +15655,16 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
 
 function drawTowerGhost(x, y) {
   const center = towerPlacementCenter(selectedTowerType, x, y);
-  const previewTower = mockTower(selectedTowerType, { x, y, centerX: center.x, centerY: center.y });
+  const projected = projectBoardPoint(center.x, center.y);
+  const previewTower = mockTower(selectedTowerType, {
+    x,
+    y,
+    centerX: projected.x,
+    centerY: projected.y,
+    gridCenterX: center.x,
+    gridCenterY: center.y,
+    renderScale: projected.scale
+  });
   const valid = canPlaceTowerAt(x, y);
   const shake = !valid ? Math.sin(lastTimestamp / 18) * (invalidPlacementTimer > 0 ? 4 : 2) : 0;
   const footprint = towerPlacementCells(selectedTowerType, x, y);
@@ -14100,26 +15681,35 @@ function drawTowerGhost(x, y) {
       continue;
     }
     ctx.fillStyle = valid ? "rgba(255, 250, 240, 0.12)" : "rgba(204, 63, 92, 0.25)";
-    ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    const quad = projectCellQuad(cell.x, cell.y);
+    ctx.beginPath();
+    ctx.moveTo(quad.topLeft.x, quad.topLeft.y);
+    ctx.lineTo(quad.topRight.x, quad.topRight.y);
+    ctx.lineTo(quad.bottomRight.x, quad.bottomRight.y);
+    ctx.lineTo(quad.bottomLeft.x, quad.bottomLeft.y);
+    ctx.closePath();
+    ctx.fill();
   }
   ctx.shadowColor = valid ? "rgba(21, 30, 42, 0.22)" : "rgba(212, 73, 96, 0.48)";
   ctx.shadowBlur = 14;
-  drawTowerShape(selectedTowerType, 1, center.x, center.y, selectedTowerType === "gate" ? selectedGateRotation * (Math.PI / 2) : -Math.PI / 2, true, !valid);
+  drawTowerShape(selectedTowerType, 1, projected.x, projected.y, selectedTowerType === "gate" ? selectedGateRotation * (Math.PI / 2) : -Math.PI / 2, true, !valid, previewTower, projected.scale);
   ctx.restore();
 }
 
 function drawTower(tower) {
   const offset = entityRenderOffset(tower);
-  const centerX = tower.centerX + offset.x;
-  const centerY = tower.centerY + offset.y;
+  const render = projectBoardPoint(tower.centerX + offset.x, tower.centerY + offset.y);
+  const centerX = render.x;
+  const centerY = render.y;
   const stats = towerStats(tower);
+  const renderScale = render.scale;
 
   if (tower.type === "gate") {
     ctx.save();
     ctx.strokeStyle = "rgba(171, 236, 121, 0.24)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, stats.range, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, stats.range * renderScale, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -14137,65 +15727,125 @@ function drawTower(tower) {
     ctx.strokeStyle = stats.munitions ? "rgba(255, 205, 140, 0.32)" : "rgba(219, 201, 255, 0.28)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, stats.auraRadius, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, stats.auraRadius * renderScale, 0, Math.PI * 2);
     ctx.stroke();
     if (stats.detectHiddenAura) {
       ctx.strokeStyle = "rgba(209, 246, 255, 0.34)";
       ctx.setLineDash([8, 6]);
       ctx.beginPath();
-      ctx.arc(centerX, centerY, stats.auraRadius - 6, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY, Math.max(0, stats.auraRadius - 6) * renderScale, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
     }
     ctx.restore();
   }
 
-  drawTowerShape(tower.type, tower.level, centerX, centerY, tower.aimAngle || 0, false, false, tower);
+  if (tower.type === "treasury" && stats.tradeEmpireAura > 1) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(255, 214, 122, 0.3)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, stats.auraRadius * renderScale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (tower.type === "orb") {
+    ensureOrbState(tower, stats);
+    const activeMode = displayedOrbType(tower, stats);
+    const palette = orbPalette(activeMode, stats);
+    ctx.save();
+    ctx.strokeStyle = "rgba(159, 208, 255, 0.24)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, (stats.orbitRadius || CELL_SIZE) * renderScale, 0, Math.PI * 2);
+    ctx.stroke();
+    for (const orb of tower.orbs || []) {
+      const angle = orb.angle ?? ((tower.orbRotation || 0) + ((Math.PI * 2) / Math.max(1, stats.orbCount || 1)) * (orb.slot || 0));
+      const orbitRadius = (stats.orbitRadius || CELL_SIZE) * renderScale;
+      const orbX = centerX + Math.cos(angle) * orbitRadius;
+      const orbY = centerY + Math.sin(angle) * orbitRadius;
+      ctx.globalAlpha = orb.dead ? 0.18 : 1;
+      if (!orb.dead) {
+        const halo = ctx.createRadialGradient(orbX, orbY, 1, orbX, orbY, ((tower.path2 || 0) >= 5 ? 20 : 17) * renderScale);
+        halo.addColorStop(0, palette.glow);
+        halo.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(orbX, orbY, ((tower.path2 || 0) >= 5 ? 20 : 17) * renderScale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = palette.fill;
+      ctx.shadowColor = palette.glow;
+      ctx.shadowBlur = orb.dead ? 0 : 24;
+      ctx.beginPath();
+      ctx.arc(orbX, orbY, ((tower.path2 || 0) >= 5 ? 6 : 5) * renderScale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.86)";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
+  drawTowerShape(tower.type, tower.level, centerX, centerY, tower.aimAngle || 0, false, false, tower, renderScale);
 
   if (tower.mapFrozen) {
     const cells = tower.footprintCells || [{ x: tower.x, y: tower.y }];
-    const minX = Math.min(...cells.map((cell) => cell.x)) * CELL_SIZE;
-    const minY = Math.min(...cells.map((cell) => cell.y)) * CELL_SIZE;
-    const maxX = (Math.max(...cells.map((cell) => cell.x)) + 1) * CELL_SIZE;
-    const maxY = (Math.max(...cells.map((cell) => cell.y)) + 1) * CELL_SIZE;
-    const width = maxX - minX;
-    const height = maxY - minY;
+    const minCellX = Math.min(...cells.map((cell) => cell.x));
+    const minCellY = Math.min(...cells.map((cell) => cell.y));
+    const maxCellX = Math.max(...cells.map((cell) => cell.x)) + 1;
+    const maxCellY = Math.max(...cells.map((cell) => cell.y)) + 1;
+    const freezeQuad = projectCellQuad(minCellX, minCellY, maxCellX - minCellX, maxCellY - minCellY);
     ctx.save();
     ctx.fillStyle = "rgba(184, 234, 255, 0.26)";
     ctx.strokeStyle = "rgba(226, 248, 255, 0.96)";
     ctx.lineWidth = 2.4;
     ctx.beginPath();
-    roundedRectPath(ctx, minX + 2, minY + 2, width - 4, height - 4, 10);
+    ctx.moveTo(freezeQuad.topLeft.x, freezeQuad.topLeft.y);
+    ctx.lineTo(freezeQuad.topRight.x, freezeQuad.topRight.y);
+    ctx.lineTo(freezeQuad.bottomRight.x, freezeQuad.bottomRight.y);
+    ctx.lineTo(freezeQuad.bottomLeft.x, freezeQuad.bottomLeft.y);
+    ctx.closePath();
     ctx.fill();
     ctx.stroke();
     ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
     ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.moveTo(minX + 8, minY + 10);
-    ctx.lineTo(maxX - 10, maxY - 12);
-    ctx.moveTo(minX + width * 0.55, minY + 6);
-    ctx.lineTo(minX + width * 0.4, maxY - 6);
+    ctx.moveTo(freezeQuad.topLeft.x + 8, freezeQuad.topLeft.y + 10);
+    ctx.lineTo(freezeQuad.bottomRight.x - 10, freezeQuad.bottomRight.y - 12);
+    ctx.moveTo(freezeQuad.topLeft.x + (freezeQuad.topRight.x - freezeQuad.topLeft.x) * 0.55, freezeQuad.topLeft.y + 6);
+    ctx.lineTo(freezeQuad.topLeft.x + (freezeQuad.topRight.x - freezeQuad.topLeft.x) * 0.4, freezeQuad.bottomLeft.y - 6);
     ctx.stroke();
     ctx.restore();
     ctx.strokeStyle = "rgba(198, 240, 255, 0.95)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, Math.max(18, Math.max(width, height) * 0.36), 0, Math.PI * 2);
+    const freezeRadius = Math.max(18, Math.max(maxCellX - minCellX, maxCellY - minCellY) * CELL_SIZE * 0.36) * renderScale;
+    ctx.arc(centerX, centerY, freezeRadius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(centerX - 10, centerY);
-    ctx.lineTo(centerX + 10, centerY);
-    ctx.moveTo(centerX, centerY - 10);
-    ctx.lineTo(centerX, centerY + 10);
+    ctx.moveTo(centerX - 10 * renderScale, centerY);
+    ctx.lineTo(centerX + 10 * renderScale, centerY);
+    ctx.moveTo(centerX, centerY - 10 * renderScale);
+    ctx.lineTo(centerX, centerY + 10 * renderScale);
     ctx.stroke();
   }
 
   if (selectedTowerId === tower.id) {
-    drawBlockedSightOverlay(tower);
+    drawBlockedSightOverlay({
+      ...tower,
+      centerX,
+      centerY,
+      gridCenterX: tower.centerX,
+      gridCenterY: tower.centerY
+    });
     ctx.strokeStyle = "rgba(255,255,255,0.9)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 16, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, 16 * renderScale, 0, Math.PI * 2);
     ctx.stroke();
   }
 }
@@ -14213,35 +15863,40 @@ function drawDrones() {
     const offset = entityRenderOffset(drone);
     const droneX = drone.x + offset.x;
     const droneY = drone.y + offset.y;
+    const render = projectBoardPoint(droneX, droneY);
+    const renderX = render.x;
+    const renderY = render.y;
+    const renderScale = render.scale;
     if (tower && stats && selectedTowerId === drone.towerId && tower.targetPriority === "cursor") {
       const anchor = droneCursorAnchor(tower, stats);
+      const anchorRender = projectBoardPoint(anchor.x, anchor.y);
       ctx.save();
       ctx.strokeStyle = "rgba(125, 227, 214, 0.48)";
       ctx.setLineDash([6, 6]);
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.5 * renderScale;
       ctx.beginPath();
-      ctx.moveTo(droneX, droneY);
-      ctx.lineTo(anchor.x, anchor.y);
+      ctx.moveTo(renderX, renderY);
+      ctx.lineTo(anchorRender.x, anchorRender.y);
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.beginPath();
-      ctx.arc(anchor.x, anchor.y, 10, 0, Math.PI * 2);
+      ctx.arc(anchorRender.x, anchorRender.y, 10 * anchorRender.scale, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
     ctx.fillStyle = drone.support ? "#9cf0e0" : "#7de3d6";
     ctx.beginPath();
-    ctx.arc(droneX, droneY, drone.support ? 5 : 6, 0, Math.PI * 2);
+    ctx.arc(renderX, renderY, (drone.support ? 5 : 6) * renderScale, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = "rgba(13, 66, 74, 0.75)";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2 * renderScale;
     ctx.stroke();
 
     if (selectedTowerId === drone.towerId) {
       ctx.strokeStyle = "rgba(125, 227, 214, 0.32)";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.5 * renderScale;
       ctx.beginPath();
-      ctx.arc(droneX, droneY, drone.range, 0, Math.PI * 2);
+      ctx.arc(renderX, renderY, drone.range * renderScale, 0, Math.PI * 2);
       ctx.stroke();
     }
   }
@@ -14249,23 +15904,27 @@ function drawDrones() {
 
 function drawTraps() {
   for (const trap of traps) {
-    const hovered = hoverPoint && Math.hypot(hoverPoint.x - trap.centerX, hoverPoint.y - trap.centerY) <= 24;
+    const render = projectBoardPoint(trap.centerX, trap.centerY);
+    const centerX = render.x;
+    const centerY = render.y;
+    const renderScale = render.scale;
+    const hovered = hoverPoint && Math.hypot(hoverPoint.x - centerX, hoverPoint.y - centerY) <= 24 * renderScale;
 
     if (trap.kind === "spike") {
       ctx.strokeStyle = "#e9f0f6";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 * renderScale;
       for (let index = 0; index < 6; index += 1) {
         const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / 6;
-        const inner = 3;
-        const outer = 11;
+        const inner = 3 * renderScale;
+        const outer = 11 * renderScale;
         ctx.beginPath();
-        ctx.moveTo(trap.centerX + Math.cos(angle) * inner, trap.centerY + Math.sin(angle) * inner);
-        ctx.lineTo(trap.centerX + Math.cos(angle) * outer, trap.centerY + Math.sin(angle) * outer);
+        ctx.moveTo(centerX + Math.cos(angle) * inner, centerY + Math.sin(angle) * inner);
+        ctx.lineTo(centerX + Math.cos(angle) * outer, centerY + Math.sin(angle) * outer);
         ctx.stroke();
       }
       ctx.fillStyle = "#8b9aa7";
       ctx.beginPath();
-      ctx.arc(trap.centerX, trap.centerY, 4.2, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY, 4.2 * renderScale, 0, Math.PI * 2);
       ctx.fill();
       continue;
     }
@@ -14274,24 +15933,24 @@ function drawTraps() {
       const target = enemies.find((enemy) => Math.hypot(enemy.x - trap.centerX, enemy.y - trap.centerY) <= trap.range);
       const angle = target ? Math.atan2(target.y - trap.centerY, target.x - trap.centerX) : -Math.PI / 2;
       ctx.save();
-      ctx.translate(trap.centerX, trap.centerY);
+      ctx.translate(centerX, centerY);
       ctx.rotate(angle);
       ctx.fillStyle = "#9ce285";
       ctx.beginPath();
-      ctx.arc(0, 0, 5, 0, Math.PI * 2);
+      ctx.arc(0, 0, 5 * renderScale, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = "#eef8df";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.5 * renderScale;
       ctx.stroke();
       ctx.fillStyle = "#dff7c8";
-      ctx.fillRect(1, -1.5, 7, 3);
+      ctx.fillRect(1 * renderScale, -1.5 * renderScale, 7 * renderScale, 3 * renderScale);
       if (trap.barrels >= 2) {
-        ctx.fillRect(1, -4, 6, 2.5);
-        ctx.fillRect(1, 1.5, 6, 2.5);
+        ctx.fillRect(1 * renderScale, -4 * renderScale, 6 * renderScale, 2.5 * renderScale);
+        ctx.fillRect(1 * renderScale, 1.5 * renderScale, 6 * renderScale, 2.5 * renderScale);
       }
       ctx.restore();
       if (hovered) {
-        drawTrapLifetimeBar(trap);
+        drawTrapLifetimeBar({ ...trap, centerX, centerY, renderScale });
       }
       continue;
     }
@@ -14299,67 +15958,67 @@ function drawTraps() {
     if (trap.kind === "mine" || trap.kind === "miniMine") {
       ctx.save();
       ctx.shadowColor = trap.mango ? "rgba(255, 170, 71, 0.62)" : "rgba(255, 214, 96, 0.55)";
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 12 * renderScale;
       ctx.fillStyle = trap.kind === "miniMine" ? "#ffc14d" : trap.mango ? "#ffb347" : "#ffd067";
       ctx.beginPath();
-      ctx.arc(trap.centerX, trap.centerY, trap.kind === "miniMine" ? 4.5 : 6, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY, (trap.kind === "miniMine" ? 4.5 : 6) * renderScale, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
       const spikeCount = Math.max(1, trap.usesRemaining);
       ctx.strokeStyle = "#fff2c4";
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.4 * renderScale;
       for (let index = 0; index < spikeCount; index += 1) {
         const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / spikeCount;
-        const inner = trap.kind === "miniMine" ? 4.8 : 6.5;
-        const outer = trap.kind === "miniMine" ? 8.2 : 10.5;
+        const inner = (trap.kind === "miniMine" ? 4.8 : 6.5) * renderScale;
+        const outer = (trap.kind === "miniMine" ? 8.2 : 10.5) * renderScale;
         ctx.beginPath();
-        ctx.moveTo(trap.centerX + Math.cos(angle) * inner, trap.centerY + Math.sin(angle) * inner);
-        ctx.lineTo(trap.centerX + Math.cos(angle) * outer, trap.centerY + Math.sin(angle) * outer);
+        ctx.moveTo(centerX + Math.cos(angle) * inner, centerY + Math.sin(angle) * inner);
+        ctx.lineTo(centerX + Math.cos(angle) * outer, centerY + Math.sin(angle) * outer);
         ctx.stroke();
       }
       ctx.strokeStyle = "#fff2c4";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.5 * renderScale;
       ctx.beginPath();
-      ctx.arc(trap.centerX, trap.centerY, trap.kind === "miniMine" ? 6.6 : 8.5, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY, (trap.kind === "miniMine" ? 6.6 : 8.5) * renderScale, 0, Math.PI * 2);
       ctx.stroke();
       if (trap.mango) {
         ctx.fillStyle = "#8bc34a";
         ctx.beginPath();
-        ctx.moveTo(trap.centerX, trap.centerY - (trap.kind === "miniMine" ? 6 : 8));
-        ctx.lineTo(trap.centerX + 3, trap.centerY - (trap.kind === "miniMine" ? 9 : 12));
-        ctx.lineTo(trap.centerX - 2, trap.centerY - (trap.kind === "miniMine" ? 8 : 11));
+        ctx.moveTo(centerX, centerY - (trap.kind === "miniMine" ? 6 : 8) * renderScale);
+        ctx.lineTo(centerX + 3 * renderScale, centerY - (trap.kind === "miniMine" ? 9 : 12) * renderScale);
+        ctx.lineTo(centerX - 2 * renderScale, centerY - (trap.kind === "miniMine" ? 8 : 11) * renderScale);
         ctx.closePath();
         ctx.fill();
       }
       if (hovered) {
-        drawTrapLifetimeBar(trap);
+        drawTrapLifetimeBar({ ...trap, centerX, centerY, renderScale });
       }
       continue;
     }
 
     ctx.strokeStyle = "#9ce285";
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.5 * renderScale;
     const spikeCount = Math.max(1, trap.usesRemaining);
     for (let index = 0; index < spikeCount; index += 1) {
       const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / spikeCount;
-      const inner = 2;
-      const outer = 7;
+      const inner = 2 * renderScale;
+      const outer = 7 * renderScale;
       ctx.beginPath();
-      ctx.moveTo(trap.centerX + Math.cos(angle) * inner, trap.centerY + Math.sin(angle) * inner);
-      ctx.lineTo(trap.centerX + Math.cos(angle) * outer, trap.centerY + Math.sin(angle) * outer);
+      ctx.moveTo(centerX + Math.cos(angle) * inner, centerY + Math.sin(angle) * inner);
+      ctx.lineTo(centerX + Math.cos(angle) * outer, centerY + Math.sin(angle) * outer);
       ctx.stroke();
     }
     ctx.beginPath();
-    ctx.arc(trap.centerX, trap.centerY, 2, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, 2 * renderScale, 0, Math.PI * 2);
     ctx.stroke();
     if (trap.slow < 1) {
       ctx.strokeStyle = "#d7ffd2";
       ctx.beginPath();
-      ctx.arc(trap.centerX, trap.centerY, 8, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY, 8 * renderScale, 0, Math.PI * 2);
       ctx.stroke();
     }
     if (hovered) {
-      drawTrapLifetimeBar(trap);
+      drawTrapLifetimeBar({ ...trap, centerX, centerY, renderScale });
     }
   }
 }
@@ -14368,16 +16027,17 @@ function drawTrapLifetimeBar(trap) {
   const width = 22;
   const height = 4;
   const ratio = Math.max(0, Math.min(1, trap.ttl / Math.max(trap.maxTtl || 1, 1)));
-  const left = trap.centerX - width / 2;
-  const top = trap.centerY - 16;
+  const scale = trap.renderScale || 1;
+  const left = trap.centerX - (width * scale) / 2;
+  const top = trap.centerY - 16 * scale;
 
   ctx.fillStyle = "rgba(18, 26, 35, 0.55)";
-  ctx.fillRect(left, top, width, height);
+  ctx.fillRect(left, top, width * scale, height * scale);
   ctx.fillStyle = trap.kind === "mine" ? "#ffd067" : "#9ce285";
-  ctx.fillRect(left, top, width * ratio, height);
+  ctx.fillRect(left, top, width * scale * ratio, height * scale);
   ctx.strokeStyle = "rgba(255, 249, 240, 0.9)";
   ctx.lineWidth = 1;
-  ctx.strokeRect(left, top, width, height);
+  ctx.strokeRect(left, top, width * scale, height * scale);
 }
 
 function enemyStatusRadius(enemy) {
@@ -14421,6 +16081,12 @@ function enemyStatusRadius(enemy) {
   }
   if (enemy.key === "idine") {
     return 18 * (enemy.sizeScale || 1.2);
+  }
+  if (enemy.key === "behemoth" || enemy.key === "specialPentagon") {
+    return 15.5 * (enemy.sizeScale || 1);
+  }
+  if (enemy.key === "xer") {
+    return 19 * (enemy.sizeScale || 1);
   }
   if (enemy.waffleSquares) {
     return 18;
@@ -14713,7 +16379,7 @@ function drawHiddenEnemyOutline(enemy) {
     return;
   }
 
-  if (enemy.key === "behemoth" || enemy.key === "specialPentagon") {
+  if (enemy.key === "behemoth" || enemy.key === "specialPentagon" || enemy.key === "xer") {
     const radius = (enemy.shapeSides >= 6 ? 12 : 10.5) * scale;
     const rotation = (enemy.facingAngle || 0) + (enemy.shapeSides === 3 ? 0 : Math.PI / enemy.shapeSides);
     ctx.lineWidth = 2.2;
@@ -14730,6 +16396,35 @@ function drawHiddenEnemyOutline(enemy) {
     }
     ctx.closePath();
     ctx.stroke();
+    if (enemy.key === "xer") {
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 1.8 * Math.max(1, scale * 0.55);
+      const innerRadius = radius * 0.68;
+      ctx.beginPath();
+      ctx.moveTo(0, -innerRadius);
+      ctx.lineTo(innerRadius, 0);
+      ctx.lineTo(0, innerRadius);
+      ctx.lineTo(-innerRadius, 0);
+      ctx.closePath();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.7, 0);
+      ctx.lineTo(radius * 0.7, 0);
+      ctx.moveTo(0, -radius * 0.7);
+      ctx.lineTo(0, radius * 0.7);
+      ctx.stroke();
+
+      const detailRadius = radius * 0.82;
+      for (let index = 0; index < 8; index += 1) {
+        const angle = rotation + (Math.PI * 2 * index) / 8;
+        const px = Math.cos(angle) * detailRadius;
+        const py = Math.sin(angle) * detailRadius;
+        ctx.beginPath();
+        ctx.arc(px, py, Math.max(1.6, scale * 1.15), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
     if ((enemy.tier || 1) >= 2) {
       ctx.strokeStyle = accentColor;
       ctx.lineWidth = enemy.tier >= 3 ? 2.6 : 1.8;
@@ -14940,67 +16635,6 @@ function drawEnemyStateOverlay(enemy) {
     return;
   }
 }
-
-function drawEnemyArmorRing(enemy) {
-  if (!enemy.armored || enemy.armorHp <= 0) {
-    return;
-  }
-  const armorRatio = Math.max(0, Math.min(1, enemy.armorHp / Math.max(enemy.maxArmorHp || enemy.armorHp || 1, 1)));
-  const ringRadius = CELL_SIZE * 0.65;
-  const ringWidth = Math.max(2.4, CELL_SIZE * 0.11);
-  ctx.save();
-  ctx.globalAlpha = 1;
-  ctx.shadowColor = "rgba(255, 255, 255, 0.92)";
-  ctx.shadowBlur = 10 + armorRatio * 6;
-  ctx.strokeStyle = "rgba(255, 255, 255, 1)";
-  ctx.lineWidth = ringWidth;
-  ctx.beginPath();
-  ctx.arc(enemy.x, enemy.y, ringRadius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = `rgba(232, 241, 255, ${0.76 + armorRatio * 0.18})`;
-  ctx.lineWidth = Math.max(1.8, ringWidth * 0.3);
-  ctx.beginPath();
-  ctx.arc(enemy.x, enemy.y, ringRadius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.strokeStyle = "rgba(142, 152, 166, 0.52)";
-  ctx.lineWidth = Math.max(1.2, ringWidth * 0.14);
-  ctx.beginPath();
-  ctx.arc(enemy.x, enemy.y, ringRadius + ringWidth * 0.42, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawEnemyArmorRingAt(x, y, enemy) {
-  if (!enemy.armored || enemy.armorHp <= 0) {
-    return;
-  }
-  const armorRatio = Math.max(0, Math.min(1, enemy.armorHp / Math.max(enemy.maxArmorHp || enemy.armorHp || 1, 1)));
-  const ringRadius = CELL_SIZE * 0.65;
-  const ringWidth = Math.max(2.4, CELL_SIZE * 0.11);
-  ctx.save();
-  ctx.globalAlpha = 1;
-  ctx.shadowColor = "rgba(255, 255, 255, 0.92)";
-  ctx.shadowBlur = 10 + armorRatio * 6;
-  ctx.strokeStyle = "rgba(255, 255, 255, 1)";
-  ctx.lineWidth = ringWidth;
-  ctx.beginPath();
-  ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = `rgba(232, 241, 255, ${0.76 + armorRatio * 0.18})`;
-  ctx.lineWidth = Math.max(1.8, ringWidth * 0.3);
-  ctx.beginPath();
-  ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.strokeStyle = "rgba(142, 152, 166, 0.52)";
-  ctx.lineWidth = Math.max(1.2, ringWidth * 0.14);
-  ctx.beginPath();
-  ctx.arc(x, y, ringRadius + ringWidth * 0.42, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-}
-
 function drawFreezerAuraVisual(centerX, centerY, stats, emphasized = false) {
   if (!stats?.aura || !stats.auraRadius) {
     return;
@@ -15113,58 +16747,94 @@ function usesHiddenVisualEffect(enemy) {
 
 function drawEnemies() {
   for (const enemy of enemies) {
+    const render = projectBoardPoint(enemy.x, enemy.y);
+    const renderEnemy = {
+      ...enemy,
+      x: render.x,
+      y: render.y,
+      sizeScale: (enemy.sizeScale || 1) * render.scale,
+      shieldRadius: enemy.shieldRadius ? enemy.shieldRadius * render.scale : enemy.shieldRadius,
+      renderScale: render.scale
+    };
+    const barScale = render.scale;
     if (enemy.hidden) {
-      drawHiddenEnemyOutline(enemy);
+      drawHiddenEnemyOutline(renderEnemy);
     } else {
       ctx.save();
-      drawEnemyShape(enemy);
+      drawEnemyShape(renderEnemy);
       ctx.restore();
     }
-    drawEnemyStateOverlay(enemy);
-    drawEnemyStatusParticles(enemy);
-    drawEnemyArmorRing(enemy);
-    const barWidth = enemy.key === "sentinel" && (enemy.tier || 1) >= 3 ? 34 : 24;
+    drawEnemyStateOverlay(renderEnemy);
+    drawEnemyStatusParticles(renderEnemy);
+    drawEnemyArmorRing(renderEnemy);
+    const barWidth = (enemy.key === "sentinel" && (enemy.tier || 1) >= 3 ? 34 : 24) * barScale;
     const overhealLimit = Math.max(enemy.overhealLimit || 0, 0);
     const shellRatio = Math.max(0, Math.min(1, (enemy.shellHp || 0) / Math.max(enemy.maxShellHp || 1, 1)));
     drawDamageLagBar(
-      enemy.x - barWidth / 2,
-      enemy.y - 18,
+      renderEnemy.x - barWidth / 2,
+      renderEnemy.y - 18 * barScale,
       barWidth,
-      4,
+      4 * barScale,
       Math.max(enemy.hp, 0) / enemy.maxHp,
       Math.max(enemy.healthBarLagHp || enemy.hp, 0) / enemy.maxHp,
       (enemy.healthBarTintTimer || 0) > 0 ? enemy.healthBarTint || "#d94f3d" : "#d94f3d"
     );
     if (shellRatio > 0) {
       drawShellOverlayBar(
-        enemy.x - barWidth / 2,
-        enemy.y - 18,
+        renderEnemy.x - barWidth / 2,
+        renderEnemy.y - 18 * barScale,
         barWidth,
-        4,
+        4 * barScale,
         shellRatio
       );
     }
     if (enemy.key === "breacher" && (enemy.maxShieldHp || 0) > 0) {
       drawShieldOverlayBar(
-        enemy.x - barWidth / 2,
-        enemy.y - 23,
+        renderEnemy.x - barWidth / 2,
+        renderEnemy.y - 23 * barScale,
         barWidth,
-        3,
+        3 * barScale,
         Math.max(0, Math.min(1, (enemy.shieldHp || 0) / Math.max(enemy.maxShieldHp || 1, 1)))
       );
     }
     if (overhealLimit > 0) {
       drawDamageLagBar(
-        enemy.x - barWidth / 2,
-        enemy.y - (enemy.key === "breacher" && (enemy.maxShieldHp || 0) > 0 ? 28 : 23),
+        renderEnemy.x - barWidth / 2,
+        renderEnemy.y - (enemy.key === "breacher" && (enemy.maxShieldHp || 0) > 0 ? 28 : 23) * barScale,
         barWidth,
-        3,
+        3 * barScale,
         Math.max(0, Math.min(overhealLimit, Math.max(0, enemy.hp - enemy.maxHp))) / overhealLimit,
         Math.max(0, Math.min(overhealLimit, Math.max(0, (enemy.healthBarLagHp || enemy.hp) - enemy.maxHp))) / overhealLimit,
         "#f0cc46"
       );
     }
   }
+}
+
+function drawEnemyArmorRing(enemy) {
+  if ((enemy.armorHp || 0) <= 0) {
+    return;
+  }
+
+  const armorRatio = Math.max(0, Math.min(1, (enemy.armorHp || 0) / Math.max(enemy.maxArmorHp || 1, 1)));
+  const radius = enemyStatusRadius(enemy) + CELL_SIZE * 0.22;
+  const width = Math.max(2, CELL_SIZE * 0.16);
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.98)";
+  ctx.lineWidth = width;
+  ctx.shadowColor = "rgba(255, 255, 255, 0.95)";
+  ctx.shadowBlur = 8 + armorRatio * 6;
+  ctx.beginPath();
+  ctx.arc(enemy.x, enemy.y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 + armorRatio * 0.4})`;
+  ctx.lineWidth = Math.max(1.25, width * 0.34);
+  ctx.beginPath();
+  ctx.arc(enemy.x, enemy.y, radius + width * 0.18, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawDamageLagBar(x, y, width, height, ratio, lagRatio, fillColor = "#d94f3d") {
@@ -15232,6 +16902,183 @@ function drawEnemyStatusParticles(enemy) {
       ctx.fill();
     }
   }
+  ctx.restore();
+}
+
+function drawNarderEnemy(enemy) {
+  const scale = enemy.sizeScale || 1;
+  const cx = enemy.x;
+  const cy = enemy.y;
+  const rotation = enemy.facingAngle || 0;
+  const loopRadius = 6.6 * scale;
+  const orbit = 7.8 * scale;
+  const detailBoost = (enemy.tier || 1) >= 2 ? 1 : 0;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
+  ctx.strokeStyle = enemy.color;
+  ctx.lineWidth = (enemy.tier || 1) >= 2 ? 2.6 : 2.1;
+  ctx.lineCap = "round";
+
+  for (let index = 0; index < 3; index += 1) {
+    const angle = (Math.PI * 2 * index) / 3;
+    const loopX = Math.cos(angle) * orbit;
+    const loopY = Math.sin(angle) * orbit;
+    ctx.beginPath();
+    ctx.arc(loopX, loopY, loopRadius, angle + Math.PI * 0.28, angle + Math.PI * 1.72);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = "rgba(235, 252, 255, 0.9)";
+  ctx.lineWidth = 1.3 + detailBoost * 0.4;
+  ctx.beginPath();
+  for (let index = 0; index < 3; index += 1) {
+    const angle = (Math.PI * 2 * index) / 3;
+    const px = Math.cos(angle) * orbit * 0.92;
+    const py = Math.sin(angle) * orbit * 0.92;
+    if (index === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.fillStyle = enemy.coreColor || ((enemy.tier || 1) >= 2 ? "#f6fdff" : "#dffaff");
+  ctx.beginPath();
+  ctx.arc(0, 0, 3.1 + detailBoost * 0.9, 0, Math.PI * 2);
+  ctx.fill();
+
+  if ((enemy.tier || 1) >= 2) {
+    ctx.strokeStyle = "rgba(255,255,255,0.82)";
+    ctx.lineWidth = 1.1;
+    for (let index = 0; index < 3; index += 1) {
+      const angle = (Math.PI * 2 * index) / 3;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * 2.2, Math.sin(angle) * 2.2);
+      ctx.lineTo(Math.cos(angle) * 10.5 * scale, Math.sin(angle) * 10.5 * scale);
+      ctx.stroke();
+    }
+    for (let index = 0; index < 6; index += 1) {
+      const angle = (Math.PI * 2 * index) / 6;
+      const px = Math.cos(angle) * 11.8 * scale;
+      const py = Math.sin(angle) * 11.8 * scale;
+      ctx.beginPath();
+      ctx.arc(px, py, 1.15 * scale, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawBehemothEnemy(enemy) {
+  const scale = enemy.sizeScale || 1;
+  const radius = 14 * scale;
+  const rotation = (enemy.facingAngle || 0) + Math.PI / 8;
+
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.rotate(rotation);
+  ctx.fillStyle = enemy.color;
+  ctx.strokeStyle = "rgba(255, 232, 242, 0.92)";
+  ctx.lineWidth = Math.max(2.4, scale * 1.1);
+  ctx.beginPath();
+  for (let index = 0; index < 8; index += 1) {
+    const angle = (Math.PI * 2 * index) / 8;
+    const pointRadius = index % 2 === 0 ? radius * 1.08 : radius * 0.9;
+    const px = Math.cos(angle) * pointRadius;
+    const py = Math.sin(angle) * pointRadius;
+    if (index === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(255, 245, 250, 0.88)";
+  ctx.lineWidth = Math.max(1.4, scale * 0.6);
+  ctx.beginPath();
+  for (let index = 0; index < 4; index += 1) {
+    const angle = (Math.PI * 2 * index) / 4;
+    ctx.moveTo(Math.cos(angle) * radius * 0.18, Math.sin(angle) * radius * 0.18);
+    ctx.lineTo(Math.cos(angle) * radius * 0.86, Math.sin(angle) * radius * 0.86);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = enemy.coreColor || "#ffe8f0";
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawXerEnemy(enemy) {
+  const scale = enemy.sizeScale || 1;
+  const noseLength = 21 * scale;
+  const tailLength = 16 * scale;
+  const bodyWidth = 13 * scale;
+  const innerScale = 0.62;
+  const spikes = 6;
+
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.rotate(enemy.facingAngle || 0);
+
+  ctx.fillStyle = enemy.color;
+  ctx.strokeStyle = "rgba(243, 248, 255, 0.95)";
+  ctx.lineWidth = Math.max(2.6, scale * 0.8);
+  ctx.beginPath();
+  ctx.moveTo(noseLength, 0);
+  ctx.lineTo(0, -bodyWidth * 0.72);
+  ctx.lineTo(-tailLength, 0);
+  ctx.lineTo(0, bodyWidth * 0.72);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(210, 235, 255, 0.88)";
+  ctx.lineWidth = Math.max(1.4, scale * 0.42);
+  ctx.beginPath();
+  ctx.moveTo(noseLength * innerScale, 0);
+  ctx.lineTo(0, -bodyWidth * 0.42);
+  ctx.lineTo(-tailLength * innerScale, 0);
+  ctx.lineTo(0, bodyWidth * 0.42);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(-tailLength * 0.35, 0);
+  ctx.lineTo(noseLength * 0.58, 0);
+  ctx.moveTo(-tailLength * 0.1, -bodyWidth * 0.18);
+  ctx.lineTo(noseLength * 0.18, -bodyWidth * 0.5);
+  ctx.moveTo(-tailLength * 0.1, bodyWidth * 0.18);
+  ctx.lineTo(noseLength * 0.18, bodyWidth * 0.5);
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(239, 246, 255, 0.96)";
+  for (let index = 0; index < spikes; index += 1) {
+    const side = index < spikes / 2 ? -1 : 1;
+    const progress = (index % (spikes / 2)) / Math.max((spikes / 2) - 1, 1);
+    const baseX = noseLength * 0.1 - progress * (noseLength * 0.95);
+    const baseY = side * (bodyWidth * (0.18 + progress * 0.4));
+    ctx.beginPath();
+    ctx.moveTo(baseX + 5 * scale, baseY);
+    ctx.lineTo(baseX - 1.5 * scale, baseY - side * 3.6 * scale);
+    ctx.lineTo(baseX - 2.6 * scale, baseY + side * 2.2 * scale);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.fillStyle = enemy.coreColor || "#ffffff";
+  ctx.beginPath();
+  ctx.arc(noseLength * 0.08, 0, 3.6 * scale, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -15313,6 +17160,21 @@ function drawEnemyShape(enemy) {
 
   if (enemy.key === "sentinel") {
     drawSentinelEnemy(enemy);
+    return;
+  }
+
+  if (enemy.key === "narder") {
+    drawNarderEnemy(enemy);
+    return;
+  }
+
+  if (enemy.key === "behemoth" || enemy.key === "specialPentagon") {
+    drawBehemothEnemy(enemy);
+    return;
+  }
+
+  if (enemy.key === "xer") {
+    drawXerEnemy(enemy);
     return;
   }
 
@@ -15423,8 +17285,6 @@ function drawEnemyShape(enemy) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
   }
-
-  drawEnemyArmorRingAt(enemy.x, enemy.y, enemy);
 
 }
 
@@ -16334,7 +18194,7 @@ function drawBurningEnemyEffect(enemy) {
     return;
   }
 
-  const radius = enemy.waffleSquares ? 14 : enemy.key === "idaen" ? 22 : 12;
+  const radius = enemy.waffleSquares ? 14 : enemy.key === "idaen" ? 22 : enemy.key === "xer" ? 24 : 12;
   ctx.save();
   ctx.globalAlpha = Math.min(0.85, 0.25 + enemy.burnTimer * 0.12);
   ctx.strokeStyle = "#ffb45f";
@@ -16479,9 +18339,13 @@ function drawBossBar() {
 
 function drawProjectiles() {
   for (const projectile of projectiles) {
+    const render = projectBoardPoint(projectile.x, projectile.y);
+    const { x, y, scale } = render;
+
     if (projectile.kind === "droneRocket") {
       ctx.save();
-      ctx.translate(projectile.x, projectile.y);
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
       ctx.rotate(projectile.angle || 0);
       ctx.shadowColor = "rgba(255, 173, 96, 0.62)";
       ctx.shadowBlur = 12;
@@ -16499,14 +18363,15 @@ function drawProjectiles() {
     if (projectile.kind === "droneBullet") {
       ctx.fillStyle = "#fff3b7";
       ctx.beginPath();
-      ctx.arc(projectile.x, projectile.y, 2.8, 0, Math.PI * 2);
+      ctx.arc(x, y, 2.8 * scale, 0, Math.PI * 2);
       ctx.fill();
       continue;
     }
 
     if (projectile.kind === "whiteBolt") {
       ctx.save();
-      ctx.translate(projectile.x, projectile.y);
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
       ctx.rotate(projectile.angle || 0);
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
@@ -16521,7 +18386,8 @@ function drawProjectiles() {
 
     if (projectile.kind === "cannonDart") {
       ctx.save();
-      ctx.translate(projectile.x, projectile.y);
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
       ctx.rotate(projectile.angle || 0);
       ctx.fillStyle = "#5c4f47";
       ctx.beginPath();
@@ -16545,7 +18411,8 @@ function drawProjectiles() {
 
     if (projectile.kind === "shotgunPellet") {
       ctx.save();
-      ctx.translate(projectile.x, projectile.y);
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
       ctx.rotate(projectile.angle || 0);
       ctx.strokeStyle = "#ffe177";
       ctx.lineWidth = 2;
@@ -16560,7 +18427,7 @@ function drawProjectiles() {
     if (projectile.kind === "trapTurretBullet") {
       ctx.fillStyle = "#d8f8c2";
       ctx.beginPath();
-      ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
+      ctx.arc(x, y, 3 * scale, 0, Math.PI * 2);
       ctx.fill();
       continue;
     }
@@ -16568,7 +18435,7 @@ function drawProjectiles() {
     if (projectile.kind === "frostBolt") {
       ctx.fillStyle = "#c8f6ff";
       ctx.beginPath();
-      ctx.arc(projectile.x, projectile.y, 4, 0, Math.PI * 2);
+      ctx.arc(x, y, 4 * scale, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 1.2;
@@ -16578,7 +18445,8 @@ function drawProjectiles() {
 
     if (projectile.kind === "fireball") {
       ctx.save();
-      ctx.translate(projectile.x, projectile.y);
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
       ctx.rotate(projectile.angle || 0);
       ctx.fillStyle = "#ff8b4d";
       ctx.beginPath();
@@ -16608,7 +18476,8 @@ function drawProjectiles() {
       }
       const size = projectile.projectileSize || 10;
       ctx.save();
-      ctx.translate(projectile.x, projectile.y);
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
       ctx.rotate(projectile.roll || 0);
       if (projectile.falling) {
         ctx.strokeStyle = "rgba(255, 228, 153, 0.38)";
@@ -16640,14 +18509,15 @@ function drawProjectiles() {
     if (projectile.kind === "dippyShell") {
       ctx.fillStyle = "#fff8da";
       ctx.beginPath();
-      ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
+      ctx.arc(x, y, 3 * scale, 0, Math.PI * 2);
       ctx.fill();
       continue;
     }
 
     if (projectile.kind === "missile") {
       ctx.save();
-      ctx.translate(projectile.x, projectile.y);
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
       ctx.rotate(projectile.angle || 0);
       ctx.shadowColor = "rgba(255, 176, 92, 0.55)";
       ctx.shadowBlur = 10;
@@ -16668,16 +18538,16 @@ function drawProjectiles() {
       ctx.strokeStyle = "rgba(255, 190, 78, 0.9)";
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(projectile.x, projectile.y);
-      ctx.lineTo(projectile.x - Math.cos(angle) * 18, projectile.y - Math.sin(angle) * 18);
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - Math.cos(angle) * 18 * scale, y - Math.sin(angle) * 18 * scale);
       ctx.stroke();
       ctx.fillStyle = "#ffd34d";
       ctx.beginPath();
-      ctx.arc(projectile.x, projectile.y, 5.5, 0, Math.PI * 2);
+      ctx.arc(x, y, 5.5 * scale, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = "#fff1a8";
       ctx.beginPath();
-      ctx.arc(projectile.x - 1.5, projectile.y - 1.5, 1.6, 0, Math.PI * 2);
+      ctx.arc(x - 1.5 * scale, y - 1.5 * scale, 1.6 * scale, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
       continue;
@@ -16685,7 +18555,7 @@ function drawProjectiles() {
 
     ctx.fillStyle = "#ffe6a5";
     ctx.beginPath();
-    ctx.arc(projectile.x, projectile.y, 4, 0, Math.PI * 2);
+    ctx.arc(x, y, 4 * scale, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -16693,14 +18563,16 @@ function drawProjectiles() {
 function drawEffects() {
   for (const effect of effects) {
     if (effect.kind === "beam") {
+      const start = projectBoardPoint(effect.x1, effect.y1);
+      const end = projectBoardPoint(effect.x2, effect.y2);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.strokeStyle = effect.color;
-      ctx.lineWidth = effect.width || 3;
+      ctx.lineWidth = (effect.width || 3) * ((start.scale + end.scale) / 2);
       ctx.globalAlpha = effect.ttl / Math.max(effect.maxTtl || 0.12, 0.01);
       ctx.beginPath();
-      ctx.moveTo(effect.x1, effect.y1);
-      ctx.lineTo(effect.x2, effect.y2);
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
       ctx.stroke();
       ctx.lineCap = "butt";
       ctx.lineJoin = "miter";
@@ -16709,25 +18581,27 @@ function drawEffects() {
     }
 
     if (effect.kind === "floatingText") {
+      const render = projectBoardPoint(effect.x, effect.y);
       const alpha = effect.ttl / Math.max(effect.maxTtl || 1, 0.01);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = effect.color;
-      ctx.font = "bold 16px Georgia";
+      ctx.font = `bold ${Math.max(10, 16 * render.scale)}px Georgia`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(effect.text, effect.x, effect.y);
+      ctx.fillText(effect.text, render.x, render.y);
       ctx.globalAlpha = 1;
       continue;
     }
 
     if (effect.kind === "puddle") {
+      const render = projectBoardPoint(effect.x, effect.y);
       ctx.fillStyle = effect.color;
       ctx.globalAlpha = Math.max(0.2, effect.ttl / Math.max(effect.maxTtl || 1, 1));
       ctx.beginPath();
       if (effect.circular) {
-        ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+        ctx.arc(render.x, render.y, effect.radius * render.scale, 0, Math.PI * 2);
       } else {
-        ctx.ellipse(effect.x, effect.y, effect.radius, effect.radius * 0.66, 0, 0, Math.PI * 2);
+        ctx.ellipse(render.x, render.y, effect.radius * render.scale, effect.radius * 0.66 * render.scale, 0, 0, Math.PI * 2);
       }
       ctx.fill();
       if (effect.damage > 0) {
@@ -16740,25 +18614,28 @@ function drawEffects() {
     }
 
     if (effect.kind === "spark") {
+      const render = projectBoardPoint(effect.x, effect.y);
       const alpha = effect.ttl / Math.max(effect.maxTtl || 0.2, 0.01);
       ctx.fillStyle = effect.color;
       ctx.globalAlpha = alpha;
       ctx.beginPath();
-      ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+      ctx.arc(render.x, render.y, effect.radius * render.scale, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
       continue;
     }
 
     if (effect.kind === "constructLaunch") {
+      const start = projectBoardPoint(effect.x1, effect.y1);
+      const end = projectBoardPoint(effect.x2, effect.y2);
       const progress = 1 - effect.ttl / Math.max(effect.maxTtl || 0.18, 0.01);
-      const headX = effect.x1 + (effect.x2 - effect.x1) * progress;
-      const headY = effect.y1 + (effect.y2 - effect.y1) * progress;
+      const headX = start.x + (end.x - start.x) * progress;
+      const headY = start.y + (end.y - start.y) * progress;
       ctx.strokeStyle = effect.color;
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 2.5 * ((start.scale + end.scale) / 2);
       ctx.globalAlpha = 0.75;
       ctx.beginPath();
-      ctx.moveTo(effect.x1, effect.y1);
+      ctx.moveTo(start.x, start.y);
       ctx.lineTo(headX, headY);
       ctx.stroke();
       ctx.fillStyle = effect.color;
@@ -16770,10 +18647,11 @@ function drawEffects() {
     }
 
     ctx.strokeStyle = effect.color;
-    ctx.lineWidth = 2;
+    const render = projectBoardPoint(effect.x, effect.y);
+    ctx.lineWidth = 2 * render.scale;
     ctx.globalAlpha = effect.ttl / 0.18;
     ctx.beginPath();
-    ctx.arc(effect.x, effect.y, effect.radius * (1 - effect.ttl / 0.18 * 0.3), 0, Math.PI * 2);
+    ctx.arc(render.x, render.y, effect.radius * render.scale * (1 - effect.ttl / 0.18 * 0.3), 0, Math.PI * 2);
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
@@ -16785,40 +18663,56 @@ function drawEnemyDeathEffects() {
       continue;
     }
 
+    const render = projectBoardPoint(effect.x, effect.y);
+    const renderEffect = {
+      ...effect,
+      x: render.x,
+      y: render.y,
+      enemy: effect.enemy ? {
+        ...effect.enemy,
+        x: 0,
+        y: 0,
+        sizeScale: (effect.enemy.sizeScale || 1) * render.scale,
+        shieldRadius: effect.enemy.shieldRadius ? effect.enemy.shieldRadius * render.scale : effect.enemy.shieldRadius,
+        renderScale: render.scale
+      } : effect.enemy
+    };
     const progress = 1 - effect.ttl / Math.max(effect.maxTtl || 0.4, 0.01);
     const fade = Math.max(0, 1 - progress);
     const squash = 1 + Math.sin(Math.min(1, progress * 1.45) * Math.PI) * 0.24;
     const stretch = Math.max(0.6, 1 - progress * 0.42);
 
     ctx.save();
-    ctx.translate(effect.x, effect.y);
-    ctx.rotate((effect.enemy?.facingAngle || 0) + (effect.spin || 0) * progress);
+    ctx.translate(renderEffect.x, renderEffect.y);
+    ctx.rotate((renderEffect.enemy?.facingAngle || 0) + (effect.spin || 0) * progress);
     ctx.globalAlpha = Math.pow(fade, 0.88) * 0.95;
-    ctx.fillStyle = effect.glowColor || effect.color || "#ffffff";
+    ctx.fillStyle = renderEffect.glowColor || renderEffect.color || "#ffffff";
     ctx.beginPath();
-    ctx.arc(0, 0, (effect.radius || 12) * (0.72 + progress * 1.25), 0, Math.PI * 2);
+    ctx.arc(0, 0, (effect.radius || 12) * render.scale * (0.72 + progress * 1.25), 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha *= 0.7;
     ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, 0, (effect.radius || 12) * (0.95 + progress * 0.75), 0, Math.PI * 2);
+    ctx.arc(0, 0, (effect.radius || 12) * render.scale * (0.95 + progress * 0.75), 0, Math.PI * 2);
     ctx.stroke();
+    ctx.scale(render.scale, render.scale);
     ctx.scale(squash, stretch);
     ctx.globalAlpha = Math.pow(fade, 1.15);
-    drawEnemyShape(effect.enemy);
+    drawEnemyShape(renderEffect.enemy);
     ctx.restore();
   }
 }
 
 function drawEndpoint(point, fill) {
-  const center = cellCenter(point.x, point.y);
+  const center = projectCellCenterPoint(point.x, point.y);
   const offset = entityRenderOffset(point);
+  const renderScale = center.scale;
   ctx.fillStyle = fill;
   ctx.beginPath();
-  ctx.arc(center.x + offset.x, center.y + offset.y, 18, 0, Math.PI * 2);
+  ctx.arc(center.x + offset.x, center.y + offset.y, 18 * renderScale, 0, Math.PI * 2);
   ctx.fill();
-  ctx.lineWidth = 5;
+  ctx.lineWidth = 5 * renderScale;
   ctx.strokeStyle = "#fff9f1";
   ctx.stroke();
 }
@@ -16841,6 +18735,7 @@ function draw() {
 
   drawTraps();
   drawSelectedTowerRange();
+  drawDroneRelocateTowerTargets();
   drawPreview();
   drawArmedAbilityPreview();
   drawTowers();
@@ -16868,57 +18763,116 @@ function drawSelectedTowerRange() {
     return;
   }
 
-  drawTowerRangeOverlay(tower);
+  const render = projectBoardPoint(tower.centerX, tower.centerY);
+  drawTowerRangeOverlay({
+    ...tower,
+    centerX: render.x,
+    centerY: render.y,
+    gridCenterX: tower.centerX,
+    gridCenterY: tower.centerY,
+    renderScale: render.scale
+  });
+}
+
+function drawDroneRelocateTowerTargets() {
+  if (!droneCommandState || droneCommandState.mode !== "tower" || droneCommandState.stage !== "selectTarget") {
+    return;
+  }
+
+  const commandTower = towers.find((entry) => entry.id === droneCommandState.towerId && entry.type === "drone");
+  if (!commandTower) {
+    return;
+  }
+
+  ctx.save();
+  for (const tower of towers) {
+    if (tower.id === commandTower.id || tower.upgradeLocked) {
+      continue;
+    }
+    const radius = towerRelocationSelectionRadius(tower);
+    const render = projectBoardPoint(tower.centerX, tower.centerY);
+    ctx.strokeStyle = "#ffd84d";
+    ctx.lineWidth = 8;
+    ctx.globalAlpha = 0.96;
+    ctx.beginPath();
+    ctx.arc(render.x, render.y, radius * render.scale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 247, 194, 0.94)";
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.84;
+    ctx.beginPath();
+    ctx.arc(render.x, render.y, radius * render.scale, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawTowerRangeOverlay(tower, colors = {}) {
   const stats = towerStats(tower);
+  const renderScale = tower.renderScale || projectBoardPoint(0, tower.gridCenterY ?? tower.centerY).scale;
+  const scaledStats = {
+    ...stats,
+    range: stats.range * renderScale,
+    minRange: (stats.minRange || 0) * renderScale,
+    auraRadius: (stats.auraRadius || 0) * renderScale,
+    fieldRadius: (stats.fieldRadius || 0) * renderScale,
+    orbitRadius: (stats.orbitRadius || 0) * renderScale
+  };
   ctx.save();
   ctx.strokeStyle = colors.primaryStroke || "rgba(18,26,35,0.55)";
   ctx.fillStyle = colors.primaryFill || "rgba(18,26,35,0.14)";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(tower.centerX, tower.centerY, stats.range, 0, Math.PI * 2);
+  ctx.arc(tower.centerX, tower.centerY, scaledStats.range, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
   if (tower.type === "dippy" && stats.minRange > 0) {
     ctx.strokeStyle = "rgba(214, 55, 55, 0.9)";
     ctx.fillStyle = "rgba(214, 55, 55, 0.08)";
     ctx.beginPath();
-    ctx.arc(tower.centerX, tower.centerY, stats.minRange, 0, Math.PI * 2);
+    ctx.arc(tower.centerX, tower.centerY, scaledStats.minRange, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   }
   if (tower.type === "tesla" && stats.field) {
-    drawTeslaFieldVisual(tower.centerX, tower.centerY, stats, true);
+    drawTeslaFieldVisual(tower.centerX, tower.centerY, scaledStats, true);
   }
   if (tower.type === "freezer" && stats.aura) {
-    drawFreezerAuraVisual(tower.centerX, tower.centerY, stats, true);
+    drawFreezerAuraVisual(tower.centerX, tower.centerY, scaledStats, true);
   }
   if (tower.type === "support") {
     ctx.strokeStyle = stats.munitions ? "rgba(255, 205, 140, 0.5)" : "rgba(219, 201, 255, 0.48)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(tower.centerX, tower.centerY, stats.auraRadius, 0, Math.PI * 2);
+    ctx.arc(tower.centerX, tower.centerY, scaledStats.auraRadius, 0, Math.PI * 2);
     ctx.stroke();
     if (stats.detectHiddenAura) {
       ctx.strokeStyle = "rgba(209, 246, 255, 0.52)";
       ctx.setLineDash([8, 6]);
       ctx.beginPath();
-      ctx.arc(tower.centerX, tower.centerY, stats.auraRadius - 6, 0, Math.PI * 2);
+      ctx.arc(tower.centerX, tower.centerY, Math.max(0, (stats.auraRadius - 6) * renderScale), 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
     }
+  }
+  if (tower.type === "treasury" && stats.tradeEmpireAura > 1) {
+    ctx.strokeStyle = "rgba(255, 214, 122, 0.5)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(tower.centerX, tower.centerY, scaledStats.auraRadius, 0, Math.PI * 2);
+    ctx.stroke();
   }
   ctx.restore();
 }
 
 function drawBlockedSightOverlay(tower) {
-  if (!tower || tower.type === "dippy" || tower.type === "support" || tower.type === "drone") {
+  if (!tower || tower.type === "dippy" || tower.type === "support" || tower.type === "treasury" || tower.type === "orb" || tower.type === "drone") {
     return;
   }
   const stats = towerStats(tower);
   const range = stats.range;
+  const originX = tower.gridCenterX ?? tower.centerX;
+  const originY = tower.gridCenterY ?? tower.centerY;
   const rayStep = 6;
   const segmentCount = 100;
   ctx.save();
@@ -16930,8 +18884,8 @@ function drawBlockedSightOverlay(tower) {
     let inner2 = range;
 
     for (let distance = rayStep; distance <= range; distance += rayStep) {
-      const x = Math.floor((tower.centerX + Math.cos(angle1) * distance) / CELL_SIZE);
-      const y = Math.floor((tower.centerY + Math.sin(angle1) * distance) / CELL_SIZE);
+      const x = Math.floor((originX + Math.cos(angle1) * distance) / CELL_SIZE);
+      const y = Math.floor((originY + Math.sin(angle1) * distance) / CELL_SIZE);
       if (obstacleBlocksSight(x, y)) {
         inner1 = Math.max(0, distance - rayStep);
         break;
@@ -16939,8 +18893,8 @@ function drawBlockedSightOverlay(tower) {
     }
 
     for (let distance = rayStep; distance <= range; distance += rayStep) {
-      const x = Math.floor((tower.centerX + Math.cos(angle2) * distance) / CELL_SIZE);
-      const y = Math.floor((tower.centerY + Math.sin(angle2) * distance) / CELL_SIZE);
+      const x = Math.floor((originX + Math.cos(angle2) * distance) / CELL_SIZE);
+      const y = Math.floor((originY + Math.sin(angle2) * distance) / CELL_SIZE);
       if (obstacleBlocksSight(x, y)) {
         inner2 = Math.max(0, distance - rayStep);
         break;
@@ -16951,11 +18905,15 @@ function drawBlockedSightOverlay(tower) {
       continue;
     }
 
+    const start1 = projectBoardPoint(originX + Math.cos(angle1) * inner1, originY + Math.sin(angle1) * inner1);
+    const end1 = projectBoardPoint(originX + Math.cos(angle1) * range, originY + Math.sin(angle1) * range);
+    const end2 = projectBoardPoint(originX + Math.cos(angle2) * range, originY + Math.sin(angle2) * range);
+    const start2 = projectBoardPoint(originX + Math.cos(angle2) * inner2, originY + Math.sin(angle2) * inner2);
     ctx.beginPath();
-    ctx.moveTo(tower.centerX + Math.cos(angle1) * inner1, tower.centerY + Math.sin(angle1) * inner1);
-    ctx.lineTo(tower.centerX + Math.cos(angle1) * range, tower.centerY + Math.sin(angle1) * range);
-    ctx.lineTo(tower.centerX + Math.cos(angle2) * range, tower.centerY + Math.sin(angle2) * range);
-    ctx.lineTo(tower.centerX + Math.cos(angle2) * inner2, tower.centerY + Math.sin(angle2) * inner2);
+    ctx.moveTo(start1.x, start1.y);
+    ctx.lineTo(end1.x, end1.y);
+    ctx.lineTo(end2.x, end2.y);
+    ctx.lineTo(start2.x, start2.y);
     ctx.closePath();
     ctx.fill();
   }
@@ -17207,7 +19165,13 @@ function handleBoardRightClick(event) {
   }
   event.preventDefault();
   event.stopPropagation();
-  if (armedAbility) {
+  if (droneCommandState) {
+    if (droneCommandState.stage === "selectTarget" || droneCommandState.stage === "selectDestination") {
+      cancelDroneCommand("Relocation cancelled.");
+    } else {
+      setMessage("Relocation is already in progress and cannot be cancelled.", 1.2);
+    }
+  } else if (armedAbility) {
     armedAbility = null;
     setMessage("Ability targeting cancelled.", 0.9);
   } else {
@@ -17225,12 +19189,13 @@ canvas.addEventListener("click", (event) => {
     return;
   }
   const cell = pointerToCell(event);
-  if (handleDroneCommandClick(cell.x, cell.y)) {
+  const point = pointerToCanvas(event);
+  if (handleDroneCommandClick(cell.x, cell.y, point)) {
     updateHud();
     draw();
     return;
   }
-  applyTool(cell.x, cell.y);
+  applyTool(cell.x, cell.y, point);
 });
 
 canvas.addEventListener("mousedown", (event) => {
@@ -17333,6 +19298,45 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const popupOrbSpin = event.target.closest("[data-orb-spin-tower-id]");
+
+  if (popupOrbSpin) {
+    const tower = towers.find((entry) => entry.id === Number(popupOrbSpin.dataset.orbSpinTowerId));
+    if (!tower) {
+      clearSelection(false);
+      return;
+    }
+    const allowed = ORB_SPIN_PRIORITIES;
+    const currentIndex = allowed.indexOf(tower.targetPriority || "clockwise");
+    tower.targetPriority = allowed[(currentIndex + 1) % allowed.length];
+    openTowerPopup(tower);
+    setMessage(`${towerDisplayName(tower)} spin set to ${TARGET_LABELS[tower.targetPriority]}.`, 1.1);
+    updateHud();
+    draw();
+    return;
+  }
+
+  const popupOrbType = event.target.closest("[data-orb-type-tower-id]");
+
+  if (popupOrbType) {
+    const tower = towers.find((entry) => entry.id === Number(popupOrbType.dataset.orbTypeTowerId));
+    if (!tower) {
+      clearSelection(false);
+      return;
+    }
+    normalizeTowerPriority(tower);
+    const allowedTypes = (tower.path2 || 0) >= 4
+      ? ORB_TYPE_PRIORITIES
+      : ORB_TYPE_PRIORITIES.slice(0, 3);
+    const currentIndex = allowedTypes.indexOf(tower.orbType || "explosive");
+    tower.orbType = allowedTypes[(currentIndex + 1) % allowedTypes.length];
+    openTowerPopup(tower);
+    setMessage(`${towerDisplayName(tower)} orb type set to ${TARGET_LABELS[tower.orbType]}.`, 1.1);
+    updateHud();
+    draw();
+    return;
+  }
+
   const popupCannonPriority = event.target.closest("[data-cannon-priority-tower-id]");
 
   if (popupCannonPriority) {
@@ -17370,6 +19374,34 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const popupTreasuryLoan = event.target.closest("[data-treasury-loan-tower-id]");
+
+  if (popupTreasuryLoan) {
+    const tower = towers.find((entry) => entry.id === Number(popupTreasuryLoan.dataset.treasuryLoanTowerId));
+    if (!tower) {
+      clearSelection(false);
+      return;
+    }
+    takeTreasuryLoan(tower);
+    updateHud();
+    draw();
+    return;
+  }
+
+  const popupTreasuryCollect = event.target.closest("[data-treasury-collect-tower-id]");
+
+  if (popupTreasuryCollect) {
+    const tower = towers.find((entry) => entry.id === Number(popupTreasuryCollect.dataset.treasuryCollectTowerId));
+    if (!tower) {
+      clearSelection(false);
+      return;
+    }
+    collectTreasuryBank(tower);
+    updateHud();
+    draw();
+    return;
+  }
+
   const popupSell = event.target.closest("[data-sell-tower-id]");
 
   if (popupSell) {
@@ -17402,7 +19434,13 @@ document.addEventListener("click", (event) => {
       return;
     }
     if (droneCommandState && droneCommandState.towerId === tower.id && droneCommandState.mode === mode) {
-      cancelDroneCommand(mode === "block" ? "Block move cancelled." : "Tower move cancelled.");
+      if (droneCommandState.stage === "selectTarget" || droneCommandState.stage === "selectDestination") {
+        cancelDroneCommand(mode === "block" ? "Block move cancelled." : "Tower move cancelled.");
+      } else {
+        setMessage(mode === "block"
+          ? "Block relocation is already in progress."
+          : "Tower relocation is already in progress.", 1.2);
+      }
       updateHud();
       draw();
       return;
@@ -17412,10 +19450,11 @@ document.addEventListener("click", (event) => {
       mode,
       stage: "selectTarget"
     };
-    openTowerPopup(tower);
+    selectedTowerId = null;
+    closeTowerPopup();
     setMessage(mode === "block"
-      ? "Click a block to move, then click its new anchor spot."
-      : "Select a tower, then select a location.", 1.8);
+      ? "Click a block to move with its towers, then click its new anchor spot."
+      : "Select a tower.", 6);
     updateHud();
     draw();
     return;
