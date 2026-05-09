@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -50,6 +50,10 @@
       <div class="overlay-actions">
         <button id="startGameButton">Start Game</button>
         <button id="openAlmanacButton" class="secondary">Almanac</button>
+      </div>
+      <div class="menu-update-log" aria-live="polite">
+        <p class="eyebrow">Update Log</p>
+        <div id="updateLogText"></div>
       </div>
     </div>
   </div>
@@ -168,13 +172,6 @@
             </label>
           </div>
         </div>
-        <div class="panel" id="tutorialPanel">
-          <div class="panel-head">
-            <h2>Tutorial</h2>
-          </div>
-          <div class="tutorial-copy" id="tutorialList"></div>
-          <p class="hint" id="tutorialHint">Use arrow keys to pan and start shaping the route.</p>
-        </div>
         <div class="panel" id="blocksPanel">
           <div class="panel-head">
             <h2>Blocks</h2>
@@ -218,7 +215,7 @@
         </div>
         <div class="play-area">
           <div class="board-frame">
-            <canvas id="board" width="952" height="672" aria-label="Tower defense board"></canvas>
+            <canvas id="board" width="960" height="960" aria-label="Tower defense board"></canvas>
           </div>
           <div class="panel towers-strip" data-panel="towers">
             <div class="panel-head">
@@ -227,20 +224,20 @@
             </div>
             <div class="tower-scroll tower-scroll-column">
               <div class="tower-grid tower-grid-column" id="towerGrid">
-                <button class="tower-type active" data-tower-type="tesla">Tesla (7)</button>
-        <button class="tower-type" data-tower-type="missile">Cannon (9)</button>
-        <button class="tower-type" data-tower-type="trapper">Trap Setter (6)</button>
-        <button class="tower-type" data-tower-type="laser">Laser (10)</button>
-        <button class="tower-type" data-tower-type="shotgun">Shotgun (10)</button>
-        <button class="tower-type" data-tower-type="freezer">Freezer (8)</button>
-        <button class="tower-type" data-tower-type="drone">Drone (8)</button>
-            <button class="tower-type" data-tower-type="fireball">Torch (48)</button>
-            <button class="tower-type" data-tower-type="dippy">Dippy (100)</button>
-            <button class="tower-type" data-tower-type="support">Support (42)</button>
-            <button class="tower-type" data-tower-type="treasury">Treasury (60)</button>
-            <button class="tower-type" data-tower-type="orb">Orb (46)</button>
-            <button class="tower-type" data-tower-type="crossbow">Crossbow (28)</button>
-            <button class="tower-type" data-tower-type="gate">Acid (56)</button>
+                <button class="tower-type active" data-tower-type="tesla" type="button">Tesla (7)</button>
+        <button class="tower-type" data-tower-type="missile" type="button">Cannon (9)</button>
+        <button class="tower-type" data-tower-type="trapper" type="button">Trap Setter (6)</button>
+        <button class="tower-type" data-tower-type="laser" type="button">Laser (10)</button>
+        <button class="tower-type" data-tower-type="shotgun" type="button">Shotgun (10)</button>
+        <button class="tower-type" data-tower-type="freezer" type="button">Freezer (8)</button>
+        <button class="tower-type" data-tower-type="drone" type="button">Drone (8)</button>
+            <button class="tower-type" data-tower-type="fireball" type="button">Torch (48)</button>
+            <button class="tower-type" data-tower-type="dippy" type="button">Dippy (100)</button>
+            <button class="tower-type" data-tower-type="support" type="button">Support (42)</button>
+            <button class="tower-type" data-tower-type="treasury" type="button">Treasury (60)</button>
+<button class="tower-type" data-tower-type="orb" type="button">Orb (48)</button>
+            <button class="tower-type" data-tower-type="crossbow" type="button">Crossbow (28)</button>
+            <button class="tower-type" data-tower-type="gate" type="button">Acid (56)</button>
           </div>
         </div>
         <p class="hint" id="towerDescription">Tesla: chain lightning with fast bursts.</p>
@@ -280,6 +277,9 @@
         const mapOptions = document.getElementById("mapOptions");
         const startGameButton = document.getElementById("startGameButton");
         const openAlmanacButton = document.getElementById("openAlmanacButton");
+        const closeAlmanacButton = document.getElementById("closeAlmanacButton");
+        const almanacTabs = document.getElementById("almanacTabs");
+        const almanacGrid = document.getElementById("almanacGrid");
         const menuMapDescription = document.getElementById("menuMapDescription");
         const getBridge = () => window.__blockDefenceMenuBridge;
         const getMaps = () => window.__blockDefenceMenuMaps || {};
@@ -317,10 +317,10 @@
             return;
           }
 
-          event.preventDefault();
-          event.stopPropagation();
           const bridge = getBridge();
           if (bridge?.setDifficulty?.(button.dataset.difficulty)) {
+            event.preventDefault();
+            event.stopPropagation();
             syncMenuState();
           }
         }, true);
@@ -332,10 +332,10 @@
             return;
           }
 
-          event.preventDefault();
-          event.stopPropagation();
           const bridge = getBridge();
           if (bridge?.setMap?.(button.dataset.map)) {
+            event.preventDefault();
+            event.stopPropagation();
             syncMenuState();
           }
         }, true);
@@ -343,28 +343,83 @@
         startGameButton?.addEventListener("click", (event) => {
           event.preventDefault();
           event.stopPropagation();
-          const bridge = getBridge();
-          if (bridge?.startFromMenu) {
-            bridge.startFromMenu();
-          } else if (menuMapDescription) {
-            const detail = [window.__blockDefenceBootError, window.__blockDefenceCompileError].filter(Boolean).join(" | ");
-            menuMapDescription.textContent = detail
-              ? `Start Game is unavailable. ${detail}`
-              : "Start Game is unavailable because the game script did not finish loading.";
+
+          try {
+            window.startGame?.();
+          } catch (error) {
+            if (menuMapDescription) {
+              const detail = [window.__blockDefenceStartGameError, error instanceof Error ? error.message : String(error)]
+                .filter(Boolean)
+                .join(" | ");
+              menuMapDescription.textContent = detail
+                ? `Start Game failed. ${detail}`
+                : "Start Game failed.";
+            }
           }
         }, true);
 
         openAlmanacButton?.addEventListener("click", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
           const bridge = getBridge();
           if (bridge?.openAlmanacFromMenu) {
-            bridge.openAlmanacFromMenu();
+            event.preventDefault();
+            event.stopPropagation();
+            try {
+              bridge.openAlmanacFromMenu();
+            } catch (error) {
+              window.openAlmanac?.("menu");
+            }
           } else if (menuMapDescription) {
             const detail = [window.__blockDefenceBootError, window.__blockDefenceCompileError].filter(Boolean).join(" | ");
             menuMapDescription.textContent = detail
               ? `Almanac is unavailable. ${detail}`
               : "Almanac is unavailable because the game script did not finish loading.";
+          }
+        }, true);
+
+        closeAlmanacButton?.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          try {
+            window.closeAlmanac?.();
+          } catch (error) {
+            window.openOverlay?.("menu");
+          }
+        }, true);
+
+        almanacTabs?.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-almanac-tab]");
+          if (!button) {
+            return;
+          }
+
+          const bridge = getBridge();
+          if (bridge?.setAlmanacTab?.(button.dataset.almanacTab)) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }, true);
+
+        almanacGrid?.addEventListener("click", (event) => {
+          const enemyEntry = event.target.closest("[data-almanac-enemy]");
+          const waveEntry = event.target.closest("[data-almanac-wave]");
+          const towerEntry = event.target.closest("[data-almanac-tower]");
+          const bridge = getBridge();
+
+          if (enemyEntry && bridge?.selectAlmanacEnemy?.(enemyEntry.dataset.almanacEnemy)) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+
+          if (waveEntry && bridge?.selectAlmanacWave?.(waveEntry.dataset.almanacWave)) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+
+          if (towerEntry && bridge?.selectAlmanacTower?.(towerEntry.dataset.almanacTower)) {
+            event.preventDefault();
+            event.stopPropagation();
           }
         }, true);
 
