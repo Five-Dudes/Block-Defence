@@ -7,17 +7,57 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <div class="overlay active" id="menuOverlay">
+  <div class="overlay active" id="signInOverlay">
+    <div class="overlay-card menu-card sign-in-card">
+      <div class="menu-title sign-in-title" aria-label="Sign In">
+        <span class="menu-word">SIGN</span>
+        <span class="menu-block-icon" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </span>
+        <span class="menu-word">IN</span>
+      </div>
+      <p class="hint menu-subtitle">Choose a username and password, log in to an existing account, or play as guest to reach the main menu.</p>
+      <section class="menu-account-section">
+        <div class="account-card">
+          <div class="account-fields">
+            <label class="account-field">
+              <span>Username</span>
+              <input id="accountUsernameInput" type="text" autocomplete="username" maxlength="24" placeholder="Create or enter a username">
+            </label>
+            <label class="account-field">
+              <span>Password</span>
+              <input id="accountPasswordInput" type="password" autocomplete="current-password" maxlength="64" placeholder="Enter your password">
+            </label>
+            <label class="account-field">
+              <span>New Password</span>
+              <input id="accountNewPasswordInput" type="password" autocomplete="new-password" maxlength="64" placeholder="Optional password change">
+            </label>
+          </div>
+          <div class="overlay-actions account-actions">
+            <button id="accountSignupButton" type="button">Sign Up</button>
+            <button id="accountLoginButton" type="button" class="secondary">Log In</button>
+            <button id="accountChangePasswordButton" type="button" class="secondary">Change Password</button>
+            <button id="accountGuestButton" type="button" class="secondary">Play as Guest</button>
+          </div>
+          <p class="hint" id="accountStatusText">Playing as guest. Progress will not be saved.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="overlay" id="menuOverlay">
     <div class="overlay-card menu-card">
       <div class="menu-title" aria-label="Block Defence">
         <span class="menu-word menu-word-block">BLOCK</span>
-        <span class="menu-side-tile" aria-hidden="true"><span></span><span></span><span></span><span></span><i></i></span>
+        <span class="menu-block-icon" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </span>
         <span class="menu-word">DEFENCE</span>
       </div>
-      <p class="hint menu-subtitle">Choose a difficulty and map. Some maps use extra portals, scenery changes, and obstacles that block tower line of sight.</p>
+      <p class="hint menu-subtitle" data-i18n="menuSubtitle">Choose a difficulty and map. Some maps use extra portals, scenery changes, and obstacles that block tower line of sight.</p>
       <div class="menu-selectors">
         <section>
-          <p class="eyebrow">Difficulty</p>
+          <p class="eyebrow" data-i18n="difficulty">Difficulty</p>
           <div class="menu-options" id="difficultyOptions">
             <button class="menu-option" data-difficulty="easy">Easy</button>
             <button class="menu-option active" data-difficulty="standard">Standard</button>
@@ -27,7 +67,7 @@
           </div>
         </section>
         <section>
-          <p class="eyebrow">Map</p>
+          <p class="eyebrow" data-i18n="map">Map</p>
           <div class="menu-options menu-options-maps" id="mapOptions">
             <button class="menu-option active" data-map="meadow">Classic</button>
             <button class="menu-option" data-map="canyon">Canyon Fork</button>
@@ -48,8 +88,10 @@
       </div>
       <p class="hint" id="menuMapDescription">Classic: single portal and open grassland with no rocks or sight blockers.</p>
       <div class="overlay-actions">
-        <button id="startGameButton">Start Game</button>
-        <button id="openAlmanacButton" class="secondary">Almanac</button>
+        <button id="startGameButton" data-i18n="startGame">Start Game</button>
+        <button id="openAlmanacButton" class="secondary" data-i18n="almanac">Almanac</button>
+        <button id="openSkillTreeButton" class="secondary" data-i18n="skillTree">Skill Tree</button>
+        <button id="openSettingsButton" class="secondary" data-i18n="settings">Settings</button>
       </div>
       <div class="menu-update-log" aria-live="polite">
         <p class="eyebrow">Update Log</p>
@@ -101,16 +143,75 @@
         <button id="closeAlmanacButton" class="secondary">Close</button>
       </div>
   <div class="almanac-tabs" id="almanacTabs">
-    <button class="secondary active" data-almanac-tab="enemies">Enemies</button>
-    <button class="secondary" data-almanac-tab="waves">Waves</button>
-    <button class="secondary" data-almanac-tab="blocks">Blocks</button>
-    <button class="secondary" data-almanac-tab="towers">Towers</button>
+    <button class="secondary active" data-almanac-tab="enemies" data-i18n="enemies">Enemies</button>
+    <button class="secondary" data-almanac-tab="waves" data-i18n="waves">Waves</button>
+    <button class="secondary" data-almanac-tab="blocks" data-i18n="blocks">Blocks</button>
+    <button class="secondary" data-almanac-tab="towers" data-i18n="towers">Towers</button>
   </div>
       <div class="almanac-body" id="almanacBody">
         <div class="almanac-grid" id="almanacGrid"></div>
         <div class="almanac-detail" id="almanacDetail">
           <p class="hint">Select a tower entry to inspect base stats and upgrade scaling.</p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="skillTreeOverlay">
+    <div class="overlay-card overlay-wide skill-tree-card">
+      <div class="panel-head">
+        <h2>Skill Tree</h2>
+        <button id="closeSkillTreeButton" class="secondary" data-i18n="close">Close</button>
+      </div>
+      <p class="hint" data-i18n="skillTreeHint">Click the tower families below to see the upgrade chains that lead through each path.</p>
+      <p class="hint skill-tree-tokens" id="skillTreeTokenText">Tokens: 0</p>
+      <div class="skill-tree-layout">
+        <div class="skill-tree-grid" id="skillTreeGrid"></div>
+        <aside class="skill-tree-detail" id="skillTreeDetail">
+          <p class="hint" data-i18n="selectSkillNode">Select a symbol to see the real node, its cost, and what it unlocks next.</p>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="settingsOverlay">
+    <div class="overlay-card overlay-wide settings-card">
+      <div class="panel-head">
+        <h2 data-i18n="settings">Settings</h2>
+        <button id="closeSettingsButton" class="secondary" data-i18n="close">Close</button>
+      </div>
+      <div class="settings-grid">
+        <section class="settings-panel">
+          <p class="eyebrow" data-i18n="display">Display</p>
+          <label class="toggle-chip menu-toggle-chip" for="darkModeToggleInput">
+            <input type="checkbox" id="darkModeToggleInput">
+            <span data-i18n="darkMode">Dark mode</span>
+          </label>
+          <label class="account-field settings-field">
+            <span data-i18n="language">Language</span>
+            <select id="languageSelect">
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="de">Deutsch</option>
+            </select>
+          </label>
+        </section>
+        <section class="settings-panel">
+          <p class="eyebrow" data-i18n="account">Account</p>
+          <p class="hint" id="settingsAccountText">Playing as guest.</p>
+          <label class="account-field settings-field">
+            <span data-i18n="currentPassword">Current password</span>
+            <input id="settingsCurrentPasswordInput" type="password" autocomplete="current-password" maxlength="64">
+          </label>
+          <label class="account-field settings-field">
+            <span data-i18n="newPassword">New password</span>
+            <input id="settingsNewPasswordInput" type="password" autocomplete="new-password" maxlength="64">
+          </label>
+          <div class="overlay-actions account-actions">
+            <button id="settingsChangePasswordButton" type="button" class="secondary" data-i18n="changePassword">Change Password</button>
+            <button id="settingsLogoutButton" type="button" class="secondary" data-i18n="logOut">Log Out</button>
+          </div>
+        </section>
       </div>
     </div>
   </div>
@@ -204,6 +305,7 @@
         <div class="board-topbar">
           <div class="board-left">
             <p class="board-cash" id="boardCashText">Cash: 20</p>
+            <p class="board-free" id="skillTokenText">Tokens: 0</p>
             <p class="board-free" id="freeBlockText">Free block: 1</p>
           </div>
           <div class="board-hud">
@@ -277,7 +379,22 @@
         const mapOptions = document.getElementById("mapOptions");
         const startGameButton = document.getElementById("startGameButton");
         const openAlmanacButton = document.getElementById("openAlmanacButton");
+        const openSettingsButton = document.getElementById("openSettingsButton");
+        const closeSettingsButton = document.getElementById("closeSettingsButton");
         const closeAlmanacButton = document.getElementById("closeAlmanacButton");
+        const accountSignupButton = document.getElementById("accountSignupButton");
+        const accountLoginButton = document.getElementById("accountLoginButton");
+        const accountChangePasswordButton = document.getElementById("accountChangePasswordButton");
+        const accountGuestButton = document.getElementById("accountGuestButton");
+        const accountUsernameInput = document.getElementById("accountUsernameInput");
+        const accountPasswordInput = document.getElementById("accountPasswordInput");
+        const accountNewPasswordInput = document.getElementById("accountNewPasswordInput");
+        const accountStatusText = document.getElementById("accountStatusText");
+        const languageSelect = document.getElementById("languageSelect");
+        const settingsCurrentPasswordInput = document.getElementById("settingsCurrentPasswordInput");
+        const settingsNewPasswordInput = document.getElementById("settingsNewPasswordInput");
+        const settingsChangePasswordButton = document.getElementById("settingsChangePasswordButton");
+        const settingsLogoutButton = document.getElementById("settingsLogoutButton");
         const almanacTabs = document.getElementById("almanacTabs");
         const almanacGrid = document.getElementById("almanacGrid");
         const menuMapDescription = document.getElementById("menuMapDescription");
@@ -304,11 +421,65 @@
             button.classList.toggle("active", button.dataset.map === state.map);
           });
 
-          const map = getMaps()[state.map];
+          const map = bridge?.mapText ? bridge.mapText(state.map) : getMaps()[state.map];
           if (map && menuMapDescription) {
             menuMapDescription.textContent = `${map.name}: ${map.description}`;
           }
+          if (languageSelect && state.language) {
+            languageSelect.value = state.language;
+          }
         }
+
+        function setAccountMessage(message) {
+          if (accountStatusText) {
+            accountStatusText.textContent = message;
+          }
+        }
+
+        function runAccountAction(action) {
+          const bridge = getBridge();
+          if (!bridge) {
+            setAccountMessage("Sign-in is still loading. Please wait a moment and try again.");
+            return;
+          }
+          try {
+            const outcome = action === "signup"
+              ? bridge.createAccount?.(accountUsernameInput?.value, accountPasswordInput?.value)
+              : action === "login"
+                ? bridge.loginAccount?.(accountUsernameInput?.value, accountPasswordInput?.value)
+                : action === "changePassword"
+                  ? bridge.changePassword?.(accountPasswordInput?.value, accountNewPasswordInput?.value)
+                  : action === "guest"
+                    ? bridge.playAsGuest?.()
+                    : false;
+            if (outcome === false) {
+              setAccountMessage("That action did not complete. Check the username, password, and whether the game finished loading.");
+            }
+          } catch (error) {
+            setAccountMessage(`Sign-in error: ${error instanceof Error ? error.message : String(error)}`);
+          }
+          syncMenuState();
+        }
+
+        function reportBootProblem(prefix, detail) {
+          if (!accountStatusText) {
+            return;
+          }
+          accountStatusText.textContent = detail ? `${prefix}: ${detail}` : prefix;
+        }
+
+        window.addEventListener("error", (event) => {
+          if (document.body.dataset.menuBridge !== "ready") {
+            reportBootProblem("Sign-in error", event?.message || "The game script reported a startup problem.");
+          }
+        });
+
+        window.addEventListener("unhandledrejection", (event) => {
+          if (document.body.dataset.menuBridge !== "ready") {
+            const reason = event?.reason instanceof Error ? event.reason.message : String(event?.reason || "Unknown error");
+            reportBootProblem("Sign-in error", reason);
+          }
+        });
 
         difficultyOptions?.addEventListener("click", (event) => {
           const button = event.target.closest("[data-difficulty]");
@@ -338,6 +509,30 @@
             event.stopPropagation();
             syncMenuState();
           }
+        }, true);
+
+        accountSignupButton?.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          runAccountAction("signup");
+        }, true);
+
+        accountLoginButton?.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          runAccountAction("login");
+        }, true);
+
+        accountChangePasswordButton?.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          runAccountAction("changePassword");
+        }, true);
+
+        accountGuestButton?.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          runAccountAction("guest");
         }, true);
 
         startGameButton?.addEventListener("click", (event) => {
@@ -373,6 +568,51 @@
             menuMapDescription.textContent = detail
               ? `Almanac is unavailable. ${detail}`
               : "Almanac is unavailable because the game script did not finish loading.";
+          }
+        }, true);
+
+        openSettingsButton?.addEventListener("click", (event) => {
+          const bridge = getBridge();
+          if (bridge?.openSettingsFromMenu) {
+            event.preventDefault();
+            event.stopPropagation();
+            bridge.openSettingsFromMenu();
+          }
+        }, true);
+
+        closeSettingsButton?.addEventListener("click", (event) => {
+          if (window.openOverlay) {
+            event.preventDefault();
+            event.stopPropagation();
+            window.openOverlay("menu");
+          }
+        }, true);
+
+        languageSelect?.addEventListener("change", (event) => {
+          const bridge = getBridge();
+          if (bridge?.setLanguage) {
+            event.preventDefault();
+            event.stopPropagation();
+            bridge.setLanguage(languageSelect.value);
+            syncMenuState();
+          }
+        }, true);
+
+        settingsChangePasswordButton?.addEventListener("click", (event) => {
+          const bridge = getBridge();
+          if (bridge?.changePassword) {
+            event.preventDefault();
+            event.stopPropagation();
+            bridge.changePassword(settingsCurrentPasswordInput?.value, settingsNewPasswordInput?.value);
+          }
+        }, true);
+
+        settingsLogoutButton?.addEventListener("click", (event) => {
+          const bridge = getBridge();
+          if (bridge?.logOut) {
+            event.preventDefault();
+            event.stopPropagation();
+            bridge.logOut();
           }
         }, true);
 
@@ -424,6 +664,9 @@
         }, true);
 
         syncMenuState();
+        if (document.body.dataset.menuBridge !== "ready") {
+          reportBootProblem("Sign-in is not ready", "The game script is still loading or failed to initialize.");
+        }
         window.addEventListener("load", syncMenuState);
       })();
     </script>

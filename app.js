@@ -30,12 +30,17 @@ const boardFrame = document.querySelector(".board-frame");
 const sidePanelDock = document.getElementById("sidePanelDock");
 const boardPanelDock = document.getElementById("boardPanelDock");
 const menuOverlay = document.getElementById("menuOverlay");
+const signInOverlay = document.getElementById("signInOverlay");
 const pauseOverlay = document.getElementById("pauseOverlay");
 const tutorialOverlay = document.getElementById("tutorialOverlay");
 const gameOverOverlay = document.getElementById("gameOverOverlay");
 const almanacOverlay = document.getElementById("almanacOverlay");
+const skillTreeOverlay = document.getElementById("skillTreeOverlay");
+const settingsOverlay = document.getElementById("settingsOverlay");
 const startGameButton = document.getElementById("startGameButton");
 const openAlmanacButton = document.getElementById("openAlmanacButton");
+const openSkillTreeButton = document.getElementById("openSkillTreeButton");
+const openSettingsButton = document.getElementById("openSettingsButton");
 const resumeGameButton = document.getElementById("resumeGameButton");
 const pauseAlmanacButton = document.getElementById("pauseAlmanacButton");
 const quitToMenuButton = document.getElementById("quitToMenuButton");
@@ -43,14 +48,32 @@ const restartGameButton = document.getElementById("restartGameButton");
 const gameOverMenuButton = document.getElementById("gameOverMenuButton");
 const gameOverSummary = document.getElementById("gameOverSummary");
 const closeAlmanacButton = document.getElementById("closeAlmanacButton");
+const closeSkillTreeButton = document.getElementById("closeSkillTreeButton");
+const closeSettingsButton = document.getElementById("closeSettingsButton");
 const almanacGrid = document.getElementById("almanacGrid");
 const almanacTabs = document.getElementById("almanacTabs");
 const almanacTitle = document.getElementById("almanacTitle");
 const almanacBody = document.getElementById("almanacBody");
 const almanacDetail = document.getElementById("almanacDetail");
+const skillTreeGrid = document.getElementById("skillTreeGrid");
 const difficultyOptions = document.getElementById("difficultyOptions");
 const mapOptions = document.getElementById("mapOptions");
 const menuMapDescription = document.getElementById("menuMapDescription");
+const accountUsernameInput = document.getElementById("accountUsernameInput");
+const accountPasswordInput = document.getElementById("accountPasswordInput");
+const accountNewPasswordInput = document.getElementById("accountNewPasswordInput");
+const accountSignupButton = document.getElementById("accountSignupButton");
+const accountLoginButton = document.getElementById("accountLoginButton");
+const accountChangePasswordButton = document.getElementById("accountChangePasswordButton");
+const accountGuestButton = document.getElementById("accountGuestButton");
+const accountStatusText = document.getElementById("accountStatusText");
+const darkModeToggleInput = document.getElementById("darkModeToggleInput");
+const languageSelect = document.getElementById("languageSelect");
+const settingsAccountText = document.getElementById("settingsAccountText");
+const settingsCurrentPasswordInput = document.getElementById("settingsCurrentPasswordInput");
+const settingsNewPasswordInput = document.getElementById("settingsNewPasswordInput");
+const settingsChangePasswordButton = document.getElementById("settingsChangePasswordButton");
+const settingsLogoutButton = document.getElementById("settingsLogoutButton");
 const towerPopup = document.getElementById("towerPopup");
 const towerPopupTitle = document.getElementById("towerPopupTitle");
 const towerPopupSummary = document.getElementById("towerPopupSummary");
@@ -83,6 +106,8 @@ const warningPanel = document.getElementById("warningPanel");
 const warningPanelTitle = document.getElementById("warningPanelTitle");
 const warningPanelBody = document.getElementById("warningPanelBody");
 const updateLogText = document.getElementById("updateLogText");
+const skillTreeTokenText = document.getElementById("skillTreeTokenText");
+const skillTreeDetail = document.getElementById("skillTreeDetail");
 const TARGET_PRIORITIES = ["first", "last", "strong", "weak", "hidden", "random", "cursor"];
 const PATH_TOWER_TYPES = new Set(["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "orb", "fireball", "dippy", "support", "treasury", "crossbow", "gate"]);
 const TARGET_LABELS = {
@@ -105,7 +130,50 @@ const ORB_TYPE_LABELS = {
 };
 
 const updateLogEntries = [
-  { updateNo: 1, gameChanges: 4, bugFixes: 10 }
+  { updateNo: 1, gameChanges: 5, bugFixes: 14 }
+];
+
+const SKILL_TREE_GROUPS = [
+  {
+    title: "Machine Gun",
+    color: "#ff8b4d",
+    chains: [
+      "Base spin-up -> faster fire -> minigun",
+      "Railgun bolt -> global targeting -> heavy pierce"
+    ]
+  },
+  {
+    title: "Pulse",
+    color: "#b5f0ff",
+    chains: [
+      "Debuff blast -> disorientate -> adaptive control",
+      "Shockwave -> stun -> stronger area damage"
+    ]
+  },
+  {
+    title: "Dippy",
+    color: "#fff1b8",
+    chains: [
+      "Egg launch -> mango missiles -> sticky slow",
+      "Pudding burst -> heavier splash -> stronger crowd damage"
+    ]
+  },
+  {
+    title: "Shotgun",
+    color: "#ffd34d",
+    chains: [
+      "Pellet spread -> bullet storm -> rapid fire",
+      "Wide blast -> wavelength cannon -> heavier volleys"
+    ]
+  },
+  {
+    title: "Support / Treasury",
+    color: "#c9b6ff",
+    chains: [
+      "Aura boost -> stronger buffs -> global support",
+      "Coin flow -> tax engine -> trade empire"
+    ]
+  }
 ];
 
 document.body.dataset.appBootStage = "constants";
@@ -217,6 +285,223 @@ const TOWER_INFO = {
   crossbow: { name: "Crossbow", color: "#8b5d33", description: "Outpost crossbow tower. Branches into a fast repeater path or a heavy ballista path." },
   gate: { name: "Acid", color: "#91e59d", description: "Acid coats enemies in corrosive spray. Direct hits are light, but the damage over time and acid weakening build up fast." }
 };
+const SKILL_TREE_NODES = (() => {
+  const nodes = [
+    {
+      id: "core",
+      title: "Core",
+      symbol: "◆",
+      cost: 0,
+      parents: [],
+      ownedByDefault: true,
+      description: "The center of the tree. Buy its branches to specialize your run."
+    },
+    {
+      id: "general_damage",
+      title: "Damage",
+      symbol: "✦",
+      cost: 2,
+      parents: ["core"],
+      repeatable: true,
+      maxRank: 12,
+      description: "All towers deal 5% more damage."
+    },
+    {
+      id: "general_speed",
+      title: "Atk Speed",
+      symbol: "↗",
+      cost: 2,
+      parents: ["core"],
+      repeatable: true,
+      maxRank: 12,
+      description: "All towers fire 5% faster."
+    },
+    {
+      id: "general_hp",
+      title: "HP Boost",
+      symbol: "♥",
+      cost: 2,
+      parents: ["core"],
+      repeatable: true,
+      maxRank: 12,
+      description: "Start each run with 15 extra base HP."
+    },
+    {
+      id: "core_shooting",
+      title: "Base Shooting",
+      symbol: "▰",
+      cost: 4,
+      parents: ["core"],
+      unique: true,
+      description: "The base fires a 2 damage crossbow bolt every second."
+    },
+    {
+      id: "core_shooting_damage",
+      title: "Base Damage",
+      symbol: "✦",
+      cost: 3,
+      parents: ["core_shooting"],
+      repeatable: true,
+      maxRank: 12,
+      description: "The base arrows hit harder."
+    },
+    {
+      id: "core_shooting_speed",
+      title: "Base Atk Speed",
+      symbol: "↗",
+      cost: 3,
+      parents: ["core_shooting"],
+      repeatable: true,
+      maxRank: 12,
+      description: "The base arrows fire faster."
+    }
+  ];
+
+  const towerBranches = [
+    { type: "tesla", title: "Tesla", symbol: "☇", cost: 0, ownedByDefault: true, unlockTower: null, description: "Tesla is available from the start, with branches for stronger lightning and block affinity." },
+    { type: "missile", title: "Cannon", symbol: "●", cost: 0, ownedByDefault: true, unlockTower: null, description: "Cannon is available from the start, with branches for bigger shells and block affinity." },
+    { type: "trapper", title: "Trap Setter", symbol: "▲", cost: 0, ownedByDefault: true, unlockTower: null, description: "Trap Setter is available from the start, with branches for better traps and block affinity." },
+    { type: "laser", title: "Laser", symbol: "┃", cost: 0, ownedByDefault: true, unlockTower: null, description: "Laser is available from the start, with branches for stronger beams and block affinity." },
+    { type: "shotgun", title: "Shotgun", symbol: "✳", cost: 0, ownedByDefault: true, unlockTower: null, description: "Shotgun is available from the start, with branches for spread and block affinity." },
+    { type: "drone", title: "Drone", symbol: "✈", cost: 0, ownedByDefault: true, unlockTower: null, description: "Drone is available from the start, with branches for support and block affinity." },
+    { type: "support", title: "Support", symbol: "⌂", cost: 0, ownedByDefault: true, unlockTower: null, description: "Support is available from the start, with branches for stronger boosts and block affinity." },
+    { type: "treasury", title: "Treasury", symbol: "¤", cost: 0, ownedByDefault: true, unlockTower: null, description: "Treasury is available from the start, with branches for stronger banking and block affinity." },
+    { type: "fireball", title: "Machine Gun", symbol: "≣", cost: 5, unlockTower: "fireball", description: "Unlock Machine Gun and its faster-firing railgun branches." },
+    { type: "dippy", title: "Dippy", symbol: "◒", cost: 6, unlockTower: "dippy", description: "Unlock Dippy and its mango missile branches." },
+    { type: "gate", title: "Acid", symbol: "☣", cost: 5, unlockTower: "gate", description: "Unlock Acid and its corrosive branches." },
+    { type: "freezer", title: "Freezer", symbol: "❄", cost: 5, unlockTower: "freezer", description: "Unlock Freezer and its cold control branches." },
+    { type: "crossbow", title: "Crossbow", symbol: "➶", cost: 5, unlockTower: "crossbow", description: "Unlock Crossbow and its repeater and ballista branches." },
+    { type: "orb", title: "Pulse", symbol: "◉", cost: 6, unlockTower: "orb", description: "Unlock Pulse and its debuff and shockwave branches." }
+  ];
+  const extraUpgradeInfo = {
+    tesla: { title: "Tesla Stun Time", symbol: "⌁", description: "Tesla stun time increases slightly." },
+    missile: { title: "Cannon Blast Radius", symbol: "✺", description: "Cannon explosion radius increases slightly." },
+    trapper: { title: "Trap Spike Count", symbol: "▥", description: "Trap Setter traps hold more spikes." },
+    laser: { title: "Laser Burn Speed", symbol: "➤", description: "Laser effects apply and travel a little faster." },
+    shotgun: { title: "Shotgun Pellet Speed", symbol: "➤", description: "Shotgun pellets fly a little faster." },
+    freezer: { title: "Freezer Chill Reach", symbol: "⌁", description: "Freezer chill effects reach a little farther." },
+    drone: { title: "Drone Flight Speed", symbol: "➤", description: "Drone projectiles and rockets fly a little faster." },
+    support: { title: "Support Attack Speed Bonus", symbol: "↗", description: "Support attack-speed buffs become slightly stronger." },
+    treasury: { title: "Treasury Aura Reach", symbol: "⌁", description: "Treasury support effects reach a little farther." },
+    fireball: { title: "Machine Gun Bolt Speed", symbol: "➤", description: "Machine Gun bullets and rail bolts fly a little faster." },
+    dippy: { title: "Dippy Blast Radius", symbol: "✺", description: "Dippy explosions and sticky splashes grow slightly." },
+    gate: { title: "Acid Spray Speed", symbol: "➤", description: "Acid spray travels a little faster." },
+    crossbow: { title: "Crossbow Bolt Speed", symbol: "➤", description: "Crossbow bolts fly a little faster." },
+    orb: { title: "Pulse Blast Radius", symbol: "✺", description: "Pulse explosion radius increases slightly." }
+  };
+  const uniqueUpgradeInfo = {
+    tesla: { title: "Capacitor Snap", description: "Tesla gets a one-time boost to damage and zap rhythm." },
+    missile: { title: "Packed Warhead", description: "Cannon gets a one-time boost to damage and reload rhythm." },
+    trapper: { title: "More Spikes", description: "Trap Setter traps hold 1/6 more spikes." },
+    laser: { title: "Clean Lens", description: "Laser gets a one-time boost to beam damage and firing rhythm." },
+    shotgun: { title: "Extra Shell", description: "Shotgun fires 1 extra projectile." },
+    freezer: { title: "Cold Core", description: "Freezer gets a one-time boost to frost damage and firing rhythm." },
+    drone: { title: "Rotor Tuning", description: "Drone gets a one-time boost to damage and firing rhythm." },
+    support: { title: "Signal Relay", description: "Support gets a one-time boost to its active support output." },
+    treasury: { title: "Ledger Focus", description: "Treasury gets a one-time boost to its economic support output." },
+    fireball: { title: "Ammo Feed", description: "Machine Gun gets a one-time boost to damage and firing rhythm." },
+    dippy: { title: "Golden Yolk", description: "Dippy gets a one-time boost to egg damage and reload rhythm." },
+    gate: { title: "Dense Acid", description: "Acid gets a one-time boost to corrosive damage and spray rhythm." },
+    crossbow: { title: "True String", description: "Crossbow gets a one-time boost to bolt damage and reload rhythm." },
+    orb: { title: "Pulse Capacitor", description: "Pulse gets a one-time boost to burst damage and recharge rhythm." }
+  };
+
+  for (const branch of towerBranches) {
+    const familyId = `family_${branch.type}`;
+    nodes.push({
+      id: familyId,
+      title: branch.title,
+      symbol: branch.symbol,
+      cost: branch.cost,
+      parents: ["core"],
+      ownedByDefault: Boolean(branch.ownedByDefault),
+      unlockTower: branch.unlockTower || null,
+      towerType: branch.type,
+      description: branch.description
+    });
+    nodes.push({
+      id: `${branch.type}_damage`,
+      title: `${branch.title} Damage`,
+      symbol: "✦",
+      cost: 2,
+      parents: [familyId],
+      towerType: branch.type,
+      repeatable: true,
+      maxRank: 12,
+      description: `Upgrade ${branch.title} damage by 6%.`
+    });
+    nodes.push({
+      id: `${branch.type}_speed`,
+      title: `${branch.title} Speed`,
+      symbol: "↗",
+      cost: 2,
+      parents: [familyId],
+      towerType: branch.type,
+      repeatable: true,
+      maxRank: 12,
+      description: `Upgrade ${branch.title} attack speed by 6%.`
+    });
+    nodes.push({
+      id: `${branch.type}_range`,
+      title: `${branch.title} Reach`,
+      symbol: "⌁",
+      cost: 2,
+      parents: [familyId],
+      towerType: branch.type,
+      repeatable: true,
+      maxRank: 12,
+      description: `Upgrade ${branch.title} range by a small amount.`
+    });
+    nodes.push({
+      id: `${branch.type}_special`,
+      title: extraUpgradeInfo[branch.type]?.title || `${branch.title} Extra`,
+      symbol: extraUpgradeInfo[branch.type]?.symbol || "➤",
+      cost: 2,
+      parents: [familyId],
+      towerType: branch.type,
+      repeatable: true,
+      maxRank: 12,
+      special: true,
+      description: extraUpgradeInfo[branch.type]?.description || `Upgrade ${branch.title} utility slightly.`
+    });
+    nodes.push({
+      id: `${branch.type}_affinity`,
+      title: `${branch.title} Affinity`,
+      symbol: "▣",
+      cost: 2,
+      parents: [familyId],
+      towerType: branch.type,
+      special: true,
+      description: `If ${branch.title} is placed on a matching-color block, it gains a small bonus.`
+    });
+    nodes.push({
+      id: `${branch.type}_unique`,
+      title: uniqueUpgradeInfo[branch.type]?.title || `${branch.title} Unique`,
+      symbol: "★",
+      cost: 4,
+      parents: [`${branch.type}_affinity`],
+      towerType: branch.type,
+      unique: true,
+      description: uniqueUpgradeInfo[branch.type]?.description || `Adds a one-time upgrade to ${branch.title}.`
+    });
+    nodes.push({
+      id: `${branch.type}_discount`,
+      title: `${branch.title} Lowered Cost`,
+      symbol: "$",
+      cost: 3,
+      parents: [familyId],
+      towerType: branch.type,
+      unique: true,
+      special: true,
+      description: `${branch.title} costs less to place.`
+    });
+  }
+
+  return nodes;
+})();
+const SKILL_TREE_NODE_BY_ID = new Map(SKILL_TREE_NODES.map((node) => [node.id, node]));
+const SKILL_TREE_FAMILY_NODES = SKILL_TREE_NODES.filter((node) => node.id.startsWith("family_"));
+const SKILL_TREE_UNLOCKABLE_TOWERS = new Set(["fireball", "dippy", "gate", "freezer", "crossbow", "orb"]);
 const ENEMY_TYPES = {
   fast: {
     key: "fast",
@@ -601,7 +886,18 @@ const MAPS = {
     scenery: "canyon",
     goal: { x: COLS - 1, y: Math.floor(ROWS / 2) },
     portals: [{ x: 0, y: 5 }, { x: 0, y: 13 }],
-    obstacles: [{ x: 8, y: 6 }, { x: 8, y: 7 }, { x: 14, y: 3 }, { x: 14, y: 11 }, { x: 19, y: 7 }]
+    obstacles: uniqueCells([
+      ...cellsFromRects([{ x: 5, y: 2, width: 2, height: 2 }]),
+      ...cellsFromRects([{ x: 5, y: 6, width: 2, height: 2 }]),
+      ...cellsFromRects([{ x: 9, y: 4, width: 2, height: 2 }]),
+      ...cellsFromRects([{ x: 9, y: 10, width: 2, height: 2 }]),
+      ...cellsFromRects([{ x: 14, y: 3, width: 2, height: 2 }]),
+      ...cellsFromRects([{ x: 14, y: 8, width: 2, height: 2 }]),
+      ...cellsFromRects([{ x: 18, y: 5, width: 2, height: 2 }]),
+      ...cellsFromRects([{ x: 18, y: 11, width: 2, height: 2 }]),
+      ...cellsFromRects([{ x: 23, y: 7, width: 2, height: 2 }]),
+      ...cellsFromRects([{ x: 26, y: 3, width: 2, height: 2 }])
+    ])
   },
   ruins: {
     name: "Sunken Ruins",
@@ -703,10 +999,10 @@ const MAPS = {
   },
   acidcaves: {
     name: "Acid Caves",
-    description: "A lightless acid cavern lit by toxic streams and crystal growths. One winding lane cuts through the corrosive pools.",
+    description: "A dark green acid cavern lit by toxic streams and crystal growths. One winding lane cuts through the corrosive pools.",
     scenery: "ruins",
     goal: { x: COLS - 2, y: Math.floor(ROWS / 2) },
-    portals: [{ x: 1, y: 4 }, { x: 1, y: 13 }],
+    portals: [{ x: 1, y: 2 }, { x: 1, y: 18 }],
     obstacles: uniqueCells([
       ...cellsFromRects([{ x: 6, y: 2, width: 2, height: 4 }]),
       ...cellsFromRects([{ x: 10, y: 10, width: 3, height: 3 }]),
@@ -808,7 +1104,7 @@ const MAPS = {
   },
   graveyard: {
     name: "Graveyard",
-    description: "Triple enemies. The base sits in the middle while enemies emerge evenly from the edges and path into a central build zone.",
+    description: "Triple enemies. Five grave portals wander the edge each wave while enemies path into a central build zone around the base.",
     scenery: "graveyard",
     goal: { x: CENTER_COL, y: CENTER_ROW },
     portals: [
@@ -817,8 +1113,8 @@ const MAPS = {
       { x: CENTER_COL, y: ROWS - 1 },
       { x: 0, y: CENTER_ROW }
     ],
-    hidePortals: true,
-    hideRoutes: true,
+    hidePortals: false,
+    hideRoutes: false,
     buildZone: { x: CENTER_COL - 5, y: CENTER_ROW - 3, width: 11, height: 7 },
     obstacles: [],
     enemyCount: 3,
@@ -859,7 +1155,7 @@ const directions = [
 const polyominoes = [
   {
     name: "Monomino",
-    color: "#6d9ef8",
+    color: "#82ff54",
     offsets: [
       { x: 0, y: 0 }
     ]
@@ -958,6 +1254,17 @@ const polyominoes = [
       { x: 0, y: 0 },
       { x: 0, y: 1 },
       { x: 1, y: 1 }
+    ]
+  },
+  {
+    name: "N Pentomino",
+    color: "#5fd18d",
+    offsets: [
+      { x: -2, y: 1 },
+      { x: -1, y: 1 },
+      { x: -1, y: 0 },
+      { x: 0, y: 0 },
+      { x: 1, y: 0 }
     ]
   },
   {
@@ -1125,6 +1432,7 @@ let outpostWalllessQuestFailed = false;
 let outpostQuestBlocksPlaced = 0;
 let spawnPortalCursor = 0;
 let spawnPortalOrder = [];
+let graveyardPortalPositions = [];
 let autoWaveEnabled = false;
 let autoWaveUnlocked = false;
 let autoWaveTimer = 0;
@@ -1154,9 +1462,26 @@ let activeWaveWarning = null;
 let introTutorialSeen = false;
 let screenShakeTimer = 0;
 let screenShakeAmount = 0;
+let activeAccount = {
+  mode: "guest",
+  username: ""
+};
+let accountNoticeText = "";
 const ALMANAC_TOWER_TYPES = ["tesla", "missile", "trapper", "laser", "shotgun", "freezer", "drone", "orb", "fireball", "dippy", "support", "treasury", "crossbow", "gate"];
 const MENU_STATE_STORAGE_KEY = "blockDefence.menuState";
 const PROGRESSION_STORAGE_KEY = "blockDefence.progression";
+const ACCOUNT_STORAGE_KEY = "blockDefence.accounts";
+let darkModeEnabled = false;
+let selectedLanguage = "en";
+let skillTokens = 0;
+let purchasedSkillNodes = new Set(["core"]);
+let skillUpgradePoints = 0;
+let skillDamageTowardPoint = 0;
+let purchasedAlmanacUpgrades = new Set();
+let repeatableSkillRanks = {};
+let skillTreeSelectedNodeId = "core";
+let baseLivesSkillBonus = 0;
+let baseDefenseCooldown = 0;
 
 function normalizeMapKey(mapKey) {
   if (mapKey === "fotification") {
@@ -1169,65 +1494,1232 @@ function persistMenuState() {
   try {
     window.localStorage?.setItem(MENU_STATE_STORAGE_KEY, JSON.stringify({
       difficulty: selectedDifficulty,
-      map: selectedMap
+      map: selectedMap,
+      darkModeEnabled,
+      language: selectedLanguage
     }));
   } catch (error) {
     // Ignore storage failures so menu interaction still works.
   }
 }
 
-function persistProgressionState() {
+const UI_TRANSLATIONS = {
+  en: {
+    menuSubtitle: "Choose a difficulty and map. Some maps use extra portals, scenery changes, and obstacles that block tower line of sight.",
+    difficulty: "Difficulty",
+    map: "Map",
+    startGame: "Start Game",
+    almanac: "Almanac",
+    skillTree: "Skill Tree",
+    settings: "Settings",
+    close: "Close",
+    display: "Display",
+    darkMode: "Dark mode",
+    language: "Language",
+    account: "Account",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    changePassword: "Change Password",
+    logOut: "Log Out",
+    enemies: "Enemies",
+    waves: "Waves",
+    blocks: "Blocks",
+    towers: "Towers",
+    general: "General",
+    specials: "Specials",
+    tokens: "Tokens",
+    upgradePts: "Upgrade pts",
+    cost: "Cost",
+    locked: "Locked",
+    lockedTower: "Locked Tower",
+    upgradePoints: "Upgrade points",
+    armoured: "Armoured",
+    path1: "Path 1",
+    path2: "Path 2",
+    upgradeLevels: "Upgrade Levels",
+    branches: "Branches",
+    unlocks: "Unlocks",
+    owned: "owned",
+    ownedCap: "Owned",
+    buyable: "Buyable",
+    needTokens: "Need tokens",
+    branchLocked: "Branch locked",
+    maxed: "Maxed",
+    rank: "Rank",
+    noBranchesYet: "No branches yet.",
+    buyFor: "Buy for",
+    tokenSingle: "token",
+    tokenPlural: "tokens",
+    skillTreeHint: "Click the tower families below to see the upgrade chains that lead through each path.",
+    selectSkillNode: "Select a symbol to see the real node, its cost, and what it unlocks next.",
+    blockAlmanacIntro: "The block almanac shows every wall shape that can appear in the build offers.",
+    pool: "Pool",
+    rule: "Rule",
+    shapes: "Shapes",
+    blockOfferRule: "Every offer shows two choices, and at least one is always a triomino or tetromino.",
+    damage: "Damage",
+    attackSpeed: "Attack speed",
+    range: "Range",
+    affinity: "Affinity",
+    unique: "Unique",
+    core: "Core",
+    easy: "Easy",
+    standard: "Standard",
+    hard: "Hard",
+    brutal: "Brutal",
+    sandbox: "Sandbox",
+    unknownEnemy: "Unknown Enemy",
+    unknownEnemyHint: "Encounter this enemy in a run to reveal its image, stats, and abilities.",
+    health: "Health",
+    speed: "Speed",
+    reward: "Reward",
+    effects: "Effects",
+    details: "Details",
+    none: "None"
+  },
+  es: {
+    menuSubtitle: "Elige una dificultad y un mapa. Algunos mapas usan portales extra, cambios de escenario y obstáculos que bloquean la línea de visión.",
+    difficulty: "Dificultad",
+    map: "Mapa",
+    startGame: "Empezar",
+    almanac: "Almanaque",
+    skillTree: "Árbol de habilidades",
+    settings: "Ajustes",
+    close: "Cerrar",
+    display: "Pantalla",
+    darkMode: "Modo oscuro",
+    language: "Idioma",
+    account: "Cuenta",
+    currentPassword: "Contraseña actual",
+    newPassword: "Nueva contraseña",
+    changePassword: "Cambiar contraseña",
+    logOut: "Cerrar sesión",
+    enemies: "Enemigos",
+    waves: "Oleadas",
+    blocks: "Bloques",
+    towers: "Torres",
+    general: "General",
+    specials: "Especiales",
+    tokens: "Fichas",
+    upgradePts: "Puntos de mejora",
+    cost: "Coste",
+    locked: "Bloqueado",
+    lockedTower: "Torre bloqueada",
+    upgradePoints: "Puntos de mejora",
+    armoured: "Blindados",
+    path1: "Ruta 1",
+    path2: "Ruta 2",
+    upgradeLevels: "Niveles de mejora",
+    branches: "Ramas",
+    unlocks: "Desbloquea",
+    owned: "comprado",
+    ownedCap: "Comprado",
+    buyable: "Disponible",
+    needTokens: "Faltan fichas",
+    branchLocked: "Rama bloqueada",
+    maxed: "Máximo",
+    rank: "Rango",
+    noBranchesYet: "Aún no hay ramas.",
+    buyFor: "Comprar por",
+    tokenSingle: "ficha",
+    tokenPlural: "fichas",
+    skillTreeHint: "Haz clic en las familias de torres para ver las cadenas de mejoras de cada ruta.",
+    selectSkillNode: "Selecciona un símbolo para ver el nodo real, su coste y lo que desbloquea.",
+    blockAlmanacIntro: "El almanaque de bloques muestra todas las formas de muro que pueden aparecer.",
+    pool: "Conjunto",
+    rule: "Regla",
+    shapes: "Formas",
+    blockOfferRule: "Cada oferta muestra dos opciones, y al menos una siempre es un triominó o tetrominó.",
+    damage: "Daño",
+    attackSpeed: "Velocidad",
+    range: "Alcance",
+    affinity: "Afinidad",
+    unique: "Único",
+    core: "Núcleo",
+    easy: "Fácil",
+    standard: "Normal",
+    hard: "Difícil",
+    brutal: "Brutal",
+    sandbox: "Sandbox",
+    unknownEnemy: "Enemigo desconocido",
+    unknownEnemyHint: "Encuentra este enemigo en una partida para revelar su imagen, estadísticas y habilidades.",
+    health: "Vida",
+    speed: "Velocidad",
+    reward: "Recompensa",
+    effects: "Efectos",
+    details: "Detalles",
+    none: "Ninguno"
+  },
+  de: {
+    menuSubtitle: "Wähle Schwierigkeit und Karte. Einige Karten haben zusätzliche Portale, andere Kulissen und Hindernisse, die Sichtlinien blockieren.",
+    difficulty: "Schwierigkeit",
+    map: "Karte",
+    startGame: "Spiel starten",
+    almanac: "Almanach",
+    skillTree: "Fähigkeitenbaum",
+    settings: "Einstellungen",
+    close: "Schließen",
+    display: "Anzeige",
+    darkMode: "Dunkelmodus",
+    language: "Sprache",
+    account: "Konto",
+    currentPassword: "Aktuelles Passwort",
+    newPassword: "Neues Passwort",
+    changePassword: "Passwort ändern",
+    logOut: "Abmelden",
+    enemies: "Feinde",
+    waves: "Wellen",
+    blocks: "Blöcke",
+    towers: "Türme",
+    general: "Allgemein",
+    specials: "Spezial",
+    tokens: "Marken",
+    upgradePts: "Upgrade-Punkte",
+    cost: "Kosten",
+    locked: "Gesperrt",
+    lockedTower: "Gesperrter Turm",
+    upgradePoints: "Upgrade-Punkte",
+    armoured: "Gepanzert",
+    path1: "Pfad 1",
+    path2: "Pfad 2",
+    upgradeLevels: "Upgrade-Stufen",
+    branches: "Zweige",
+    unlocks: "Schaltet frei",
+    owned: "gekauft",
+    ownedCap: "Gekauft",
+    buyable: "Kaufbar",
+    needTokens: "Marken fehlen",
+    branchLocked: "Zweig gesperrt",
+    maxed: "Maximum",
+    rank: "Rang",
+    noBranchesYet: "Noch keine Zweige.",
+    buyFor: "Kaufen für",
+    tokenSingle: "Marke",
+    tokenPlural: "Marken",
+    skillTreeHint: "Klicke auf Turmfamilien, um die Upgrade-Ketten der einzelnen Pfade zu sehen.",
+    selectSkillNode: "Wähle ein Symbol, um den echten Knoten, seine Kosten und seine Freischaltungen zu sehen.",
+    blockAlmanacIntro: "Der Block-Almanach zeigt alle Mauerformen, die in Angeboten erscheinen können.",
+    pool: "Pool",
+    rule: "Regel",
+    shapes: "Formen",
+    blockOfferRule: "Jedes Angebot zeigt zwei Optionen, und mindestens eine ist immer ein Triomino oder Tetromino.",
+    damage: "Schaden",
+    attackSpeed: "Feuerrate",
+    range: "Reichweite",
+    affinity: "Affinität",
+    unique: "Einzigartig",
+    core: "Kern",
+    easy: "Leicht",
+    standard: "Standard",
+    hard: "Schwer",
+    brutal: "Brutal",
+    sandbox: "Sandbox",
+    unknownEnemy: "Unbekannter Feind",
+    unknownEnemyHint: "Begegne diesem Feind in einem Lauf, um Bild, Werte und Fähigkeiten aufzudecken.",
+    health: "Leben",
+    speed: "Tempo",
+    reward: "Belohnung",
+    effects: "Effekte",
+    details: "Details",
+    none: "Keine"
+  }
+};
+
+const MAP_TRANSLATIONS = {
+  es: {
+    meadow: { name: "Clásico", description: "Un portal y un campo beige abierto sin rocas ni bloqueos de visión." },
+    canyon: { name: "Bifurcación del Cañón", description: "Dos portales dividen el camino mientras pilares del cañón bloquean líneas largas." },
+    ruins: { name: "Ruinas Hundidas", description: "Tres portales entran en ruinas inundadas con islas que sirven como plataformas fijas." },
+    mango: { name: "Paso Mango", description: "Dos portales atacan desde lados opuestos mientras zanjas amarillas cortan el campo." },
+    factory: { name: "Fábrica", description: "La planta se divide en cuatro zonas móviles con un hueco que cambia tras cada oleada." },
+    furnace: { name: "Horno", description: "Una fundición oscura con carbón, lava, tuberías y engranajes alrededor del núcleo." },
+    acidcaves: { name: "Cuevas Ácidas", description: "Una caverna verde oscura con ríos tóxicos y cristales corrosivos." },
+    shoals: { name: "Bajíos", description: "Construye desde islas en aguas poco profundas y mantén los bloques conectados." },
+    outpost: { name: "Puesto Avanzado", description: "Cuatro portales atacan un fuerte roto alrededor de la base." },
+    fortification: { name: "Fortificación", description: "Un corredor fortificado simétrico con muros y trampas ligeras." },
+    dippycastle: { name: "Castillo Dippy", description: "Torres de castillo cremosas protegen entradas centrales contra tres portales." },
+    cliffs: { name: "Acantilados", description: "Un acantilado orgánico divide terreno alto y bajo, cada lado con su propia base." },
+    graveyard: { name: "Cementerio", description: "Cinco portales de tumba se mueven por el borde cada oleada." },
+    freezingmountains: { name: "Montañas Heladas", description: "Un paso congelado donde las olas de frío pueden congelar torres temporalmente." }
+  },
+  de: {
+    meadow: { name: "Klassisch", description: "Ein Portal und ein offenes beiges Feld ohne Felsen oder Sichtblocker." },
+    canyon: { name: "Canyon-Gabelung", description: "Zwei Portale teilen den Weg, während Canyon-Pfeiler lange Linien blockieren." },
+    ruins: { name: "Versunkene Ruinen", description: "Drei Portale brechen in überflutete Ruinen mit festen Insel-Plattformen ein." },
+    mango: { name: "Mango-Pass", description: "Zwei Portale greifen von gegenüberliegenden Seiten über gelbe Gräben an." },
+    factory: { name: "Fabrik", description: "Die Anlage besteht aus vier verschiebbaren Vierteln mit einer wandernden Lücke." },
+    furnace: { name: "Ofen", description: "Eine dunkle Gießerei mit Kohle, Lava, Rohren und Zahnrädern am Kern." },
+    acidcaves: { name: "Säurehöhlen", description: "Eine dunkelgrüne Höhle mit giftigen Strömen und ätzenden Kristallen." },
+    shoals: { name: "Untiefen", description: "Baue von flachen Inseln aus und halte Blöcke verbunden." },
+    outpost: { name: "Außenposten", description: "Vier Portale greifen einen gebrochenen Festungsring um die Basis an." },
+    fortification: { name: "Befestigung", description: "Ein symmetrischer Festungskorridor mit Mauern und leichten Fallen." },
+    dippycastle: { name: "Dippy-Burg", description: "Cremige Burgtürme bewachen mittlere Eingänge gegen drei Portale." },
+    cliffs: { name: "Klippen", description: "Eine organische Klippe teilt Hochland und Tiefland mit je eigener Basis." },
+    graveyard: { name: "Friedhof", description: "Fünf Grabportale wandern jede Welle am Rand entlang." },
+    freezingmountains: { name: "Frostberge", description: "Ein gefrorener Pass, in dem Kälteeinbrüche Türme zeitweise einfrieren." }
+  }
+};
+
+const TOWER_TRANSLATIONS = {
+  es: {
+    tesla: { name: "Tesla", description: "Tesla encadena rayos entre enemigos cercanos y aturde brevemente." },
+    missile: { name: "Cañón", description: "El Cañón dispara proyectiles explosivos pesados con daño de área." },
+    trapper: { name: "Colocador de Trampas", description: "Coloca trampas, minas o torretas de muro según su ruta." },
+    laser: { name: "Láser", description: "Empieza como un rayo ardiente y evoluciona a plasma o cristal perforante." },
+    shotgun: { name: "Escopeta", description: "Dispara ráfagas cortas y puede convertirse en tormenta de balas o triple cañón." },
+    freezer: { name: "Congelador", description: "Lanza disparos helados que ralentizan, con rutas de permafrost o aura." },
+    fireball: { name: "Ametralladora", description: "Carga su cadencia antes de disparar, con ruta de minigun o railgun." },
+    drone: { name: "Dron", description: "Dirige naves móviles que persiguen objetivos y apoyan o atacan." },
+    orb: { name: "Pulso", description: "Carga pulsos de área que dañan grupos y desbloquean debuffs o ondas fuertes." },
+    dippy: { name: "Dippy", description: "Dippy es un huevo. Un huevo muy poderoso." },
+    support: { name: "Soporte", description: "Fortaleza de apoyo que mejora torres cercanas o crea una batería." },
+    treasury: { name: "Tesorería", description: "Genera dinero al final de oleada y mejora la economía." },
+    crossbow: { name: "Ballesta", description: "Torre de avanzada que se divide entre repetidora rápida y balista pesada." },
+    gate: { name: "Ácido", description: "Rocía corrosivo que debilita enemigos y causa daño con el tiempo." }
+  },
+  de: {
+    tesla: { name: "Tesla", description: "Tesla verkettet Blitze zwischen nahen Feinden und betäubt kurz." },
+    missile: { name: "Kanone", description: "Die Kanone feuert schwere explosive Schüsse mit starkem Flächenschaden." },
+    trapper: { name: "Fallensteller", description: "Platziert Fallen, Minen oder Mauertürme je nach Upgrade-Pfad." },
+    laser: { name: "Laser", description: "Beginnt als brennender Einzelstrahl und verzweigt zu Plasma oder Kristall." },
+    shotgun: { name: "Schrotflinte", description: "Feuert kurze gelbe Salven und verzweigt zu Kugelsturm oder Dreifachkanone." },
+    freezer: { name: "Froster", description: "Schießt Kälteprojektile, die Ziele verlangsamen, oder erzeugt eine Aura." },
+    fireball: { name: "Maschinengewehr", description: "Lädt seine Feuerrate auf und verzweigt zu Minigun oder Railgun." },
+    drone: { name: "Drohne", description: "Kommandiert mobile Kampfschiffe für Unterstützung oder Angriff." },
+    orb: { name: "Puls", description: "Lädt Flächenpulse gegen Gruppen und verzweigt zu Debuffs oder Schockwellen." },
+    dippy: { name: "Dippy", description: "Dippy ist ein Ei. Ein sehr mächtiges Ei." },
+    support: { name: "Support", description: "Support-Fort stärkt nahe Türme oder wird zur Batterie." },
+    treasury: { name: "Schatzkammer", description: "Erzeugt Geld am Wellenende und verstärkt die Wirtschaft." },
+    crossbow: { name: "Armbrust", description: "Außenposten-Turm mit Repetierer- oder Ballistenpfad." },
+    gate: { name: "Säure", description: "Besprüht Feinde mit ätzender Säure und schwächt sie." }
+  }
+};
+
+function uiText(key, fallback = key) {
+  const dictionary = UI_TRANSLATIONS[selectedLanguage] || UI_TRANSLATIONS.en;
+  return dictionary[key] || UI_TRANSLATIONS.en[key] || fallback;
+}
+
+function mapText(mapKey) {
+  const fallback = MAPS[mapKey] || MAPS.meadow;
+  const translated = MAP_TRANSLATIONS[selectedLanguage]?.[mapKey];
+  return {
+    name: translated?.name || fallback.name,
+    description: translated?.description || fallback.description
+  };
+}
+
+function towerInfoText(type) {
+  const fallback = TOWER_INFO[type] || { name: "Tower", description: "" };
+  const translated = TOWER_TRANSLATIONS[selectedLanguage]?.[type];
+  return {
+    ...fallback,
+    name: translated?.name || fallback.name,
+    description: translated?.description || fallback.description
+  };
+}
+
+function translatedSkillNodeTitle(node) {
+  if (!node || selectedLanguage === "en") {
+    return node?.title || "";
+  }
+  if (node.id === "core") {
+    return uiText("core", node.title);
+  }
+  if (node.id === "general_damage") {
+    return selectedLanguage === "es" ? "Daño general" : "Allgemeiner Schaden";
+  }
+  if (node.id === "general_speed") {
+    return selectedLanguage === "es" ? "Velocidad general" : "Allgemeine Feuerrate";
+  }
+  if (node.id === "general_hp") {
+    return selectedLanguage === "es" ? "Vida de base" : "Basisleben";
+  }
+  if (node.id === "core_shooting") {
+    return selectedLanguage === "es" ? "Base atacante" : "Angreifende Basis";
+  }
+  if (node.id === "core_shooting_damage") {
+    return selectedLanguage === "es" ? "Daño de base" : "Basis-Schaden";
+  }
+  if (node.id === "core_shooting_speed") {
+    return selectedLanguage === "es" ? "Velocidad de base" : "Basis-Feuerrate";
+  }
+  const towerName = towerInfoText(node.towerType)?.name || node.title;
+  if (node.id.startsWith("family_")) {
+    return towerName;
+  }
+  if (node.id.endsWith("_damage")) {
+    return `${towerName} ${uiText("damage")}`;
+  }
+  if (node.id.endsWith("_speed")) {
+    return `${towerName} ${uiText("attackSpeed")}`;
+  }
+  if (node.id.endsWith("_range")) {
+    return `${towerName} ${uiText("range")}`;
+  }
+  if (node.id.endsWith("_affinity")) {
+    return `${towerName} ${uiText("affinity")}`;
+  }
+  if (node.id.endsWith("_special")) {
+    return `${towerName} ${uiText("specials")}`;
+  }
+  if (node.id.endsWith("_unique")) {
+    return `${towerName} ${uiText("unique")}`;
+  }
+  if (node.id.endsWith("_discount")) {
+    return selectedLanguage === "es" ? `${towerName} Coste` : `${towerName} Kosten`;
+  }
+  return node.title;
+}
+
+function translatedSkillNodeDescription(node) {
+  if (!node || selectedLanguage === "en") {
+    return node?.description || "";
+  }
+  const towerName = towerInfoText(node.towerType)?.name || translatedSkillNodeTitle(node);
+  if (node.id === "core") {
+    return selectedLanguage === "es"
+      ? "Punto inicial del árbol de habilidades."
+      : "Startpunkt des Fähigkeitenbaums.";
+  }
+  if (node.id === "core_shooting") {
+    return selectedLanguage === "es"
+      ? "La base dispara una flecha cada segundo."
+      : "Die Basis feuert jede Sekunde einen Pfeil.";
+  }
+  if (node.id.startsWith("family_")) {
+    return selectedLanguage === "es"
+      ? `Desbloquea ${towerName} y abre sus mejoras.`
+      : `Schaltet ${towerName} frei und öffnet seine Upgrades.`;
+  }
+  if (node.repeatable) {
+    return selectedLanguage === "es"
+      ? "Una mejora pequeña que puede comprarse varias veces hasta el límite."
+      : "Ein kleines Upgrade, das bis zum Limit mehrfach gekauft werden kann.";
+  }
+  if (node.special || node.unique) {
+    return selectedLanguage === "es"
+      ? "Una mejora amarilla única con un efecto especial."
+      : "Ein gelbes einmaliges Upgrade mit einem besonderen Effekt.";
+  }
+  return selectedLanguage === "es"
+    ? "Desbloquea una mejora nueva en esta rama."
+    : "Schaltet ein neues Upgrade in diesem Zweig frei.";
+}
+
+function applyLanguage() {
+  const dictionary = UI_TRANSLATIONS[selectedLanguage] || UI_TRANSLATIONS.en;
+  document.documentElement.lang = selectedLanguage === "es" ? "es" : selectedLanguage === "de" ? "de" : "en";
+  for (const element of document.querySelectorAll("[data-i18n]")) {
+    const key = element.dataset.i18n;
+    if (dictionary[key]) {
+      element.textContent = dictionary[key];
+    }
+  }
+  if (languageSelect) {
+    languageSelect.value = selectedLanguage;
+  }
+}
+
+function applyThemeMode() {
+  if (document?.body) {
+    document.body.dataset.theme = darkModeEnabled ? "dark" : "light";
+  }
+  if (darkModeToggleInput) {
+    darkModeToggleInput.checked = darkModeEnabled;
+  }
+}
+
+function defaultProgressionState() {
+  return {
+    cheatUnlockAll: false,
+    unlockedWaveMax: 0,
+    skillTokens: 0,
+    skillTreePurchasedNodes: ["core"],
+    skillUpgradePoints: 0,
+    skillDamageTowardPoint: 0,
+    almanacPurchasedUpgrades: [],
+    skillTreeRepeatableRanks: {},
+    outpostTowerUnlockCompleted: false,
+    dippyCastleUnlockCompleted: false,
+    furnaceUnlockCompleted: false,
+    acidCavesUnlockCompleted: false,
+    tutorialDismissed: false,
+    introTutorialSeen: false
+  };
+}
+
+function applyProgressionState(state = defaultProgressionState()) {
+  const next = state || defaultProgressionState();
+  cheatUnlockAll = Boolean(next.cheatUnlockAll);
+  unlockedWaveMax = Math.max(0, Math.min(100, Math.floor(Number(next.unlockedWaveMax) || 0)));
+  skillTokens = Math.max(0, Math.floor(Number(next.skillTokens) || 0));
+  skillUpgradePoints = Math.max(0, Math.floor(Number(next.skillUpgradePoints) || 0));
+  skillDamageTowardPoint = Math.max(0, Number(next.skillDamageTowardPoint) || 0);
+  const purchased = Array.isArray(next.skillTreePurchasedNodes) && next.skillTreePurchasedNodes.length > 0
+    ? next.skillTreePurchasedNodes
+    : ["core"];
+  purchasedSkillNodes = new Set(purchased.filter((entry) => SKILL_TREE_NODE_BY_ID.has(entry) || entry === "core"));
+  purchasedAlmanacUpgrades = new Set(Array.isArray(next.almanacPurchasedUpgrades) ? next.almanacPurchasedUpgrades : []);
+  repeatableSkillRanks = {};
+  const rawRanks = next.skillTreeRepeatableRanks && typeof next.skillTreeRepeatableRanks === "object"
+    ? next.skillTreeRepeatableRanks
+    : {};
+  for (const [nodeId, rank] of Object.entries(rawRanks)) {
+    if (SKILL_TREE_NODE_BY_ID.has(nodeId)) {
+      repeatableSkillRanks[nodeId] = Math.max(0, Math.min(12, Math.floor(Number(rank) || 0)));
+    }
+  }
+  if (cheatUnlockAll) {
+    unlockedWaveMax = 100;
+  }
+  outpostTowerUnlockCompleted = Boolean(next.outpostTowerUnlockCompleted);
+  dippyCastleUnlockCompleted = Boolean(next.dippyCastleUnlockCompleted);
+  furnaceUnlockCompleted = Boolean(next.furnaceUnlockCompleted);
+  acidCavesUnlockCompleted = Boolean(next.acidCavesUnlockCompleted);
+  tutorialDismissed = Boolean(next.tutorialDismissed);
+  introTutorialSeen = Boolean(next.introTutorialSeen);
+  syncTowerUnlockState();
+  baseLivesSkillBonus = skillTreeBaseLivesBonus();
+}
+
+function collectProgressionState() {
+  return {
+    cheatUnlockAll,
+    unlockedWaveMax,
+    skillTokens,
+    skillTreePurchasedNodes: [...purchasedSkillNodes],
+    skillUpgradePoints,
+    skillDamageTowardPoint,
+    almanacPurchasedUpgrades: [...purchasedAlmanacUpgrades],
+    skillTreeRepeatableRanks: { ...repeatableSkillRanks },
+    outpostTowerUnlockCompleted,
+    dippyCastleUnlockCompleted,
+    furnaceUnlockCompleted,
+    acidCavesUnlockCompleted,
+    tutorialDismissed,
+    introTutorialSeen
+  };
+}
+
+function normalizeAccountName(name) {
+  return String(name || "").trim();
+}
+
+function accountLookupKey(name) {
+  return normalizeAccountName(name).toLowerCase();
+}
+
+function loadAccountStore() {
   try {
-    window.localStorage?.setItem(PROGRESSION_STORAGE_KEY, JSON.stringify({
-      cheatUnlockAll,
-      unlockedWaveMax,
-      outpostTowerUnlockCompleted,
-      dippyCastleUnlockCompleted,
-      furnaceUnlockCompleted,
-      acidCavesUnlockCompleted,
-      crossbowUnlocked,
-      dippyUnlocked,
-      freezerUnlocked,
-      fireballUnlocked,
-      gateUnlocked,
-      tutorialDismissed,
-      introTutorialSeen
-    }));
+    const raw = window.localStorage?.getItem(ACCOUNT_STORAGE_KEY);
+    if (!raw) {
+      return {
+        users: {},
+        lastActive: { mode: "guest", username: "" }
+      };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      users: typeof parsed?.users === "object" && parsed.users ? parsed.users : {},
+      lastActive: parsed?.lastActive && typeof parsed.lastActive === "object"
+        ? {
+          mode: parsed.lastActive.mode === "account" ? "account" : "guest",
+          username: typeof parsed.lastActive.username === "string" ? parsed.lastActive.username : ""
+        }
+        : { mode: "guest", username: "" }
+    };
+  } catch (error) {
+    return {
+      users: {},
+      lastActive: { mode: "guest", username: "" }
+    };
+  }
+}
+
+function saveAccountStore(store) {
+  try {
+    window.localStorage?.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(store));
+  } catch (error) {
+    // Ignore storage failures so the menu keeps working.
+  }
+}
+
+function accountProgressionStorageKey(username) {
+  return `blockDefence.progression.${accountLookupKey(username)}`;
+}
+
+function isLoggedInAccount() {
+  return activeAccount.mode === "account" && Boolean(activeAccount.username);
+}
+
+function refreshAccountStatus(message = null) {
+  if (!accountStatusText) {
+    return;
+  }
+
+  if (typeof message === "string" && message.length > 0) {
+    accountNoticeText = message;
+  }
+
+  const defaultStatus = isLoggedInAccount()
+    ? `Logged in as ${activeAccount.username}. Progress saves to this account.`
+    : "Playing as guest. Progress will not be saved.";
+  accountStatusText.textContent = accountNoticeText || defaultStatus;
+  if (settingsAccountText) {
+    settingsAccountText.textContent = accountNoticeText || (isLoggedInAccount()
+      ? `Logged in as ${activeAccount.username}.`
+      : "Playing as guest.");
+  }
+
+  if (accountUsernameInput && isLoggedInAccount()) {
+    accountUsernameInput.value = activeAccount.username;
+  }
+}
+
+function setActiveAccount(mode, username = "") {
+  activeAccount = {
+    mode,
+    username: mode === "account" ? normalizeAccountName(username) : ""
+  };
+  const store = loadAccountStore();
+  store.lastActive = { mode: activeAccount.mode, username: activeAccount.username };
+  saveAccountStore(store);
+  accountNoticeText = "";
+  refreshAccountStatus();
+}
+
+function resetProgressionState() {
+  applyProgressionState(defaultProgressionState());
+}
+
+function restoreProgressionState() {
+  try {
+    const key = isLoggedInAccount()
+      ? accountProgressionStorageKey(activeAccount.username)
+      : PROGRESSION_STORAGE_KEY;
+    const raw = window.localStorage?.getItem(key);
+    if (!raw) {
+      resetProgressionState();
+      return;
+    }
+    const parsed = JSON.parse(raw);
+    applyProgressionState(parsed);
+  } catch (error) {
+    // Ignore malformed saves and fall back to defaults.
+    resetProgressionState();
+  }
+}
+
+function persistProgressionState() {
+  if (!isLoggedInAccount()) {
+    return;
+  }
+  try {
+    window.localStorage?.setItem(accountProgressionStorageKey(activeAccount.username), JSON.stringify(collectProgressionState()));
   } catch (error) {
     // Ignore storage failures so the run can continue.
   }
 }
 
-function syncTowerUnlockState() {
-  crossbowUnlocked = true;
-  dippyUnlocked = true;
-  freezerUnlocked = true;
-  fireballUnlocked = true;
-  gateUnlocked = true;
-}
-
-function restoreProgressionState() {
-  try {
-    const raw = window.localStorage?.getItem(PROGRESSION_STORAGE_KEY);
-    if (!raw) {
+function restoreAccountSession() {
+  const store = loadAccountStore();
+  const lastActive = store.lastActive || { mode: "guest", username: "" };
+  if (lastActive.mode === "account") {
+    const key = accountLookupKey(lastActive.username);
+    const account = store.users?.[key];
+    if (account) {
+      setActiveAccount("account", account.username || lastActive.username);
       return;
     }
-    const parsed = JSON.parse(raw);
-    cheatUnlockAll = Boolean(parsed?.cheatUnlockAll);
-    unlockedWaveMax = Math.max(0, Math.min(100, Math.floor(Number(parsed?.unlockedWaveMax) || 0)));
-    if (cheatUnlockAll) {
-      unlockedWaveMax = 100;
-    }
-    outpostTowerUnlockCompleted = Boolean(parsed?.outpostTowerUnlockCompleted);
-    dippyCastleUnlockCompleted = Boolean(parsed?.dippyCastleUnlockCompleted);
-    furnaceUnlockCompleted = Boolean(parsed?.furnaceUnlockCompleted);
-    acidCavesUnlockCompleted = Boolean(parsed?.acidCavesUnlockCompleted);
-    tutorialDismissed = Boolean(parsed?.tutorialDismissed);
-    introTutorialSeen = Boolean(parsed?.introTutorialSeen);
-    syncTowerUnlockState();
-  } catch (error) {
-    // Ignore malformed saves and fall back to defaults.
   }
+  activeAccount = { mode: "guest", username: "" };
+  accountNoticeText = "";
+  refreshAccountStatus();
+}
+
+function getAccountRecord(username) {
+  const store = loadAccountStore();
+  return store.users?.[accountLookupKey(username)] || null;
+}
+
+function accountExists(username) {
+  return Boolean(getAccountRecord(username));
+}
+
+function updateAccountControls() {
+  if (accountUsernameInput) {
+    accountUsernameInput.value = isLoggedInAccount() ? activeAccount.username : "";
+  }
+  if (accountPasswordInput) {
+    accountPasswordInput.value = "";
+  }
+  if (accountNewPasswordInput) {
+    accountNewPasswordInput.value = "";
+  }
+  if (settingsCurrentPasswordInput) {
+    settingsCurrentPasswordInput.value = "";
+  }
+  if (settingsNewPasswordInput) {
+    settingsNewPasswordInput.value = "";
+  }
+  refreshAccountStatus();
+  if (typeof updateTowerButtons === "function") {
+    updateTowerButtons();
+  }
+  if (typeof renderAlmanac === "function") {
+    renderAlmanac();
+  }
+  if (typeof updateHud === "function") {
+    updateHud();
+  }
+  if (typeof draw === "function") {
+    draw();
+  }
+}
+
+function enterMainMenuAfterAuth() {
+  openOverlay("menu");
+  updateMenuSelectors();
+  updateAccountControls();
+  draw();
+}
+
+function signUpAccount(username, password) {
+  const cleanUsername = normalizeAccountName(username);
+  const cleanPassword = String(password || "");
+  if (!cleanUsername) {
+    refreshAccountStatus("Choose a username first.");
+    return false;
+  }
+  if (!cleanPassword) {
+    refreshAccountStatus("Choose a password first.");
+    return false;
+  }
+  const store = loadAccountStore();
+  const key = accountLookupKey(cleanUsername);
+  if (store.users?.[key]) {
+    refreshAccountStatus("That username is already taken.");
+    return false;
+  }
+  store.users[key] = {
+    username: cleanUsername,
+    password: cleanPassword
+  };
+  saveAccountStore(store);
+  setActiveAccount("account", cleanUsername);
+  resetProgressionState();
+  persistProgressionState();
+  accountNoticeText = "";
+  refreshAccountStatus();
+  enterMainMenuAfterAuth();
+  return true;
+}
+
+function logInAccount(username, password) {
+  const cleanUsername = normalizeAccountName(username);
+  const cleanPassword = String(password || "");
+  if (!cleanUsername || !cleanPassword) {
+    refreshAccountStatus("Enter your username and password.");
+    return false;
+  }
+  const store = loadAccountStore();
+  const record = store.users?.[accountLookupKey(cleanUsername)];
+  if (!record || record.password !== cleanPassword) {
+    refreshAccountStatus("Wrong username or password.");
+    return false;
+  }
+  setActiveAccount("account", record.username || cleanUsername);
+  restoreProgressionState();
+  accountNoticeText = "";
+  refreshAccountStatus();
+  enterMainMenuAfterAuth();
+  return true;
+}
+
+function changeAccountPassword(currentPassword, nextPassword) {
+  if (!isLoggedInAccount()) {
+    refreshAccountStatus("Log in first, then change your password.");
+    return false;
+  }
+  const cleanCurrentPassword = String(currentPassword || "");
+  const cleanNextPassword = String(nextPassword || "");
+  if (!cleanCurrentPassword || !cleanNextPassword) {
+    refreshAccountStatus("Enter your current password and a new password.");
+    return false;
+  }
+  const store = loadAccountStore();
+  const key = accountLookupKey(activeAccount.username);
+  const record = store.users?.[key];
+  if (!record || record.password !== cleanCurrentPassword) {
+    refreshAccountStatus("Current password is incorrect.");
+    return false;
+  }
+  record.password = cleanNextPassword;
+  saveAccountStore(store);
+  accountNoticeText = "";
+  refreshAccountStatus("Password changed.");
+  updateAccountControls();
+  return true;
+}
+
+function logOutAccount() {
+  persistProgressionState();
+  setActiveAccount("guest", "");
+  resetProgressionState();
+  updateAccountControls();
+  openOverlay("signin");
+  return true;
+}
+
+function playAsGuest() {
+  setActiveAccount("guest", "");
+  resetProgressionState();
+  accountNoticeText = "";
+  refreshAccountStatus();
+  enterMainMenuAfterAuth();
+  return true;
+}
+
+function syncTowerUnlockState() {
+  crossbowUnlocked = cheatUnlockAll || skillTreeNodeOwned("family_crossbow");
+  dippyUnlocked = cheatUnlockAll || skillTreeNodeOwned("family_dippy");
+  freezerUnlocked = cheatUnlockAll || skillTreeNodeOwned("family_freezer");
+  fireballUnlocked = cheatUnlockAll || skillTreeNodeOwned("family_fireball");
+  gateUnlocked = cheatUnlockAll || skillTreeNodeOwned("family_gate");
+  if (typeof updateTowerButtons === "function") {
+    updateTowerButtons();
+  }
+}
+
+function skillTreeNodeOwned(nodeId) {
+  const node = typeof nodeId === "string" ? SKILL_TREE_NODE_BY_ID.get(nodeId) : nodeId;
+  if (!node) {
+    return false;
+  }
+  if (node.repeatable) {
+    return skillTreeNodeRank(node) > 0;
+  }
+  return Boolean(node.ownedByDefault) || purchasedSkillNodes.has(node.id) || (cheatUnlockAll && node.id !== "core");
+}
+
+function skillTreeNodeVisible(node) {
+  if (!node) {
+    return false;
+  }
+  if (node.id === "core") {
+    return true;
+  }
+  return (node.parents || []).every((parentId) => {
+    const parent = SKILL_TREE_NODE_BY_ID.get(parentId);
+    return skillTreeNodeOwned(parentId) || skillTreeNodeVisible(parent);
+  });
+}
+
+function skillTreeNodeBuyable(node) {
+  if (!node) {
+    return false;
+  }
+  if (node.id === "core") {
+    return false;
+  }
+  return (node.parents || []).every((parentId) => skillTreeNodeOwned(parentId));
+}
+
+function skillTreeChildren(nodeId) {
+  return SKILL_TREE_NODES.filter((node) => (node.parents || []).includes(nodeId));
+}
+
+function skillTreeFamilyNodeId(type) {
+  return `family_${type}`;
+}
+
+function skillTreeAffinityNodeId(type) {
+  return `${type}_affinity`;
+}
+
+function skillTreeTowerDamageNodeId(type) {
+  return `${type}_damage`;
+}
+
+function skillTreeTowerSpeedNodeId(type) {
+  return `${type}_speed`;
+}
+
+function skillTreeTowerRangeNodeId(type) {
+  return `${type}_range`;
+}
+
+function skillTreeTowerSpecialNodeId(type) {
+  return `${type}_special`;
+}
+
+function skillTreeTowerUniqueNodeId(type) {
+  return `${type}_unique`;
+}
+
+function skillTreeTowerDiscountNodeId(type) {
+  return `${type}_discount`;
+}
+
+function skillTreeNodeRank(nodeId) {
+  const node = typeof nodeId === "string" ? SKILL_TREE_NODE_BY_ID.get(nodeId) : nodeId;
+  if (!node) {
+    return 0;
+  }
+  if (node.repeatable) {
+    return Math.max(0, Math.min(node.maxRank || 12, Math.floor(Number(repeatableSkillRanks[node.id]) || 0)));
+  }
+  return skillTreeNodeOwned(node) ? 1 : 0;
+}
+
+function skillTreeBaseLivesBonus() {
+  return skillTreeNodeRank("general_hp") * 15;
+}
+
+function skillTreeBaseDefenseDamage() {
+  return 2 * (1 + skillTreeNodeRank("core_shooting_damage") * 0.2);
+}
+
+function skillTreeBaseDefenseCooldown() {
+  return Math.max(0.28, 1 * Math.pow(0.92, skillTreeNodeRank("core_shooting_speed")));
+}
+
+function hexColorToRgb(color) {
+  if (typeof color !== "string" || !color.startsWith("#")) {
+    return null;
+  }
+  const hex = color.slice(1);
+  if (hex.length === 3) {
+    const expanded = hex.split("").map((part) => part + part).join("");
+    return hexColorToRgb(`#${expanded}`);
+  }
+  if (hex.length !== 6) {
+    return null;
+  }
+  return {
+    r: parseInt(hex.slice(0, 2), 16),
+    g: parseInt(hex.slice(2, 4), 16),
+    b: parseInt(hex.slice(4, 6), 16)
+  };
+}
+
+function rgbToHue({ r, g, b }) {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const delta = max - min;
+  if (delta === 0) {
+    return 0;
+  }
+  let hue = 0;
+  switch (max) {
+    case rn:
+      hue = ((gn - bn) / delta) % 6;
+      break;
+    case gn:
+      hue = (bn - rn) / delta + 2;
+      break;
+    default:
+      hue = (rn - gn) / delta + 4;
+      break;
+  }
+  return ((hue * 60) + 360) % 360;
+}
+
+function towerBlockAffinityBonus(tower) {
+  if (!tower || !skillTreeNodeOwned(skillTreeAffinityNodeId(tower.type))) {
+    return {
+      active: false,
+      damageMult: 1,
+      cooldownMult: 1,
+      rangeMult: 1,
+      splashMult: 1,
+      projectileSpeedMult: 1,
+      trapUsesMult: 1,
+      stunMult: 1,
+      attackSpeedAuraMult: 1
+    };
+  }
+  const footprint = tower.footprintCells?.length ? tower.footprintCells : [{ x: tower.x, y: tower.y }];
+  const cell = footprint[0];
+  if (!cell || !inBounds(cell.x, cell.y)) {
+    return {
+      active: false,
+      damageMult: 1,
+      cooldownMult: 1,
+      rangeMult: 1,
+      splashMult: 1,
+      projectileSpeedMult: 1,
+      trapUsesMult: 1,
+      stunMult: 1,
+      attackSpeedAuraMult: 1
+    };
+  }
+  const blockId = grid[cell.y][cell.x].blockId;
+  const block = blockId !== null ? blocks.get(blockId) : null;
+  if (!block?.color) {
+    return {
+      active: false,
+      damageMult: 1,
+      cooldownMult: 1,
+      rangeMult: 1,
+      splashMult: 1,
+      projectileSpeedMult: 1,
+      trapUsesMult: 1,
+      stunMult: 1,
+      attackSpeedAuraMult: 1
+    };
+  }
+  const towerColor = hexColorToRgb(TOWER_INFO[tower.type]?.color || "#ffffff");
+  const blockColor = hexColorToRgb(block.color);
+  if (!towerColor || !blockColor) {
+    return {
+      active: false,
+      damageMult: 1,
+      cooldownMult: 1,
+      rangeMult: 1,
+      splashMult: 1,
+      projectileSpeedMult: 1,
+      trapUsesMult: 1,
+      stunMult: 1,
+      attackSpeedAuraMult: 1
+    };
+  }
+  const hueDistance = Math.abs(rgbToHue(towerColor) - rgbToHue(blockColor));
+  const wrappedDistance = Math.min(hueDistance, 360 - hueDistance);
+  if (wrappedDistance <= 42) {
+    return {
+      active: true,
+      damageMult: 1.08,
+      cooldownMult: 0.94,
+      rangeMult: 1.05,
+      splashMult: 1.05,
+      projectileSpeedMult: 1.08,
+      trapUsesMult: 1.12,
+      stunMult: 1.08,
+      attackSpeedAuraMult: 1.08
+    };
+  }
+  return {
+    active: false,
+    damageMult: 1,
+    cooldownMult: 1,
+    rangeMult: 1,
+    splashMult: 1,
+    projectileSpeedMult: 1,
+    trapUsesMult: 1,
+    stunMult: 1,
+    attackSpeedAuraMult: 1
+  };
+}
+
+function skillTreeTowerModifiers(tower) {
+  const type = tower?.type || "";
+  const modifiers = {
+    damageMult: 1,
+    cooldownMult: 1,
+    rangeMult: 1,
+    splashMult: 1,
+    projectileSpeedMult: 1,
+    trapUsesMult: 1,
+    stunMult: 1,
+    attackSpeedAuraMult: 1
+  };
+
+  modifiers.damageMult *= 1 + skillTreeNodeRank("general_damage") * 0.018;
+  modifiers.cooldownMult *= Math.pow(0.982, skillTreeNodeRank("general_speed"));
+
+  if (type) {
+    modifiers.damageMult *= 1 + skillTreeNodeRank(skillTreeTowerDamageNodeId(type)) * 0.02;
+    modifiers.cooldownMult *= Math.pow(0.98, skillTreeNodeRank(skillTreeTowerSpeedNodeId(type)));
+    modifiers.rangeMult *= 1 + skillTreeNodeRank(skillTreeTowerRangeNodeId(type)) * 0.014;
+    const specialRank = skillTreeNodeRank(skillTreeTowerSpecialNodeId(type));
+    if (type === "missile" || type === "orb" || type === "dippy") {
+      modifiers.splashMult *= 1 + specialRank * 0.018;
+    } else if (type === "tesla") {
+      modifiers.stunMult *= 1 + specialRank * 0.025;
+    } else if (type === "trapper") {
+      modifiers.trapUsesMult *= 1 + specialRank * 0.02;
+    } else if (type === "support") {
+      modifiers.attackSpeedAuraMult *= 1 + specialRank * 0.015;
+    } else if (type === "freezer" || type === "treasury") {
+      modifiers.rangeMult *= 1 + specialRank * 0.012;
+    } else {
+      modifiers.projectileSpeedMult *= 1 + specialRank * 0.018;
+    }
+    if (type === "trapper" && skillTreeNodeOwned(skillTreeTowerUniqueNodeId("trapper"))) {
+      modifiers.trapUsesMult *= 7 / 6;
+    }
+    if (skillTreeNodeOwned(skillTreeTowerUniqueNodeId(type)) && type !== "trapper") {
+      modifiers.damageMult *= 1.035;
+      modifiers.cooldownMult *= 0.985;
+    }
+    const affinityBonus = towerBlockAffinityBonus(tower);
+    modifiers.damageMult *= affinityBonus.damageMult;
+    modifiers.cooldownMult *= affinityBonus.cooldownMult;
+    modifiers.rangeMult *= affinityBonus.rangeMult;
+    modifiers.splashMult *= affinityBonus.splashMult;
+    modifiers.projectileSpeedMult *= affinityBonus.projectileSpeedMult;
+    modifiers.trapUsesMult *= affinityBonus.trapUsesMult;
+    modifiers.stunMult *= affinityBonus.stunMult;
+    modifiers.attackSpeedAuraMult *= affinityBonus.attackSpeedAuraMult;
+  }
+
+  return modifiers;
+}
+
+function skillTreeTowerUnlockRequirement(type) {
+  const node = SKILL_TREE_NODE_BY_ID.get(skillTreeFamilyNodeId(type));
+  if (node?.ownedByDefault) {
+    return selectedLanguage === "es" ? "Disponible desde el inicio." : selectedLanguage === "de" ? "Von Anfang an verfügbar." : "Available from the beginning.";
+  }
+  if (!node) {
+    return selectedLanguage === "es" ? "Bloqueado en el árbol de habilidades." : selectedLanguage === "de" ? "Im Fähigkeitenbaum gesperrt." : "Locked behind the skill tree.";
+  }
+  const title = translatedSkillNodeTitle(node);
+  return selectedLanguage === "es"
+    ? `${title} requiere ${node.cost} ${uiText("tokenPlural")}.`
+    : selectedLanguage === "de"
+    ? `${title} benötigt ${node.cost} ${uiText("tokenPlural")}.`
+    : `${title} is locked behind ${node.cost} tokens.`;
+}
+
+function skillTreeMapDifficulty(mapKey = selectedMap) {
+  if (["meadow", "mango", "canyon", "acidcaves", "dippycastle"].includes(mapKey)) {
+    return "easy";
+  }
+  if (["outpost", "shoals", "furnace", "fortification"].includes(mapKey)) {
+    return "medium";
+  }
+  return "hard";
+}
+
+function skillTreeTokenMultiplierForDifficulty(difficulty = selectedDifficulty) {
+  if (difficulty === "easy") {
+    return 0.9;
+  }
+  if (difficulty === "hard") {
+    return 1.1;
+  }
+  if (difficulty === "brutal") {
+    return 1.25;
+  }
+  return 1;
+}
+
+function skillTreeTokenMultiplierForMap(mapKey = selectedMap) {
+  const tier = skillTreeMapDifficulty(mapKey);
+  if (tier === "easy") {
+    return 1;
+  }
+  if (tier === "medium") {
+    return 1.25;
+  }
+  return 1.5;
+}
+
+function skillTreeTokensForWave(round = waveNumber, mapKey = selectedMap, difficulty = selectedDifficulty) {
+  if (round < 10) {
+    return 0;
+  }
+  const base = round >= 30 ? 2 : 1;
+  return Math.max(1, Math.round(base * skillTreeTokenMultiplierForMap(mapKey) * skillTreeTokenMultiplierForDifficulty(difficulty)));
+}
+
+function grantSkillTreeTokensForWave(round = waveNumber) {
+  const tokens = skillTreeTokensForWave(round, selectedMap, selectedDifficulty);
+  if (tokens <= 0) {
+    return 0;
+  }
+  skillTokens += tokens;
+  return tokens;
+}
+
+function skillTreePurchasedChildren(nodeId) {
+  return skillTreeChildren(nodeId).filter((node) => skillTreeNodeOwned(node.id)).map((node) => node.id);
+}
+
+function skillTreeTowerUnlockHint(type) {
+  const node = SKILL_TREE_NODE_BY_ID.get(skillTreeFamilyNodeId(type));
+  if (!node) {
+    return selectedLanguage === "es" ? "Cómpralo en el árbol de habilidades." : selectedLanguage === "de" ? "Kaufe dies im Fähigkeitenbaum." : "Buy this in the skill tree.";
+  }
+  const title = translatedSkillNodeTitle(node);
+  return selectedLanguage === "es"
+    ? `Compra ${title} en el árbol de habilidades por ${node.cost} ${uiText("tokenPlural")}.`
+    : selectedLanguage === "de"
+    ? `Kaufe ${title} im Fähigkeitenbaum für ${node.cost} ${uiText("tokenPlural")}.`
+    : `Buy ${title} in the skill tree with ${node.cost} tokens.`;
+}
+
+function formatSkillPercent(value) {
+  return `${formatNumber(value * 100)}%`;
+}
+
+function skillTreeNodeStatLines(node, rank = skillTreeNodeRank(node)) {
+  if (!node) {
+    return [];
+  }
+  const type = node.towerType;
+  const nextRank = node.repeatable ? Math.min((node.maxRank || 12), rank + 1) : 1;
+  const rankLine = node.repeatable ? `Rank: ${rank}/${node.maxRank || 12}` : "";
+  const lines = [];
+  if (rankLine) {
+    lines.push(rankLine);
+  }
+  if (node.id === "general_damage") {
+    lines.push(`Damage: +${formatSkillPercent(rank * 0.018)} now, +${formatSkillPercent(nextRank * 0.018)} next`);
+  } else if (node.id === "general_speed") {
+    lines.push(`Attack speed: +${formatSkillPercent(1 - Math.pow(0.982, rank))} now, +${formatSkillPercent(1 - Math.pow(0.982, nextRank))} next`);
+  } else if (node.id === "general_hp") {
+    lines.push(`Base HP: +${rank * 15} now, +${nextRank * 15} next`);
+  } else if (node.id === "core_shooting") {
+    lines.push("Base attack: 2 damage bolt every 1s");
+  } else if (node.id === "core_shooting_damage") {
+    lines.push(`Base damage: +${formatSkillPercent(rank * 0.2)} now, +${formatSkillPercent(nextRank * 0.2)} next`);
+  } else if (node.id === "core_shooting_speed") {
+    lines.push(`Base attack speed: +${formatSkillPercent(1 - Math.pow(0.92, rank))} now, +${formatSkillPercent(1 - Math.pow(0.92, nextRank))} next`);
+  } else if (node.id.endsWith("_damage")) {
+    lines.push(`Damage: +${formatSkillPercent(rank * 0.02)} now, +${formatSkillPercent(nextRank * 0.02)} next`);
+  } else if (node.id.endsWith("_speed")) {
+    lines.push(`Attack speed: +${formatSkillPercent(1 - Math.pow(0.98, rank))} now, +${formatSkillPercent(1 - Math.pow(0.98, nextRank))} next`);
+  } else if (node.id.endsWith("_range")) {
+    lines.push(`Range: +${formatSkillPercent(rank * 0.014)} now, +${formatSkillPercent(nextRank * 0.014)} next`);
+  } else if (node.id.endsWith("_special")) {
+    if (type === "missile" || type === "orb" || type === "dippy") {
+      lines.push(`Explosion radius: +${formatSkillPercent(rank * 0.018)} now, +${formatSkillPercent(nextRank * 0.018)} next`);
+    } else if (type === "tesla") {
+      lines.push(`Stun time: +${formatSkillPercent(rank * 0.025)} now, +${formatSkillPercent(nextRank * 0.025)} next`);
+    } else if (type === "trapper") {
+      lines.push(`Spike count: +${formatSkillPercent(rank * 0.02)} now, +${formatSkillPercent(nextRank * 0.02)} next`);
+    } else if (type === "support") {
+      lines.push(`Support attack speed bonus: +${formatSkillPercent(rank * 0.015)} now, +${formatSkillPercent(nextRank * 0.015)} next`);
+    } else if (type === "freezer" || type === "treasury") {
+      lines.push(`Effect reach: +${formatSkillPercent(rank * 0.012)} now, +${formatSkillPercent(nextRank * 0.012)} next`);
+    } else {
+      lines.push(`Flight speed: +${formatSkillPercent(rank * 0.018)} now, +${formatSkillPercent(nextRank * 0.018)} next`);
+    }
+  } else if (node.id.endsWith("_affinity")) {
+    lines.push("Matching block: buffs damage, speed, range, splash, stun, and more");
+  } else if (node.id === "trapper_unique") {
+    lines.push("Spike count: +1/6");
+    lines.push("Can only be bought once");
+  } else if (node.id === "shotgun_unique") {
+    lines.push("Projectiles: +1");
+    lines.push("Can only be bought once");
+  } else if (node.id.endsWith("_discount")) {
+    lines.push("Tower cost: -10%");
+    lines.push("Can only be bought once");
+  } else if (node.id.endsWith("_unique")) {
+    lines.push("One-time unique upgrade");
+    lines.push("Damage: +3.5%, attack speed: +1.5%");
+  } else if (node.unlockTower) {
+    lines.push(`${uiText("unlocks")} ${uiText("towers").toLowerCase()}: ${towerInfoText(node.unlockTower)?.name || translatedSkillNodeTitle(node)}`);
+  }
+  return lines;
 }
 
 function restoreMenuState() {
@@ -1250,9 +2742,13 @@ function restoreMenuState() {
       selectedMap = nextMap;
       activeMap = MAPS[selectedMap];
     }
+    darkModeEnabled = Boolean(parsed?.darkModeEnabled);
+    selectedLanguage = ["en", "es", "de"].includes(parsed?.language) ? parsed.language : "en";
   } catch (error) {
     // Ignore malformed saved state and fall back to defaults.
   }
+  applyThemeMode();
+  applyLanguage();
 }
 
 function setUnlockedWaveMax(nextValue, persist = true) {
@@ -1274,15 +2770,38 @@ function sandboxSelectableWave() {
   return sandboxTypedWave();
 }
 
-restoreMenuState();
-restoreProgressionState();
-document.body.dataset.appBootStage = "menu-state-restored";
 window.__blockDefenceMenuBridge = {
   getState() {
     return {
       difficulty: selectedDifficulty,
-      map: selectedMap
+      map: selectedMap,
+      darkModeEnabled,
+      language: selectedLanguage
     };
+  },
+  getAccountState() {
+    return {
+      mode: activeAccount.mode,
+      username: activeAccount.username
+    };
+  },
+  mapText(nextMap) {
+    return mapText(normalizeMapKey(nextMap));
+  },
+  createAccount(username, password) {
+    return signUpAccount(username, password);
+  },
+  loginAccount(username, password) {
+    return logInAccount(username, password);
+  },
+  changePassword(currentPassword, nextPassword) {
+    return changeAccountPassword(currentPassword, nextPassword);
+  },
+  playAsGuest() {
+    return playAsGuest();
+  },
+  logOut() {
+    return logOutAccount();
   },
   setDifficulty(nextDifficulty) {
     if (!["easy", "standard", "hard", "brutal", "sandbox"].includes(nextDifficulty)) {
@@ -1310,6 +2829,25 @@ window.__blockDefenceMenuBridge = {
     }
     return true;
   },
+  setDarkMode(nextDarkMode) {
+    darkModeEnabled = Boolean(nextDarkMode);
+    applyThemeMode();
+    persistMenuState();
+    return true;
+  },
+  setLanguage(nextLanguage) {
+    if (!["en", "es", "de"].includes(nextLanguage)) {
+      return false;
+    }
+    selectedLanguage = nextLanguage;
+    applyLanguage();
+    updateMenuSelectors();
+    updateTowerButtons();
+    renderAlmanac();
+    renderSkillTree();
+    persistMenuState();
+    return true;
+  },
   startFromMenu() {
     persistMenuState();
     return startGame();
@@ -1317,6 +2855,16 @@ window.__blockDefenceMenuBridge = {
   openAlmanacFromMenu() {
     persistMenuState();
     return openAlmanac("menu");
+  },
+  openSkillTreeFromMenu() {
+    persistMenuState();
+    renderSkillTree();
+    return openOverlay("skilltree");
+  },
+  openSettingsFromMenu() {
+    persistMenuState();
+    updateAccountControls();
+    return openOverlay("settings");
   },
   setAlmanacTab(nextTab) {
     if (!["enemies", "waves", "blocks", "towers"].includes(nextTab)) {
@@ -1358,7 +2906,24 @@ window.__blockDefenceMenuBridge = {
   }
 };
 window.__blockDefenceMenuMaps = MAPS;
-document.body.dataset.appBootStage = "bridge-ready";
+
+try {
+  restoreMenuState();
+  restoreAccountSession();
+  restoreProgressionState();
+  updateAccountControls();
+  document.body.dataset.appBootStage = "menu-state-restored";
+  document.body.dataset.appBootStage = "bridge-ready";
+} catch (error) {
+  window.__blockDefenceBootError = error instanceof Error ? error.message : String(error);
+  reportUiError("Boot", error);
+  document.body.dataset.appBootStage = "boot-error";
+  try {
+    updateAccountControls();
+  } catch (innerError) {
+    // Ignore secondary UI refresh failures; the status text will already show the boot problem.
+  }
+}
 
 function createGrid() {
   return Array.from({ length: ROWS }, () =>
@@ -1723,20 +3288,44 @@ function shuffleIndices(length) {
   return values;
 }
 
-function graveyardEdgePortals() {
-  const portals = [];
-
-  for (let x = 0; x < COLS; x += 1) {
-    portals.push({ x, y: 0 });
-    portals.push({ x, y: ROWS - 1 });
+function graveyardEdgePortalCandidates() {
+  const candidates = [];
+  for (let x = 1; x < COLS - 1; x += 1) {
+    candidates.push({ x, y: 0 });
+    candidates.push({ x, y: ROWS - 1 });
   }
-
   for (let y = 1; y < ROWS - 1; y += 1) {
-    portals.push({ x: 0, y });
-    portals.push({ x: COLS - 1, y });
+    candidates.push({ x: 0, y });
+    candidates.push({ x: COLS - 1, y });
   }
+  return candidates;
+}
 
-  return portals;
+function graveyardEdgePortals() {
+  if (graveyardPortalPositions.length !== 5) {
+    refreshGraveyardPortals();
+  }
+  return graveyardPortalPositions;
+}
+
+function refreshGraveyardPortals() {
+  const candidates = graveyardEdgePortalCandidates();
+  const chosen = new Set();
+  const shuffled = candidates.slice().sort(() => Math.random() - 0.5);
+  graveyardPortalPositions = [];
+  for (const cell of shuffled) {
+    const key = `${cell.x},${cell.y}`;
+    if (chosen.has(key)) {
+      continue;
+    }
+    chosen.add(key);
+    graveyardPortalPositions.push({ x: cell.x, y: cell.y });
+    if (graveyardPortalPositions.length >= 5) {
+      break;
+    }
+  }
+  resetSpawnPortalOrder();
+  routes = computeRoutes();
 }
 
 function resetSpawnPortalOrder() {
@@ -1890,9 +3479,6 @@ function cliffSideForCell(cell) {
   if (!isCliffsMap() || !cell) {
     return null;
   }
-  if (noBuildAt(cell.x, cell.y)) {
-    return "ledge";
-  }
   return cell.x < cliffDivideXForRow(cell.y) ? "left" : "right";
 }
 
@@ -2033,6 +3619,25 @@ function fillProjectedQuad(quad, fillStyle, strokeStyle = null, lineWidth = 0) {
   ctx.closePath();
   ctx.fill();
   if (strokeStyle) {
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+}
+
+function fillProjectedPolygon(points, fillStyle, strokeStyle = null, lineWidth = 0) {
+  if (!points || points.length < 3) {
+    return;
+  }
+  ctx.fillStyle = fillStyle;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let index = 1; index < points.length; index += 1) {
+    ctx.lineTo(points[index].x, points[index].y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  if (strokeStyle && lineWidth > 0) {
     ctx.strokeStyle = strokeStyle;
     ctx.lineWidth = lineWidth;
     ctx.stroke();
@@ -2200,15 +3805,21 @@ function setPieceChoiceButtonContent(button, piece, index) {
 }
 
 function isTowerUnlocked(type) {
-  return true;
+  if (cheatUnlockAll) {
+    return true;
+  }
+  if (!SKILL_TREE_NODE_BY_ID.has(skillTreeFamilyNodeId(type))) {
+    return true;
+  }
+  return skillTreeNodeOwned(skillTreeFamilyNodeId(type));
 }
 
 function towerUnlockHint(type) {
-  return `${TOWER_INFO[type].name} is available from the start.`;
+  return skillTreeTowerUnlockHint(type);
 }
 
 function towerUnlockRequirement(type) {
-  return "Available from the beginning.";
+  return skillTreeTowerUnlockRequirement(type);
 }
 
 function enemyDiscoveryId(enemyKey, tier = 1) {
@@ -2478,11 +4089,16 @@ function isSandboxMode() {
 }
 
 function openOverlay(name) {
+  signInOverlay.classList.toggle("active", name === "signin");
   menuOverlay.classList.toggle("active", name === "menu");
   pauseOverlay.classList.toggle("active", name === "pause");
   gameOverOverlay.classList.toggle("active", name === "gameover");
   almanacOverlay.classList.toggle("active", name === "almanac");
+  skillTreeOverlay.classList.toggle("active", name === "skilltree");
+  settingsOverlay?.classList.toggle("active", name === "settings");
 }
+
+window.openOverlay = openOverlay;
 
 function renderAlmanac() {
   almanacGrid.innerHTML = "";
@@ -2495,7 +4111,7 @@ function renderAlmanac() {
   }
 
   if (almanacTab === "enemies") {
-    almanacTitle.textContent = "Almanac";
+    almanacTitle.textContent = uiText("almanac");
     const entries = enemyAlmanacEntries();
     if (!entries.some((entry) => entry.id === selectedAlmanacEnemy)) {
       selectedAlmanacEnemy = entries[0]?.id || "fast:1";
@@ -2517,7 +4133,7 @@ function renderAlmanac() {
   }
 
   if (almanacTab === "blocks") {
-    almanacTitle.textContent = "Almanac";
+    almanacTitle.textContent = uiText("almanac");
     for (const block of polyominoes) {
       const entry = document.createElement("article");
       entry.className = "almanac-entry";
@@ -2529,7 +4145,7 @@ function renderAlmanac() {
   }
 
   if (almanacTab === "waves") {
-    almanacTitle.textContent = "Almanac";
+    almanacTitle.textContent = uiText("almanac");
     selectedAlmanacWave = Math.max(1, Math.min(unlockedWaveMax, MAX_ALMANAC_WAVE, selectedAlmanacWave || 1));
     for (let round = 1; round <= MAX_ALMANAC_WAVE; round += 1) {
       const summary = waveAlmanacSummary(round);
@@ -2537,14 +4153,14 @@ function renderAlmanac() {
       const entry = document.createElement("article");
       entry.className = `almanac-entry clickable${unlocked ? "" : " locked"}${selectedAlmanacWave === round ? " active" : ""}`;
       entry.dataset.almanacWave = String(round);
-      entry.innerHTML = unlocked ? renderWaveAlmanacCard(summary) : `<h3>Wave ${round}</h3><p>Locked</p>`;
+      entry.innerHTML = unlocked ? renderWaveAlmanacCard(summary) : `<h3>${uiText("waves")} ${round}</h3><p>${uiText("locked")}</p>`;
       almanacGrid.appendChild(entry);
     }
     renderWaveAlmanacDetail(selectedAlmanacWave);
     return;
   }
 
-  almanacTitle.textContent = "Almanac";
+  almanacTitle.textContent = uiText("almanac");
   const orderedTowers = [...ALMANAC_TOWER_TYPES].sort((left, right) => {
     const leftUnlocked = isTowerUnlocked(left);
     const rightUnlocked = isTowerUnlocked(right);
@@ -2554,17 +4170,158 @@ function renderAlmanac() {
     return leftUnlocked ? -1 : 1;
   });
   for (const key of orderedTowers) {
-    const tower = TOWER_INFO[key];
+    const tower = towerInfoText(key);
     const unlocked = isTowerUnlocked(key);
     const entry = document.createElement("article");
     entry.className = `almanac-entry clickable${unlocked ? "" : " locked"}${selectedAlmanacTower === key ? " active" : ""}`;
     entry.dataset.almanacTower = key;
     entry.innerHTML = unlocked
-      ? `<h3>${tower.name}</h3><p>Cost: ${towerCost(key)}</p><p>${tower.description}</p>`
-      : `<h3>Locked Tower</h3><p>${towerUnlockRequirement(key)}</p>`;
+      ? `<h3>${tower.name}</h3><p>${uiText("cost")}: ${towerCost(key)}</p><p>${tower.description}</p>`
+      : `<h3>${uiText("lockedTower")}</h3><p>${towerUnlockRequirement(key)}</p>`;
     almanacGrid.appendChild(entry);
   }
   renderTowerAlmanacDetail(selectedAlmanacTower);
+}
+
+function renderSkillTree() {
+  if (!skillTreeGrid || !skillTreeDetail) {
+    return;
+  }
+
+  if (!SKILL_TREE_NODE_BY_ID.has(skillTreeSelectedNodeId) || !skillTreeNodeVisible(SKILL_TREE_NODE_BY_ID.get(skillTreeSelectedNodeId))) {
+    skillTreeSelectedNodeId = "core";
+  }
+
+  skillTreeGrid.innerHTML = "";
+  const visibleNodes = SKILL_TREE_NODES.filter((node) => skillTreeNodeVisible(node));
+  const renderSkillNodeButton = (node, parent) => {
+    const rank = skillTreeNodeRank(node);
+    const maxRank = node.maxRank || 1;
+    const title = translatedSkillNodeTitle(node);
+    const canBuyMore = node.repeatable ? rank < maxRank : !skillTreeNodeOwned(node);
+    const parentsOwned = skillTreeNodeBuyable(node);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `skill-tree-node-button${skillTreeNodeOwned(node) ? " owned" : ""}${node.unique ? " unique" : ""}${node.special ? " special" : ""}${skillTreeSelectedNodeId === node.id ? " active" : ""}${!canBuyMore || (parentsOwned && skillTokens >= node.cost) ? "" : " locked"}`;
+    button.dataset.skillNodeId = node.id;
+    button.title = title;
+    button.innerHTML = `<span>${node.symbol}</span><small>${node.repeatable ? `${rank}/${maxRank}` : title}</small>`;
+    parent.appendChild(button);
+  };
+  const renderSkillRow = (title, nodes, options = {}) => {
+    const rowNodes = nodes.filter((node) => node && visibleNodes.includes(node));
+    if (rowNodes.length === 0) {
+      return;
+    }
+    const row = document.createElement("section");
+    row.className = `skill-tree-row${options.special ? " special" : ""}`;
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+    row.appendChild(heading);
+    const strip = document.createElement("div");
+    strip.className = "skill-tree-row-strip";
+    for (const node of rowNodes) {
+      renderSkillNodeButton(node, strip);
+    }
+    row.appendChild(strip);
+    skillTreeGrid.appendChild(row);
+  };
+
+  renderSkillRow(uiText("general"), [
+    SKILL_TREE_NODE_BY_ID.get("core"),
+    ...SKILL_TREE_NODES.filter((node) => (node.parents || []).includes("core") && !node.id.startsWith("family_"))
+  ]);
+
+  for (const type of ALMANAC_TOWER_TYPES) {
+    const familyNode = SKILL_TREE_NODE_BY_ID.get(skillTreeFamilyNodeId(type));
+    renderSkillRow(towerInfoText(type)?.name || type, [
+      familyNode,
+      ...skillTreeChildren(familyNode?.id).filter((node) => !node.special && !node.unique)
+    ]);
+    renderSkillRow(`${towerInfoText(type)?.name || type} ${uiText("specials")}`, [
+      ...SKILL_TREE_NODES.filter((node) => node.towerType === type && (node.special || node.unique))
+    ], { special: true });
+  }
+
+  const selectedNode = SKILL_TREE_NODE_BY_ID.get(skillTreeSelectedNodeId) || SKILL_TREE_NODE_BY_ID.get("core");
+  const children = skillTreeChildren(selectedNode.id).filter((node) => skillTreeNodeVisible(node) || skillTreeNodeOwned(node));
+  const branchList = children.length
+    ? `<ul>${children.map((node) => `<li>${translatedSkillNodeTitle(node)}${skillTreeNodeOwned(node) ? ` (${uiText("owned")})` : ""}</li>`).join("")}</ul>`
+    : `<p class='hint'>${uiText("noBranchesYet")}</p>`;
+  const unlockLine = selectedNode.unlockTower ? `<p><strong>${uiText("unlocks")}:</strong> ${towerInfoText(selectedNode.unlockTower)?.name || translatedSkillNodeTitle(selectedNode)}</p>` : "";
+  const selectedRank = skillTreeNodeRank(selectedNode);
+  const selectedMaxRank = selectedNode.maxRank || 1;
+  const canBuyMore = selectedNode.repeatable ? selectedRank < selectedMaxRank : !skillTreeNodeOwned(selectedNode);
+  const parentsOwned = skillTreeNodeBuyable(selectedNode);
+  const buyable = canBuyMore && selectedNode.cost > 0 && skillTokens >= selectedNode.cost && parentsOwned;
+  const statusText = selectedNode.repeatable
+    ? `${uiText("rank")} ${selectedRank}/${selectedMaxRank}${selectedRank >= selectedMaxRank ? ` | ${uiText("maxed")}` : buyable ? ` | ${uiText("buyable")}` : parentsOwned ? ` | ${uiText("needTokens")}` : ` | ${uiText("branchLocked")}`}`
+    : skillTreeNodeOwned(selectedNode) ? uiText("ownedCap") : buyable ? uiText("buyable") : parentsOwned ? uiText("needTokens") : uiText("branchLocked");
+  const statLines = skillTreeNodeStatLines(selectedNode, selectedRank);
+  const statBlock = statLines.length
+    ? `<div class="skill-tree-stat-box">${statLines.map((line) => `<p>${line}</p>`).join("")}</div>`
+    : "";
+
+  skillTreeDetail.innerHTML = `
+    <div class="skill-tree-detail-header${selectedNode.unique ? " unique" : ""}${selectedNode.special ? " special" : ""}">
+      <div class="skill-tree-swatch" style="background:${TOWER_INFO[selectedNode.towerType]?.color || "#c9b6ff"}"></div>
+      <div>
+        <h3>${translatedSkillNodeTitle(selectedNode)}</h3>
+        <p class="hint">${uiText("cost")}: ${selectedNode.cost} ${selectedNode.cost === 1 ? uiText("tokenSingle") : uiText("tokenPlural")} | ${statusText}</p>
+      </div>
+    </div>
+    <p>${translatedSkillNodeDescription(selectedNode)}</p>
+    ${statBlock}
+    ${unlockLine}
+    <p><strong>${uiText("branches")}:</strong></p>
+    ${branchList}
+    ${buyable ? `<button type="button" class="secondary skill-tree-buy${selectedNode.unique ? " unique" : ""}${selectedNode.special ? " special" : ""}" data-skill-buy="${selectedNode.id}">${uiText("buyFor")} ${selectedNode.cost} ${selectedNode.cost === 1 ? uiText("tokenSingle") : uiText("tokenPlural")}</button>` : ""}
+  `;
+
+  if (skillTreeTokenText) {
+    skillTreeTokenText.textContent = `${uiText("tokens")}: ${skillTokens} | ${uiText("upgradePts")}: ${skillUpgradePoints}`;
+  }
+}
+
+function purchaseSkillNode(nodeId) {
+  const node = SKILL_TREE_NODE_BY_ID.get(nodeId);
+  if (!node) {
+    return false;
+  }
+  const rank = skillTreeNodeRank(node);
+  if (node.repeatable && rank >= (node.maxRank || 12)) {
+    return false;
+  }
+  if (!node.repeatable && skillTreeNodeOwned(node)) {
+    return false;
+  }
+  if (!skillTreeNodeBuyable(node) || skillTokens < node.cost) {
+    return false;
+  }
+  skillTokens -= node.cost;
+  if (node.repeatable) {
+    repeatableSkillRanks[node.id] = rank + 1;
+    purchasedSkillNodes.add(node.id);
+  } else {
+    purchasedSkillNodes.add(node.id);
+  }
+  if (node.id === "general_hp") {
+    lives += 15;
+    baseLivesSkillBonus = skillTreeBaseLivesBonus();
+  }
+  if (node.id === "core_shooting") {
+    baseLivesSkillBonus = skillTreeBaseLivesBonus();
+  }
+  if (node.unlockTower) {
+    syncTowerUnlockState();
+    updateTowerButtons();
+  }
+  persistProgressionState();
+  renderSkillTree();
+  updateTowerButtons();
+  updateHud();
+  setMessage(`${translatedSkillNodeTitle(node)} purchased.`, 1.4);
+  return true;
 }
 
 function enemyAlmanacEntries() {
@@ -3195,7 +4952,7 @@ function renderEnemyAlmanacDetail(id) {
     return;
   }
   if (!enemyAlmanacKnown(entry)) {
-    almanacDetail.innerHTML = `<h3>Unknown Enemy</h3><p>Encounter this enemy in a run to reveal its image, stats, and abilities.</p>`;
+    almanacDetail.innerHTML = `<h3>${uiText("unknownEnemy")}</h3><p>${uiText("unknownEnemyHint")}</p>`;
     return;
   }
   const enemy = enemyAlmanacPrimaryEnemy(entry);
@@ -3234,9 +4991,9 @@ function renderEnemyAlmanacDetail(id) {
       </div>
       <p>${enemyAlmanacDescription(enemy, entry)}</p>
     </div>
-    <p><strong>Health:</strong> ${formatNumber(stats.hp)} | <strong>Speed:</strong> ${formatNumber(stats.speed)} cells/s | <strong>Reward:</strong> ${formatNumber(stats.reward)}</p>
-    <p><strong>Effects:</strong> ${effects.length ? effects.join(", ") : "None"}</p>
-    ${stats.extras.length ? `<p><strong>Details:</strong> ${stats.extras.join(", ")}</p>` : ""}
+    <p><strong>${uiText("health")}:</strong> ${formatNumber(stats.hp)} | <strong>${uiText("speed")}:</strong> ${formatNumber(stats.speed)} cells/s | <strong>${uiText("reward")}:</strong> ${formatNumber(stats.reward)}</p>
+    <p><strong>${uiText("effects")}:</strong> ${effects.length ? effects.join(", ") : uiText("none")}</p>
+    ${stats.extras.length ? `<p><strong>${uiText("details")}:</strong> ${stats.extras.join(", ")}</p>` : ""}
     ${renderEnemyFamilyVariantBlock(entry)}`;
 }
 
@@ -3259,11 +5016,11 @@ function renderBlockAlmanacDetail() {
     .map(([size, count]) => `${count}x ${size}-tile`)
     .join(" | ");
   const names = polyominoes.map((block) => block.name).join(", ");
-  almanacDetail.innerHTML = `<h3>Blocks</h3>
-    <p>The block almanac shows every wall shape that can appear in the build offers.</p>
-    <p><strong>Pool:</strong> ${summary}</p>
-    <p><strong>Rule:</strong> Every offer shows two choices, and at least one is always a triomino or tetromino.</p>
-    <p><strong>Shapes:</strong> ${names}</p>`;
+  almanacDetail.innerHTML = `<h3>${uiText("blocks")}</h3>
+    <p>${uiText("blockAlmanacIntro")}</p>
+    <p><strong>${uiText("pool")}:</strong> ${summary}</p>
+    <p><strong>${uiText("rule")}:</strong> ${uiText("blockOfferRule")}</p>
+    <p><strong>${uiText("shapes")}:</strong> ${names}</p>`;
 }
 
 function almanacWaveCacheKey(round) {
@@ -4446,13 +6203,18 @@ function updateMenuSelectors() {
   persistMenuState();
   for (const button of difficultyOptions.querySelectorAll("[data-difficulty]")) {
     button.classList.toggle("active", button.dataset.difficulty === selectedDifficulty);
+    button.textContent = uiText(button.dataset.difficulty, button.textContent);
   }
   for (const button of mapOptions.querySelectorAll("[data-map]")) {
-    button.classList.toggle("active", button.dataset.map === selectedMap);
+    const mapKey = normalizeMapKey(button.dataset.map);
+    button.classList.toggle("active", mapKey === selectedMap);
+    button.textContent = mapText(mapKey).name;
   }
   if (menuMapDescription) {
-    menuMapDescription.textContent = `${nextMap.name}: ${nextMap.description}`;
+    const translatedMap = mapText(selectedMap);
+    menuMapDescription.textContent = `${translatedMap.name}: ${translatedMap.description}`;
   }
+  applyLanguage();
 }
 
 function populateSandboxEnemyOptions() {
@@ -4860,8 +6622,9 @@ function setTowerType(nextType) {
     button.classList.toggle("active", button.dataset.tool === currentTool);
   }
 
-  towerDescription.textContent = TOWER_INFO[nextType].description;
-  setMessage(TOWER_INFO[nextType].description, 1.8);
+  const translatedTower = towerInfoText(nextType);
+  towerDescription.textContent = translatedTower.description;
+  setMessage(translatedTower.description, 1.8);
   updateHud();
   draw();
 }
@@ -4869,7 +6632,7 @@ function setTowerType(nextType) {
 function updateTowerButtons() {
   for (const button of towerGrid.querySelectorAll("button[data-tower-type]")) {
     const type = button.dataset.towerType;
-    const towerInfo = TOWER_INFO[type] || { name: "Tower" };
+    const towerInfo = towerInfoText(type);
     button.hidden = !isTowerUnlocked(type);
     button.disabled = false;
     button.textContent = `${towerInfo.name} (${towerCost(type)})`;
@@ -4902,6 +6665,10 @@ function towerPlacementCenter(type, originX, originY) {
 
 function blockStackLayers(block) {
   return 12;
+}
+
+function obstacleStackLayers() {
+  return blockStackLayers() * 2;
 }
 
 function blockLayerStepCells() {
@@ -5113,8 +6880,11 @@ function towerTopGridRenderPoint(cells, offset = { x: 0, y: 0 }) {
 function towerPerspectiveDepthFactor(tower) {
   const boardHeight = ROWS * CELL_SIZE;
   const rawY = Number.isFinite(tower?.gridCenterY) ? tower.gridCenterY : Number.isFinite(tower?.centerY) ? tower.centerY : 0;
+  const projected = projectBoardPoint(0, rawY);
+  const perspective = boardPerspective();
+  const baseScale = Math.max(0.5, Math.min(1, projected.scale / Math.max(0.001, perspective.screenScale)));
   const depth = Math.max(0, Math.min(1, rawY / Math.max(1, boardHeight)));
-  return 0.8 + depth * 0.2;
+  return Math.max(0.68, Math.min(1, baseScale * (0.92 + depth * 0.08)));
 }
 
 function towerVanishingPoint() {
@@ -5136,23 +6906,64 @@ function towerOnePointShear(centerX, centerY, tower = null) {
   };
 }
 
+function towerPerspectiveFootprint(tower) {
+  if (tower?.footprintCells?.length) {
+    return tower.footprintCells;
+  }
+  if (tower?.type && Number.isFinite(tower.x) && Number.isFinite(tower.y)) {
+    return towerPlacementCells(tower.type, tower.x, tower.y);
+  }
+  return [{ x: 0, y: 0 }];
+}
+
+function towerProjectedSurfaceBasis(tower, centerX, centerY) {
+  const footprint = towerPerspectiveFootprint(tower);
+  const bounds = footprint.reduce((acc, cell) => ({
+    minX: Math.min(acc.minX, cell.x),
+    maxX: Math.max(acc.maxX, cell.x),
+    minY: Math.min(acc.minY, cell.y),
+    maxY: Math.max(acc.maxY, cell.y)
+  }), {
+    minX: footprint[0]?.x || 0,
+    maxX: footprint[0]?.x || 0,
+    minY: footprint[0]?.y || 0,
+    maxY: footprint[0]?.y || 0
+  });
+  const widthCells = Math.max(1, bounds.maxX - bounds.minX + 1);
+  const heightCells = Math.max(1, bounds.maxY - bounds.minY + 1);
+  const quad = projectLayerQuad(bounds.minX, bounds.minY, 11, { x: 0, y: 0 }, widthCells, heightCells);
+  const axisX = {
+    x: quad.topRight.x - quad.topLeft.x,
+    y: quad.topRight.y - quad.topLeft.y
+  };
+  const axisY = {
+    x: quad.bottomLeft.x - quad.topLeft.x,
+    y: quad.bottomLeft.y - quad.topLeft.y
+  };
+  const footprintScale = Math.max(widthCells, heightCells);
+  const fit = (tower?.type === "fireball" || tower?.type === "dippy" ? 0.84 : 0.78) * footprintScale;
+  const unitScale = fit / 24;
+  return {
+    centerX,
+    centerY,
+    axisX: { x: axisX.x * unitScale, y: axisX.y * unitScale },
+    axisY: { x: axisY.x * unitScale, y: axisY.y * unitScale }
+  };
+}
+
 function drawTowerSpriteStack(tower, centerX, centerY, aimAngle, renderScale, ghost = false, invalid = false, offset = { x: 0, y: 0 }) {
+  const depthFactor = towerPerspectiveDepthFactor(tower);
   drawTowerShape(
     tower.type,
     tower.level,
-    centerX,
-    centerY,
+    centerX + (offset?.x || 0),
+    centerY + (offset?.y || 0),
     aimAngle,
     ghost,
     invalid,
     tower,
-    renderScale * towerPerspectiveDepthFactor(tower),
-    {
-      stretchX: 1,
-      stretchY: 1,
-      pullX: 0,
-      pullY: 0
-    }
+    renderScale * depthFactor,
+    { stretchX: 1, stretchY: 1, pullX: 0, pullY: 0 }
   );
 }
 
@@ -5378,7 +7189,7 @@ function canPlacePiece(originX, originY) {
       return false;
     }
 
-    if (noBuildAt(cell.x, cell.y) && !cellsFitInsideDitch(cells)) {
+    if (!isCliffsMap() && noBuildAt(cell.x, cell.y) && !cellsFitInsideDitch(cells)) {
       return false;
     }
 
@@ -5542,7 +7353,7 @@ function canRelocateBlockTo(block, x, y) {
     if (furnaceLavaPitAt(cell.x, cell.y)) {
       return false;
     }
-    if (noBuildAt(cell.x, cell.y) && !cellsFitInsideDitch(cells)) {
+    if (!isCliffsMap() && noBuildAt(cell.x, cell.y) && !cellsFitInsideDitch(cells)) {
       return false;
     }
     if ((grid[cell.y][cell.x].blockId !== null && grid[cell.y][cell.x].blockId !== block.id) || (obstacleAt(cell.x, cell.y) && !islandAt(cell.x, cell.y))) {
@@ -5952,6 +7763,7 @@ function seedGraveyardMap() {
     { x: goal.x + 1, y: goal.y + 1 }
   ]).filter((cell) => inBounds(cell.x, cell.y) && !isEndpoint(cell.x, cell.y));
   addPresetBlock(wallCells, "#708176", "Grave Wall", true);
+  refreshGraveyardPortals();
 }
 
 function applyMapViewport() {
@@ -6035,11 +7847,10 @@ function supportWaveIncomeBonus() {
 }
 
 function towerCost(type) {
-  if (type === "crossbow" && crossbowUnlocked) {
-    return 14 * TOWER_PRICE_MULTIPLIER;
-  }
+  const baseCost = type === "crossbow" && crossbowUnlocked ? 14 : TOWER_BASE_COST[type];
   const treasuryMultiplier = type === "treasury" ? 1.5 : 1;
-  return Math.round(TOWER_BASE_COST[type] * treasuryMultiplier * TOWER_PRICE_MULTIPLIER);
+  const discountMultiplier = skillTreeNodeOwned(skillTreeTowerDiscountNodeId(type)) ? 0.9 : 1;
+  return Math.round(baseCost * treasuryMultiplier * discountMultiplier * TOWER_PRICE_MULTIPLIER);
 }
 
 function scaleEnemyCashDrop(value) {
@@ -6103,6 +7914,56 @@ function upgradeCost(tower, path = null) {
   const table = UPGRADE_COSTS[tower.type];
   const treasuryMultiplier = tower.type === "treasury" ? 1.5 : 1;
   return Array.isArray(table) ? Math.round(table[Math.max(0, nextLevel - 2)] * treasuryMultiplier * TOWER_PRICE_MULTIPLIER) : Math.round((4 + tower.level * 3) * treasuryMultiplier * TOWER_PRICE_MULTIPLIER);
+}
+
+function almanacUpgradeKey(type, path, tier) {
+  return `${type}:path${path}:tier${tier}`;
+}
+
+function almanacUpgradeUnlocked(type, path, tier) {
+  if (cheatUnlockAll) {
+    return true;
+  }
+  if (!PATH_TOWER_TYPES.has(type)) {
+    return true;
+  }
+  if (tier <= 1) {
+    return true;
+  }
+  return purchasedAlmanacUpgrades.has(almanacUpgradeKey(type, path, tier));
+}
+
+function canBuyAlmanacUpgrade(type, path, tier) {
+  if (!PATH_TOWER_TYPES.has(type) || tier <= 1 || almanacUpgradeUnlocked(type, path, tier)) {
+    return false;
+  }
+  return almanacUpgradeUnlocked(type, path, tier - 1);
+}
+
+function almanacUpgradePointCost(type, path, tier) {
+  const previousOverrides = path === 1
+    ? { path1: Math.max(0, tier - 1), path2: 0, level: tier }
+    : { path1: 0, path2: Math.max(0, tier - 1), level: tier };
+  return upgradeCost(mockTower(type, previousOverrides), path);
+}
+
+function purchaseAlmanacUpgrade(type, path, tier) {
+  if (!canBuyAlmanacUpgrade(type, path, tier)) {
+    setMessage("Buy the previous tier first.", 1.3);
+    return false;
+  }
+  const cost = almanacUpgradePointCost(type, path, tier);
+  if (skillUpgradePoints < cost) {
+    setMessage(`Need ${cost} upgrade points.`, 1.4);
+    return false;
+  }
+  skillUpgradePoints -= cost;
+  purchasedAlmanacUpgrades.add(almanacUpgradeKey(type, path, tier));
+  persistProgressionState();
+  renderTowerAlmanacDetail(type);
+  updateHud();
+  setMessage(`${upgradeNameForTower(type, path, tier)} unlocked.`, 1.4);
+  return true;
 }
 
 function sellValue(tower) {
@@ -6535,7 +8396,7 @@ function pathDescriptionForTower(tower, path, tier) {
 
 function towerDisplayName(towerOrType) {
   const type = typeof towerOrType === "string" ? towerOrType : towerOrType?.type;
-  const baseName = TOWER_INFO[type]?.name || "Tower";
+  const baseName = towerInfoText(type)?.name || "Tower";
   if (!towerOrType || typeof towerOrType === "string" || !isPathTower(type)) {
     return baseName;
   }
@@ -6690,6 +8551,7 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     ? `${formatNumber(stats.burnDamage)}/s for ${formatNumber(stats.burnDuration)}s`
     : "";
   const specialRows = [];
+  const affinityBonus = towerBlockAffinityBonus(tower);
 
   const extras = [];
 
@@ -6936,6 +8798,19 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     extras.push("Hits armoured");
   }
 
+  const goldRows = affinityBonus.active
+    ? [
+      "Damage",
+      "Attacks per second",
+      "Range",
+      "DPS",
+      ...specialRows.map((row) => row.label)
+    ]
+    : [];
+  if (affinityBonus.active) {
+    extras.unshift("Affinity buff active");
+  }
+
   return {
     damage,
     cooldown,
@@ -6945,6 +8820,7 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     chainLength,
     burnStat,
     specialRows,
+    goldRows,
     extras,
     hitsArmored
   };
@@ -7163,7 +9039,10 @@ function towerCoreStatRows(summary, preview = null) {
 
 function renderTowerStatsGridRows(summary) {
   return towerCoreStatRows(summary)
-    .map((row) => `<div><span>${row.label}</span><strong>${row.value}</strong></div>`)
+    .map((row) => {
+      const buffed = summary.goldRows?.includes(row.label);
+      return `<div class="${buffed ? "tower-stat-buffed" : ""}"><span>${row.label}</span><strong>${row.value}</strong></div>`;
+    })
     .join("");
 }
 
@@ -7330,7 +9209,15 @@ function pathUpgradeSummary(type, path) {
     const summary = towerStatSummary(type, overrides);
     const deltaText = summarizeTowerIncrease(previousSummary, summary);
     const cost = upgradeCost(mockTower(type, previousOverrides), path);
-    entries.push(`<p><strong>${upgradeNameForTower(type, path, tier)}${towerCapabilityBadges(type, overrides)}</strong>${cost ? ` (${cost})` : ""}: ${deltaText || "No stat change"}</p>`);
+    const unlocked = almanacUpgradeUnlocked(type, path, tier);
+    const canBuy = canBuyAlmanacUpgrade(type, path, tier);
+    const pointCost = tier <= 1 ? 0 : almanacUpgradePointCost(type, path, tier);
+    const button = tier <= 1
+      ? `<button type="button" class="tower-upgrade secondary almanac-upgrade-unlock owned" disabled>Unlocked</button>`
+      : unlocked
+      ? `<button type="button" class="tower-upgrade secondary almanac-upgrade-unlock owned" disabled>Unlocked</button>`
+      : `<button type="button" class="tower-upgrade secondary almanac-upgrade-unlock" data-almanac-upgrade-type="${type}" data-almanac-upgrade-path="${path}" data-almanac-upgrade-tier="${tier}" ${canBuy ? "" : "disabled"}>Unlock ${pointCost} pts</button>`;
+    entries.push(`<div class="almanac-upgrade-row"><p><strong>${upgradeNameForTower(type, path, tier)}${towerCapabilityBadges(type, overrides)}</strong>${cost ? ` (${cost})` : ""}: ${deltaText || "No stat change"}</p>${button}</div>`);
   }
 
   return entries.join("");
@@ -7638,19 +9525,19 @@ function applyLateTierPowerScale(tower, stats) {
 }
 
 function renderTowerAlmanacDetail(type) {
-  const info = TOWER_INFO[type];
-  if (!isTowerUnlocked(type)) {
-    almanacDetail.innerHTML = `<h3>Locked Tower</h3><p>${towerUnlockRequirement(type)}</p>`;
-    return;
-  }
+  const info = towerInfoText(type);
+  const unlocked = isTowerUnlocked(type);
   const baseSummary = towerStatSummary(type);
-  let detail = `<h3>${info.name}</h3><p>${info.description}</p><p><strong>Armoured:</strong> ${armoredUnlockText(type)}</p>${renderTowerStatsBlock(`Upgrade 0${towerCapabilityBadges(type)}`, baseSummary)}`;
+  let detail = unlocked
+    ? `<h3>${info.name}</h3><p>${info.description}</p>`
+    : `<h3>${info.name} ${uiText("locked")}</h3><p>${towerUnlockRequirement(type)}</p><p>${info.description}</p>`;
+  detail += `<p><strong>${uiText("upgradePoints")}:</strong> ${skillUpgradePoints}</p><p><strong>${uiText("armoured")}:</strong> ${armoredUnlockText(type)}</p>${renderTowerStatsBlock(`Upgrade 0${towerCapabilityBadges(type)}`, baseSummary)}`;
 
   if (isPathTower(type)) {
-    detail += `<h4>Path 1</h4>${pathUpgradeSummary(type, 1)}`;
-    detail += `<h4>Path 2</h4>${pathUpgradeSummary(type, 2)}`;
+    detail += `<h4>${uiText("path1")}</h4>${pathUpgradeSummary(type, 1)}`;
+    detail += `<h4>${uiText("path2")}</h4>${pathUpgradeSummary(type, 2)}`;
   } else if (maxTowerLevel({ type }) > 1) {
-    detail += `<h4>Upgrade Levels</h4>${linearUpgradeSummary(type, maxTowerLevel({ type }))}`;
+    detail += `<h4>${uiText("upgradeLevels")}</h4>${linearUpgradeSummary(type, maxTowerLevel({ type }))}`;
   }
 
   almanacDetail.innerHTML = detail;
@@ -8069,6 +9956,8 @@ function openTowerPopup(tower) {
     const nextPath2 = tower.path2 + 1;
     const canPath1 = canUpgradeTowerPath(tower, 1);
     const canPath2 = canUpgradeTowerPath(tower, 2);
+    const path1Unlocked = almanacUpgradeUnlocked(tower.type, 1, nextPath1);
+    const path2Unlocked = almanacUpgradeUnlocked(tower.type, 2, nextPath2);
     const path1Text = pathDescriptionForTower(tower, 1, Math.min(nextPath1, 5));
     const path2Text = pathDescriptionForTower(tower, 2, Math.min(nextPath2, 5));
     const button1 = document.createElement("button");
@@ -8077,11 +9966,11 @@ function openTowerPopup(tower) {
     button1.dataset.upgradePath = "1";
     setTowerUpgradeButtonContent(
       button1,
-      upgradesLocked ? "Path 1 locked" : canPath1 ? upgradeNameFromDescription(path1Text, "Path 1") : "Path 1 maxed",
-      !upgradesLocked && canPath1 ? upgradeDetailFromDescription(path1Text) : "",
-      !upgradesLocked && canPath1 ? `${upgradeCost(tower, 1)} cash` : ""
+      upgradesLocked ? "Path 1 locked" : !path1Unlocked ? "Unlock in Almanac" : canPath1 ? upgradeNameFromDescription(path1Text, "Path 1") : "Path 1 maxed",
+      !upgradesLocked && canPath1 && path1Unlocked ? upgradeDetailFromDescription(path1Text) : "",
+      !upgradesLocked && canPath1 && path1Unlocked ? `${upgradeCost(tower, 1)} cash` : ""
     );
-    button1.disabled = upgradesLocked || !canPath1;
+    button1.disabled = upgradesLocked || !canPath1 || !path1Unlocked;
     if (!button1.disabled) {
       const previewTower = { ...tower, path1: tower.path1 + 1, level: 1 + tower.path1 + 1 + tower.path2 };
       const previewSummary = towerStatSummary(previewTower);
@@ -8100,11 +9989,11 @@ function openTowerPopup(tower) {
     button2.dataset.upgradePath = "2";
     setTowerUpgradeButtonContent(
       button2,
-      upgradesLocked ? "Path 2 locked" : canPath2 ? upgradeNameFromDescription(path2Text, "Path 2") : "Path 2 maxed",
-      !upgradesLocked && canPath2 ? upgradeDetailFromDescription(path2Text) : "",
-      !upgradesLocked && canPath2 ? `${upgradeCost(tower, 2)} cash` : ""
+      upgradesLocked ? "Path 2 locked" : !path2Unlocked ? "Unlock in Almanac" : canPath2 ? upgradeNameFromDescription(path2Text, "Path 2") : "Path 2 maxed",
+      !upgradesLocked && canPath2 && path2Unlocked ? upgradeDetailFromDescription(path2Text) : "",
+      !upgradesLocked && canPath2 && path2Unlocked ? `${upgradeCost(tower, 2)} cash` : ""
     );
-    button2.disabled = upgradesLocked || !canPath2;
+    button2.disabled = upgradesLocked || !canPath2 || !path2Unlocked;
     if (!button2.disabled) {
       const previewTower = { ...tower, path2: tower.path2 + 1, level: 1 + tower.path1 + tower.path2 + 1 };
       const previewSummary = towerStatSummary(previewTower);
@@ -8318,6 +10207,11 @@ function upgradeTower(x, y, path = null) {
       setMessage("That upgrade path is maxed.");
       return false;
     }
+    const nextTier = (path === 1 ? tower.path1 : tower.path2) + 1;
+    if (!almanacUpgradeUnlocked(tower.type, path, nextTier)) {
+      setMessage("Unlock that upgrade in the Almanac first.", 1.6);
+      return false;
+    }
   } else if (tower.level >= 5) {
     setMessage("That tower is already at max upgrade.");
     return false;
@@ -8456,7 +10350,7 @@ function applyTool(x, y, point = null) {
   selectedTowerId = clickedTower ? clickedTower.id : null;
 
   if (clickedTower) {
-    towerDescription.textContent = `${towerDisplayName(clickedTower)}: ${TOWER_INFO[clickedTower.type].description} ${towerCapabilityText(clickedTower)}`;
+    towerDescription.textContent = `${towerDisplayName(clickedTower)}: ${towerInfoText(clickedTower.type).description} ${towerCapabilityText(clickedTower)}`;
     openTowerPopup(clickedTower);
   } else if (grid[y][x].blockId !== null) {
     const block = blocks.get(grid[y][x].blockId);
@@ -8887,7 +10781,12 @@ function spawnWave(manualStart = false) {
   }
   waveNumber = Math.max(1, waveNumber);
   setUnlockedWaveMax(waveNumber, false);
-  resetSpawnPortalOrder();
+  if (isGraveyardMap()) {
+    refreshGraveyardPortals();
+  } else {
+    resetSpawnPortalOrder();
+    routes = computeRoutes();
+  }
   const plan = wavePlanForRound(waveNumber);
   wave = {
     count: plan.count,
@@ -9088,6 +10987,7 @@ function updateWave(deltaTime) {
         addFloatingText(entry.tower.centerX, entry.tower.centerY - 12, `+$${entry.amount}`, "#ffe27a", 1.15);
       }
     }
+    const earnedTokens = grantSkillTreeTokensForWave(waveNumber);
     currentBlockCost = BLOCK_COST;
     if (isFactoryMap()) {
       advanceFactoryQuarter();
@@ -9095,7 +10995,9 @@ function updateWave(deltaTime) {
     maybeUnlockMapRewards();
     autoWaveTimer = autoWaveEnabled ? 0.9 : 0;
     persistProgressionState();
-    setMessage(isFactoryMap() ? `Wave ${waveNumber} cleared. A factory quarter slides into the gap.` : `Wave ${waveNumber} cleared.`, 1.8);
+    setMessage(isFactoryMap()
+      ? `Wave ${waveNumber} cleared. A factory quarter slides into the gap.${earnedTokens > 0 ? ` +${earnedTokens} tokens.` : ""}`
+      : `Wave ${waveNumber} cleared.${earnedTokens > 0 ? ` +${earnedTokens} tokens.` : ""}`, 1.8);
   }
 }
 
@@ -9282,9 +11184,67 @@ function updateEnemies(deltaTime) {
   enemies = survivors;
 }
 
+function applySkillTreeModifiersToStats(tower, stats) {
+  const modifiers = skillTreeTowerModifiers(tower);
+  const next = { ...stats };
+  for (const key of ["damage", "bulletDamage", "rocketDamage", "supportDamage", "turretDamage", "fieldDamage", "pulseDamage", "mortarDamage", "helpMissileDamage", "burnDamage", "acidDot", "shellDamage", "syrupDamage"]) {
+    if (Number.isFinite(next[key])) {
+      next[key] *= modifiers.damageMult;
+    }
+  }
+  for (const key of ["cooldown", "turretCooldown", "rocketCooldown", "supportCooldown", "fieldCooldown", "mortarCooldown", "helpMissileCooldown"]) {
+    if (Number.isFinite(next[key])) {
+      next[key] = Math.max(0.05, next[key] * modifiers.cooldownMult);
+    }
+  }
+  if (Number.isFinite(next.startFireInterval)) {
+    next.startFireInterval *= modifiers.cooldownMult;
+  }
+  if (Number.isFinite(next.maxFireInterval)) {
+    next.maxFireInterval *= modifiers.cooldownMult;
+  }
+  if (Number.isFinite(next.range)) {
+    next.range *= modifiers.rangeMult;
+  }
+  if (Number.isFinite(next.minRange)) {
+    next.minRange *= modifiers.rangeMult;
+  }
+  if (Number.isFinite(next.auraRadius)) {
+    next.auraRadius *= modifiers.rangeMult;
+  }
+  if (Number.isFinite(next.fieldRadius)) {
+    next.fieldRadius *= modifiers.rangeMult;
+  }
+  if (Number.isFinite(next.splash)) {
+    next.splash *= modifiers.rangeMult * modifiers.splashMult;
+  }
+  for (const key of ["pulseRadius", "mortarSplash", "rocketSplash", "syrupRadius", "turretRange"]) {
+    if (Number.isFinite(next[key])) {
+      next[key] *= key.toLowerCase().includes("range") ? modifiers.rangeMult : modifiers.splashMult;
+    }
+  }
+  for (const key of ["speed", "projectileSpeed", "boltSpeed", "pelletSpeed", "rocketSpeed", "mortarSpeed", "pulseSpeed"]) {
+    if (Number.isFinite(next[key])) {
+      next[key] *= modifiers.projectileSpeedMult;
+    }
+  }
+  if (Number.isFinite(next.trapUses)) {
+    next.trapUses = Math.max(1, Math.round(next.trapUses * modifiers.trapUsesMult));
+  }
+  for (const key of ["stun", "fieldStun", "pulseFreeze"]) {
+    if (Number.isFinite(next[key])) {
+      next[key] *= modifiers.stunMult;
+    }
+  }
+  if (Number.isFinite(next.attackSpeedAura)) {
+    next.attackSpeedAura *= modifiers.attackSpeedAuraMult;
+  }
+  return next;
+}
+
 function towerStats(tower) {
   const levelBonus = tower.level - 1;
-  const finalizeStats = (stats) => applyLateTierPowerScale(tower, stats);
+  const finalizeStats = (stats) => applyLateTierPowerScale(tower, applySkillTreeModifiersToStats(tower, stats));
 
   if (tower.type === "crossbow") {
     const path1 = tower.path1 || 0;
@@ -9304,7 +11264,7 @@ function towerStats(tower) {
         : 1.4 + path2 * 0.18 + topPathDamage,
       boltSpeed: ballista ? 660 : 560,
       boltHoming: ballista ? 0.3 : 1.25,
-      detectHidden: true,
+      detectHidden: false,
       attackSpeedMultiplier: 1,
       boltPierce: ballista
         ? (path2 >= 5 ? 8 : path2 >= 4 ? 5 : 2)
@@ -9358,7 +11318,7 @@ function towerStats(tower) {
           : Math.max(0.82 - path1 * 0.048 - path2 * 0.028 - (path1 >= 4 ? 0.03 : 0) - (path2 >= 4 ? 0.035 : 0) - (path2 >= 5 ? 0.03 : 0), 0.18)
       ) * (brassHurricane ? 0.5 : 1),
       damage: 0.9 + path1 * 0.24 + path2 * 0.24 + (path2 >= 3 ? 0.42 : 0) + (path1 >= 4 ? 0.95 : 0) + (path1 >= 5 ? 2.1 : 0) + (path2 >= 4 ? 1.1 : 0) + (path2 >= 5 ? 2.4 : 0),
-      pellets: wavelength ? lines : (path1 >= 5 ? lines + 1 : lines),
+      pellets: (wavelength ? lines : (path1 >= 5 ? lines + 1 : lines)) + (skillTreeNodeOwned("shotgun_unique") ? 1 : 0),
       spread: wavelength ? waveSpread : Math.max(0.62 - path2 * 0.04 - (bulletStorm ? 0.03 : 0), 0.22),
       pelletSpeed: (332 + path2 * 14 + (path1 >= 4 ? 16 : 0) + (path2 >= 4 ? 26 : 0) + (path2 >= 5 ? 18 : 0)) * 3,
       pelletLife: 0.2 + path2 * 0.008 + (path2 >= 4 ? 0.015 : 0) + (path2 >= 5 ? 0.01 : 0),
@@ -9653,7 +11613,7 @@ function towerStats(tower) {
       ? 1.54
       : path2 >= 4
       ? 0.78
-      : 0.016 + path2 * 0.007 + (path1 >= 4 ? 0.006 : 0) + (supercharge ? 0.052 : 0);
+      : 0.08 + path2 * 0.012 + (path1 >= 4 ? 0.014 : 0) + (supercharge ? 0.052 : 0);
     const rawFieldStun = path2 >= 4 ? 0.44 : 0.028;
     return finalizeStats({
       range: CELL_SIZE * (2.5 + (path2 >= 3 ? 0.26 : 0) + (path2 >= 4 ? 0.4 : 0) + (path2 >= 5 ? 0.58 : 0)),
@@ -9881,10 +11841,61 @@ function addTowerDamage(towerId, amount) {
   if (!towerId || !Number.isFinite(amount) || amount <= 0) {
     return;
   }
+  addSkillUpgradeDamage(amount);
   const tower = towers.find((entry) => entry.id === towerId);
   if (tower) {
     tower.totalDamageDealt = (tower.totalDamageDealt || 0) + amount;
   }
+}
+
+function addSkillUpgradeDamage(amount) {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return;
+  }
+  skillDamageTowardPoint += amount;
+  const earned = Math.floor(skillDamageTowardPoint / 50);
+  if (earned <= 0) {
+    return;
+  }
+  skillDamageTowardPoint -= earned * 50;
+  skillUpgradePoints += earned;
+  persistProgressionState();
+}
+
+function updateBaseDefense(deltaTime) {
+  if (!skillTreeNodeOwned("core_shooting")) {
+    baseDefenseCooldown = 0;
+    return;
+  }
+  baseDefenseCooldown = Math.max(0, baseDefenseCooldown - deltaTime);
+  if (baseDefenseCooldown > 0) {
+    return;
+  }
+  const goal = activeGoals()[0] || goalPortal();
+  const origin = cellCenter(goal.x, goal.y);
+  const target = enemies
+    .filter((enemy) => enemy.hp > 0)
+    .sort((a, b) => (b.progress || 0) - (a.progress || 0))[0];
+  if (!target) {
+    return;
+  }
+  projectiles.push({
+    id: nextProjectileId,
+    kind: "whiteBolt",
+    x: origin.x,
+    y: origin.y,
+    targetId: target.id,
+    angle: Math.atan2(target.y - origin.y, target.x - origin.x),
+    speed: 560,
+    homing: 1.25,
+    damage: skillTreeBaseDefenseDamage(),
+    ownerTowerId: null,
+    damageType: "bullet",
+    pierce: 0,
+    hitIds: []
+  });
+  nextProjectileId += 1;
+  baseDefenseCooldown = skillTreeBaseDefenseCooldown();
 }
 
 function handleDroneCommandClick(x, y, point = null) {
@@ -14188,6 +16199,9 @@ function updateHud() {
     moneyText.textContent = `Cash: ${money}`;
   }
   boardCashText.textContent = `Cash: ${money}`;
+  if (skillTokenText) {
+    skillTokenText.textContent = `${uiText("tokens")}: ${skillTokens} | ${uiText("upgradePts")}: ${skillUpgradePoints}`;
+  }
   freeBlockText.textContent = freeBlocks > 0 ? `Free blocks left: ${freeBlocks} | Block price after free: ${currentBlockCost}` : `Block price: ${currentBlockCost}`;
   livesText.textContent = `Base HP: ${Math.max(0, Math.ceil(lives))}`;
   waveText.textContent = `Wave: ${waveNumber}`;
@@ -14212,6 +16226,9 @@ function updateHud() {
     updateLogText.innerHTML = updateLogEntries
       .map((entry) => `<div>${entry.updateNo}.${entry.gameChanges}.${entry.bugFixes}</div>`)
       .join("");
+  }
+  if (skillTreeOverlay?.classList.contains("active")) {
+    renderSkillTree();
   }
   renderTutorial();
   renderWarningPanel();
@@ -14239,85 +16256,124 @@ function updateHud() {
 
 function updateAmbientEffects(deltaTime) {
   ambientTimer += deltaTime;
-
-  const spawnRate = selectedMap === "freezingmountains" ? 0.16
-    : activeMap.scenery === "canyon" ? 0.22
+  const spawnRate = activeMap.scenery === "shoals" ? 0.28
+    : activeMap.scenery === "furnace" ? 0.18
+    : activeMap.scenery === "graveyard" ? 0.34
+    : activeMap.scenery === "mango" ? 0.26
+    : activeMap.scenery === "factory" ? 0.3
+    : activeMap.scenery === "canyon" ? 0.28
     : activeMap.scenery === "ruins" ? 0.32
-    : activeMap.scenery === "mango" ? 0.2
-    : activeMap.scenery === "graveyard" ? 0.26
-    : activeMap.scenery === "furnace" ? 0.12
+    : activeMap.scenery === "meadow" ? 0.36
     : Infinity;
 
   while (ambientTimer >= spawnRate && spawnRate !== Infinity) {
     ambientTimer -= spawnRate;
+    const driftX = activeMap.scenery === "shoals" ? -8 + Math.random() * 16
+      : activeMap.scenery === "furnace" ? -6 + Math.random() * 12
+      : activeMap.scenery === "graveyard" ? -4 + Math.random() * 8
+      : activeMap.scenery === "mango" ? -6 + Math.random() * 12
+      : activeMap.scenery === "factory" ? -4 + Math.random() * 8
+      : activeMap.scenery === "canyon" ? 6 + Math.random() * 10
+      : activeMap.scenery === "ruins" ? -3 + Math.random() * 6
+      : -3 + Math.random() * 6;
+    const driftY = activeMap.scenery === "shoals" ? -12 + Math.random() * 10
+      : activeMap.scenery === "furnace" ? -(16 + Math.random() * 20)
+      : activeMap.scenery === "graveyard" ? -(8 + Math.random() * 14)
+      : activeMap.scenery === "mango" ? 2 + Math.random() * 8
+      : activeMap.scenery === "factory" ? -2 + Math.random() * 6
+      : activeMap.scenery === "canyon" ? -3 + Math.random() * 6
+      : activeMap.scenery === "ruins" ? -8 + Math.random() * 12
+      : -4 + Math.random() * 8;
 
-    if (activeMap.scenery === "canyon") {
+    const common = {
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: driftX,
+      vy: driftY,
+      ttl: 2 + Math.random() * 2.4,
+      size: 2 + Math.random() * 5,
+      alpha: 0.05 + Math.random() * 0.08
+    };
+
+    if (activeMap.scenery === "shoals") {
       ambientParticles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: 18 + Math.random() * 22,
-        vy: -4 + Math.random() * 8,
-        radius: 8 + Math.random() * 12,
-        ttl: 1.8 + Math.random() * 1.6,
-        color: `rgba(196, 153, 103, ${0.08 + Math.random() * 0.08})`
-      });
-    } else if (activeMap.scenery === "ruins") {
-      ambientParticles.push({
-        x: Math.random() * canvas.width,
-        y: canvas.height + 12,
-        vx: -6 + Math.random() * 12,
-        vy: -(20 + Math.random() * 18),
-        radius: 4 + Math.random() * 7,
-        ttl: 2.4 + Math.random() * 1.8,
-        color: selectedMap === "acidcaves"
-          ? `rgba(147, 255, 170, ${0.1 + Math.random() * 0.1})`
-          : `rgba(143, 205, 235, ${0.08 + Math.random() * 0.08})`
-      });
-    } else if (activeMap.scenery === "mango") {
-      ambientParticles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: 12 + Math.random() * 16,
-        vy: 6 + Math.random() * 12,
-        radius: 5 + Math.random() * 9,
-        ttl: 1.8 + Math.random() * 1.4,
-        color: Math.random() > 0.5
-          ? `rgba(255, 193, 77, ${0.08 + Math.random() * 0.08})`
-          : `rgba(255, 149, 64, ${0.08 + Math.random() * 0.08})`
-      });
-    } else if (activeMap.scenery === "graveyard") {
-      ambientParticles.push({
-        x: Math.random() * canvas.width,
-        y: canvas.height + 10,
-        vx: -4 + Math.random() * 8,
-        vy: -(10 + Math.random() * 12),
-        radius: 3 + Math.random() * 5,
-        ttl: 2 + Math.random() * 1.2,
-        color: `rgba(220, 235, 222, ${0.05 + Math.random() * 0.05})`
+        ...common,
+        y: canvas.height + 18,
+        vy: -(8 + Math.random() * 12),
+        size: 3 + Math.random() * 6,
+        color: Math.random() > 0.5 ? "rgba(210, 244, 255, 0.11)" : "rgba(128, 220, 255, 0.09)",
+        kind: "bubble"
       });
     } else if (activeMap.scenery === "furnace") {
       ambientParticles.push({
+        ...common,
         x: Math.random() * canvas.width,
-        y: canvas.height - 24 - Math.random() * 180,
-        vx: -8 + Math.random() * 16,
+        y: canvas.height - 30 - Math.random() * 140,
         vy: -(18 + Math.random() * 24),
-        radius: 3 + Math.random() * 5,
-        ttl: 1.1 + Math.random() * 1.2,
-        color: Math.random() > 0.4
-          ? `rgba(255, 168, 72, ${0.08 + Math.random() * 0.1})`
-          : `rgba(255, 97, 38, ${0.08 + Math.random() * 0.1})`
+        size: 2 + Math.random() * 4,
+        color: Math.random() > 0.5 ? "rgba(255, 173, 74, 0.12)" : "rgba(255, 92, 30, 0.12)",
+        kind: "ember"
       });
-    } else if (selectedMap === "freezingmountains") {
+    } else if (activeMap.scenery === "graveyard") {
       ambientParticles.push({
-        x: Math.random() * canvas.width,
+        ...common,
+        y: canvas.height + 16,
+        vy: -(7 + Math.random() * 10),
+        size: 3 + Math.random() * 7,
+        color: "rgba(220, 235, 222, 0.08)",
+        kind: "mist"
+      });
+    } else if (activeMap.scenery === "mango") {
+      ambientParticles.push({
+        ...common,
         y: -12,
-        vx: -10 + Math.random() * 20,
-        vy: 18 + Math.random() * 24,
-        radius: 3 + Math.random() * 5,
-        ttl: 3 + Math.random() * 1.6,
-        color: Math.random() > 0.45
-          ? `rgba(255, 255, 255, ${0.12 + Math.random() * 0.12})`
-          : `rgba(176, 225, 255, ${0.1 + Math.random() * 0.1})`
+        vy: 8 + Math.random() * 10,
+        size: 2 + Math.random() * 5,
+        color: Math.random() > 0.5 ? "rgba(255, 204, 88, 0.1)" : "rgba(255, 160, 72, 0.1)",
+        kind: "spark"
+      });
+    } else if (activeMap.scenery === "factory") {
+      const laneCount = 5;
+      const laneIndex = Math.floor(Math.random() * laneCount);
+      const laneY = canvas.height * (0.2 + laneIndex * 0.095);
+      const laneDirection = laneIndex % 2 === 0 ? 1 : -1;
+      ambientParticles.push({
+        ...common,
+        x: laneDirection > 0 ? -20 - Math.random() * 80 : canvas.width + 20 + Math.random() * 80,
+        y: laneY + (Math.random() - 0.5) * 4,
+        vx: laneDirection * (28 + Math.random() * 18),
+        vy: (Math.random() - 0.5) * 0.6,
+        size: 2 + Math.random() * 3,
+        color: Math.random() > 0.5 ? "rgba(208, 220, 232, 0.08)" : "rgba(255, 210, 110, 0.08)",
+        kind: "factory",
+        sortKey: laneY
+      });
+    } else if (activeMap.scenery === "canyon") {
+      ambientParticles.push({
+        ...common,
+        y: Math.random() * canvas.height,
+        vy: -2 + Math.random() * 5,
+        size: 3 + Math.random() * 5,
+        color: "rgba(210, 170, 110, 0.08)",
+        kind: "dust"
+      });
+    } else if (activeMap.scenery === "ruins") {
+      ambientParticles.push({
+        ...common,
+        y: Math.random() * canvas.height,
+        vy: -(8 + Math.random() * 10),
+        size: 2 + Math.random() * 4,
+        color: Math.random() > 0.5 ? "rgba(166, 223, 255, 0.08)" : "rgba(138, 255, 181, 0.08)",
+        kind: "dust"
+      });
+    } else if (activeMap.scenery === "meadow") {
+      ambientParticles.push({
+        ...common,
+        y: Math.random() * canvas.height,
+        vy: -1 + Math.random() * 4,
+        size: 2 + Math.random() * 4,
+        color: Math.random() > 0.5 ? "rgba(255, 255, 255, 0.08)" : "rgba(213, 255, 160, 0.08)",
+        kind: "pollen"
       });
     }
   }
@@ -14327,13 +16383,44 @@ function updateAmbientEffects(deltaTime) {
       ...particle,
       x: particle.x + particle.vx * deltaTime,
       y: particle.y + particle.vy * deltaTime,
-      ttl: particle.ttl - deltaTime
+      ttl: particle.ttl - deltaTime,
+      alpha: particle.alpha * Math.max(0, Math.min(1, particle.ttl / 4))
     }))
-    .filter((particle) => particle.ttl > 0 && particle.x > -40 && particle.x < canvas.width + 40 && particle.y > -40 && particle.y < canvas.height + 40);
+    .filter((particle) => particle.ttl > 0 && particle.x > -60 && particle.x < canvas.width + 60 && particle.y > -60 && particle.y < canvas.height + 60)
+    .slice(-42);
+}
+
+function drawAmbientEffects() {
+  if (!ambientParticles.length) {
+    return;
+  }
+
+  ctx.save();
+  const sortedParticles = ambientParticles.slice().sort((a, b) => (a.sortKey ?? a.y) - (b.sortKey ?? b.y));
+  for (const particle of sortedParticles) {
+    ctx.globalAlpha = particle.alpha;
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    if (particle.kind === "bubble") {
+      ctx.ellipse(particle.x, particle.y, particle.size * 0.9, particle.size * 1.35, 0, 0, Math.PI * 2);
+    } else if (particle.kind === "ember" || particle.kind === "spark") {
+      ctx.ellipse(particle.x, particle.y, particle.size * 0.8, particle.size * 0.55, 0, 0, Math.PI * 2);
+    } else if (particle.kind === "mist") {
+      ctx.ellipse(particle.x, particle.y, particle.size * 1.7, particle.size * 0.9, 0, 0, Math.PI * 2);
+    } else if (particle.kind === "factory") {
+      ctx.ellipse(particle.x, particle.y, particle.size * 1.05, particle.size * 0.68, 0, 0, Math.PI * 2);
+    } else {
+      ctx.ellipse(particle.x, particle.y, particle.size, particle.size * 0.72, 0, 0, Math.PI * 2);
+    }
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawGrid() {
   const perspective = boardPerspective();
+  const gridStroke = darkModeEnabled ? "rgba(220, 236, 255, 0.22)" : "rgba(217, 196, 164, 0.64)";
+  const gridEdge = darkModeEnabled ? "rgba(255, 255, 255, 0.16)" : "rgba(255, 248, 240, 0.08)";
   const drawProjectedGrid = (offsetX, offsetY, strokeStyle, edgeStyle) => {
     ctx.save();
     ctx.strokeStyle = strokeStyle;
@@ -14358,7 +16445,7 @@ function drawGrid() {
     ctx.restore();
   };
 
-  drawProjectedGrid(0, 0, "rgba(217, 196, 164, 0.64)", "rgba(255, 248, 240, 0.08)");
+  drawProjectedGrid(0, 0, gridStroke, gridEdge);
 
   if (activeMap.scenery === "factory" && factoryState) {
     const hole = factoryQuarterBounds(factoryState.holeIndex);
@@ -14378,478 +16465,224 @@ function drawGrid() {
 }
 
 function drawMapScenery() {
-  if (activeMap.scenery === "canyon") {
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, "#efd0a5");
-    gradient.addColorStop(0.55, "#d2a06b");
-    gradient.addColorStop(1, "#b67d4f");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  } else if (activeMap.scenery === "fortification") {
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    if (selectedMap === "dippycastle") {
-      gradient.addColorStop(0, "#f5e8bf");
-      gradient.addColorStop(0.5, "#e7d3a4");
-      gradient.addColorStop(1, "#cfa97a");
-    } else {
-      gradient.addColorStop(0, "#d5dbdf");
-      gradient.addColorStop(0.5, "#bcc5cc");
-      gradient.addColorStop(1, "#98a6b3");
-    }
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  } else if (activeMap.scenery === "ruins") {
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    if (selectedMap === "acidcaves") {
-      gradient.addColorStop(0, "#04110d");
-      gradient.addColorStop(0.45, "#09231d");
-      gradient.addColorStop(1, "#020a08");
-    } else {
-      gradient.addColorStop(0, "#0b3154");
-      gradient.addColorStop(0.5, "#12507c");
-      gradient.addColorStop(1, "#0b2942");
-    }
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  } else if (activeMap.scenery === "shoals") {
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "#7fd5f1");
-    gradient.addColorStop(0.45, "#4da7d2");
-    gradient.addColorStop(1, "#2a6f95");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  } else if (activeMap.scenery === "cliffs") {
-    const leftGradient = ctx.createLinearGradient(0, 0, canvas.width / 2, 0);
-    if (selectedMap === "freezingmountains") {
-      leftGradient.addColorStop(0, "#f7fbff");
-      leftGradient.addColorStop(1, "#d8e6f4");
-    } else {
-      leftGradient.addColorStop(0, "#5c4b39");
-      leftGradient.addColorStop(1, "#7a644e");
-    }
-    ctx.fillStyle = leftGradient;
-    ctx.fillRect(0, 0, canvas.width / 2, canvas.height);
-    const rightGradient = ctx.createLinearGradient(canvas.width / 2, 0, canvas.width, 0);
-    if (selectedMap === "freezingmountains") {
-      rightGradient.addColorStop(0, "#edf6ff");
-      rightGradient.addColorStop(1, "#cfe0f4");
-    } else {
-      rightGradient.addColorStop(0, "#b9aa86");
-      rightGradient.addColorStop(1, "#d5c7a0");
-    }
-    ctx.fillStyle = rightGradient;
-    ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+  const darkTheme = darkModeEnabled;
+  if (activeMap.scenery === "shoals") {
+    ctx.fillStyle = darkTheme ? "#123247" : "#8cd8fb";
   } else if (activeMap.scenery === "mango") {
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, "#fff0a8");
-    gradient.addColorStop(0.5, "#f9cf64");
-    gradient.addColorStop(1, "#ebb24f");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  } else if (activeMap.scenery === "factory") {
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, "#8d949c");
-    gradient.addColorStop(0.5, "#6f7782");
-    gradient.addColorStop(1, "#555d66");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = darkTheme ? "#6a5710" : "#f4d45a";
   } else if (activeMap.scenery === "furnace") {
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "#120d0a");
-    gradient.addColorStop(0.55, "#261914");
-    gradient.addColorStop(1, "#0b0908");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = darkTheme ? "#080607" : "#1f1310";
+  } else if (activeMap.scenery === "ruins") {
+    ctx.fillStyle = selectedMap === "acidcaves"
+      ? (darkTheme ? "#0b2313" : "#33663a")
+      : (darkTheme ? "#06131c" : "#5f87aa");
+  } else if (activeMap.scenery === "canyon") {
+    ctx.fillStyle = darkTheme ? "#302113" : "#cfa06a";
   } else if (activeMap.scenery === "graveyard") {
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "#2f3b33");
-    gradient.addColorStop(0.5, "#1f2923");
-    gradient.addColorStop(1, "#131917");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = darkTheme ? "#121816" : "#26312c";
+  } else if (activeMap.scenery === "cliffs") {
+    ctx.fillStyle = selectedMap === "freezingmountains"
+      ? (darkTheme ? "#dcefff" : "#eef8ff")
+      : (darkTheme ? "#221b16" : "#9d7a55");
+  } else if (activeMap.scenery === "fortification") {
+    ctx.fillStyle = darkTheme ? "#2a313a" : "#d7dce1";
   } else if (activeMap.scenery === "meadow") {
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, "#fffefd");
-    gradient.addColorStop(0.55, "#fcfbf7");
-    gradient.addColorStop(1, "#f4f2eb");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = darkTheme ? "#2b251e" : "#efe1c8";
+  } else if (activeMap.scenery === "factory") {
+    ctx.fillStyle = darkTheme ? "#3f4650" : "#9ca3ab";
   } else {
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, "#d9efd2");
-    gradient.addColorStop(1, "#bdd8b7");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = darkTheme ? "#101418" : "#d8d1c4";
+  }
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawBackdropDetails();
+}
+
+function backdropNoise(x, y, salt = 0) {
+  const value = Math.sin((x + 1) * 12.9898 + (y + 1) * 78.233 + salt * 37.719 + dashOffset * 0.12) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function drawFactoryGear(cx, cy, radius, teeth, color, alpha, rotation) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(1, radius * 0.12);
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 0.72, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 0.28, 0, Math.PI * 2);
+  ctx.stroke();
+  for (let index = 0; index < teeth; index += 1) {
+    const angle = (Math.PI * 2 * index) / teeth;
+    const inner = radius * 0.58;
+    const outer = radius * 0.86;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+    ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCliffPlateauBlocks() {
+  if (!isCliffsMap()) {
+    return;
   }
 
-  if (activeMap.scenery === "canyon") {
-    ctx.fillStyle = "rgba(150, 102, 57, 0.12)";
-    for (let band = 0; band < 5; band += 1) {
-      ctx.fillRect(0, band * 118 + 18, canvas.width, 18);
+  const baseColor = darkModeEnabled ? "#8a6a49" : "#c8a77a";
+  const topColor = darkModeEnabled ? "#b69262" : "#dfc096";
+  for (let y = 0; y < ROWS; y += 1) {
+    for (let x = 0; x < COLS; x += 1) {
+      const cell = { x, y };
+      if (noBuildAt(x, y) || cliffSideForCell(cell) !== "right") {
+        continue;
+      }
+      drawStackedObstacleCell(cell, baseColor, topColor, blockStackLayers());
     }
-  } else if (activeMap.scenery === "fortification") {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.16)";
-    for (let x = 0; x < canvas.width; x += 72) {
-      for (let y = 0; y < canvas.height; y += 72) {
-        ctx.fillRect(x + 6, y + 6, 24, 24);
-      }
+  }
+}
+
+function drawBackdropDetails() {
+  const phase = activeMap.scenery === "fortification" ? 0 : Math.floor(dashOffset * 0.18);
+  if (activeMap.scenery === "furnace") {
+    ctx.save();
+    ctx.globalAlpha = 0.42;
+    for (let i = 0; i < 12; i += 1) {
+      const x = (backdropNoise(i, phase, 1) * canvas.width);
+      const y = canvas.height * 0.32 + backdropNoise(phase, i, 2) * canvas.height * 0.58;
+      const width = 8 + backdropNoise(i, phase, 3) * 18;
+      ctx.fillStyle = backdropNoise(i, phase, 4) > 0.55 ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 142, 51, 0.08)";
+      ctx.fillRect(x, y, width, 2 + backdropNoise(i, phase, 5) * 3);
     }
-    if (selectedMap === "fortification") {
-      const centerY = Math.floor(ROWS / 2);
-      ctx.fillStyle = "rgba(35, 47, 58, 0.18)";
-      ctx.fillRect(0, (centerY - 5) * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 2);
-      ctx.fillRect(0, (centerY + 3) * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 2);
-      ctx.fillStyle = "rgba(233, 240, 246, 0.12)";
-      ctx.fillRect(0, (centerY - 1) * CELL_SIZE, COLS * CELL_SIZE, CELL_SIZE * 3);
-    } else if (selectedMap === "dippycastle") {
-      const eggSets = [
-        { x: canvas.width * 0.18, y: canvas.height * 0.28, rx: 42, ry: 58, color: "rgba(255, 248, 221, 0.3)" },
-        { x: canvas.width * 0.26, y: canvas.height * 0.72, rx: 34, ry: 48, color: "rgba(255, 233, 179, 0.24)" },
-        { x: canvas.width * 0.72, y: canvas.height * 0.22, rx: 30, ry: 42, color: "rgba(255, 241, 196, 0.22)" },
-        { x: canvas.width * 0.84, y: canvas.height * 0.64, rx: 44, ry: 60, color: "rgba(255, 228, 168, 0.26)" }
-      ];
-      ctx.fillStyle = "rgba(255, 205, 88, 0.08)";
-      for (let x = 0; x < canvas.width; x += 96) {
-        ctx.fillRect(x, 0, 24, canvas.height);
-      }
-      ctx.fillStyle = "rgba(105, 92, 82, 0.42)";
-      for (const cell of activeMap.noBuildCells || []) {
-        ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      }
-      for (const egg of eggSets) {
-        ctx.fillStyle = egg.color;
-        ctx.beginPath();
-        ctx.ellipse(egg.x, egg.y, egg.rx, egg.ry, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "rgba(189, 133, 61, 0.24)";
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.fillStyle = "rgba(255, 194, 86, 0.12)";
-        ctx.beginPath();
-        ctx.arc(egg.x + egg.rx * 0.12, egg.y + egg.ry * 0.08, Math.max(8, egg.rx * 0.18), 0, Math.PI * 2);
-        ctx.fill();
-      }
+    for (let i = 0; i < 8; i += 1) {
+      const x = backdropNoise(i, phase, 6) * canvas.width;
+      const y = backdropNoise(phase, i, 7) * canvas.height;
+      ctx.fillStyle = "rgba(255, 180, 104, 0.09)";
+      ctx.beginPath();
+      ctx.ellipse(x, y, 2 + backdropNoise(i, phase, 8) * 4, 1.5 + backdropNoise(i, phase, 9) * 3, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
-  } else if (activeMap.scenery === "ruins") {
-    if (selectedMap === "acidcaves") {
-      ctx.fillStyle = "rgba(100, 255, 160, 0.08)";
-      for (const cell of activeMap.noBuildCells || []) {
-        ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      }
-      for (let stream = 0; stream < 4; stream += 1) {
-        const y = 42 + stream * 126;
-        ctx.strokeStyle = "rgba(110, 255, 170, 0.16)";
-        ctx.lineWidth = 10;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.bezierCurveTo(canvas.width * 0.18, y - 16, canvas.width * 0.38, y + 22, canvas.width * 0.58, y - 10);
-        ctx.bezierCurveTo(canvas.width * 0.76, y - 34, canvas.width * 0.88, y + 18, canvas.width, y - 4);
-        ctx.stroke();
-      }
-      const crystalSets = [
-        { x: canvas.width * 0.16, y: canvas.height * 0.22, scale: 0.9 },
-        { x: canvas.width * 0.34, y: canvas.height * 0.72, scale: 1.2 },
-        { x: canvas.width * 0.63, y: canvas.height * 0.3, scale: 1.05 },
-        { x: canvas.width * 0.82, y: canvas.height * 0.62, scale: 1.35 }
-      ];
-      for (const crystal of crystalSets) {
-        ctx.save();
-        ctx.translate(crystal.x, crystal.y);
-        ctx.scale(crystal.scale, crystal.scale);
-        ctx.fillStyle = "rgba(137, 255, 179, 0.22)";
-        ctx.strokeStyle = "rgba(191, 255, 213, 0.42)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, -34);
-        ctx.lineTo(16, -8);
-        ctx.lineTo(8, 26);
-        ctx.lineTo(-10, 34);
-        ctx.lineTo(-18, -4);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
-      }
-    } else {
-      ctx.fillStyle = "rgba(160, 222, 245, 0.09)";
-      for (let band = 0; band < 4; band += 1) {
-        ctx.fillRect(0, band * 132 + 28, canvas.width, 14);
-      }
-    }
+    ctx.restore();
   } else if (activeMap.scenery === "shoals") {
-    ctx.fillStyle = "rgba(222, 247, 255, 0.12)";
-    for (let band = 0; band < 5; band += 1) {
-      ctx.fillRect(0, band * 108 + 22, canvas.width, 10);
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    for (let i = 0; i < 7; i += 1) {
+      const x = backdropNoise(i, phase, 10) * canvas.width;
+      const y = backdropNoise(phase, i, 11) * canvas.height;
+      const ripple = 20 + backdropNoise(i, phase, 12) * 42;
+      const stretch = 0.34 + backdropNoise(phase, i, 13) * 0.18;
+      ctx.strokeStyle = backdropNoise(i, phase, 14) > 0.5 ? "rgba(255, 255, 255, 0.12)" : "rgba(158, 236, 255, 0.1)";
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.ellipse(x, y, ripple, ripple * stretch, -0.25 + backdropNoise(i, phase, 15) * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
     }
-  } else if (activeMap.scenery === "cliffs") {
-    if (selectedMap === "freezingmountains") {
-      ctx.fillStyle = "rgba(176, 214, 244, 0.18)";
-      const icePatches = [
-        { x: canvas.width * 0.18, y: canvas.height * 0.26, w: 120, h: 54 },
-        { x: canvas.width * 0.32, y: canvas.height * 0.72, w: 150, h: 62 },
-        { x: canvas.width * 0.68, y: canvas.height * 0.22, w: 130, h: 56 },
-        { x: canvas.width * 0.8, y: canvas.height * 0.66, w: 160, h: 68 }
-      ];
-      for (const patch of icePatches) {
-        ctx.beginPath();
-        ctx.ellipse(patch.x, patch.y, patch.w / 2, patch.h / 2, -0.2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.strokeStyle = "rgba(130, 190, 240, 0.22)";
-      ctx.lineWidth = 5;
-      for (let y = 28; y < canvas.height; y += 92) {
-        ctx.beginPath();
-        ctx.moveTo(canvas.width * 0.06, y);
-        ctx.lineTo(canvas.width * 0.24, y + 12);
-        ctx.lineTo(canvas.width * 0.42, y - 6);
-        ctx.lineTo(canvas.width * 0.61, y + 10);
-        ctx.lineTo(canvas.width * 0.82, y - 8);
-        ctx.stroke();
-      }
-    } else {
-      ctx.fillStyle = "rgba(63, 48, 35, 0.55)";
-      for (const cell of activeMap.noBuildCells || []) {
-        ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      }
-      ctx.fillStyle = "rgba(255, 245, 214, 0.08)";
-      for (let y = 0; y < canvas.height; y += 72) {
-        ctx.fillRect(canvas.width * 0.58, y, canvas.width * 0.34, 20);
-      }
-      ctx.fillStyle = "rgba(30, 24, 20, 0.12)";
-      ctx.fillRect(0, 0, canvas.width * 0.48, canvas.height);
-    }
-  } else if (activeMap.scenery === "mango") {
-    ctx.fillStyle = "rgba(255, 240, 167, 0.22)";
-    ctx.beginPath();
-    ctx.arc(canvas.width * 0.83, canvas.height * 0.22, 68, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "rgba(138, 93, 9, 0.34)";
-    for (const cell of activeMap.noBuildCells || []) {
-      ctx.fillRect(cell.x * CELL_SIZE, cell.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-    }
+    ctx.restore();
   } else if (activeMap.scenery === "factory") {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-    for (let x = 0; x < canvas.width; x += CELL_SIZE) {
-      ctx.fillRect(x + 2, 0, 2, canvas.height);
+    ctx.save();
+    const beltLight = darkModeEnabled ? "rgba(236, 243, 252, 0.1)" : "rgba(242, 246, 252, 0.18)";
+    const beltNormal = darkModeEnabled ? "rgba(173, 182, 194, 0.09)" : "rgba(194, 203, 212, 0.16)";
+    const beltDark = darkModeEnabled ? "rgba(60, 68, 79, 0.12)" : "rgba(99, 108, 120, 0.12)";
+    for (let row = 0; row < ROWS; row += 1) {
+      for (let x = 0; x < COLS; x += 1) {
+        if ((row + phase) % 2 !== 0) {
+          continue;
+        }
+        const quad = shrinkProjectedQuad(projectShiftedCellQuad(x, row, 0, 0), 0.06);
+        const cycle = ((x - phase) % 3 + 3) % 3;
+        ctx.fillStyle = cycle === 0 ? beltLight : cycle === 1 ? beltNormal : beltDark;
+        fillProjectedQuad(quad, ctx.fillStyle);
+      }
     }
-    ctx.fillStyle = "rgba(35, 40, 46, 0.18)";
-    for (let x = 0; x < canvas.width; x += CELL_SIZE * 5) {
-      ctx.fillRect(x, 0, CELL_SIZE * 2, canvas.height);
+    ctx.restore();
+  } else if (activeMap.scenery === "fortification") {
+    ctx.save();
+    const lighter = darkModeEnabled ? "rgba(255, 243, 220, 0.12)" : "rgba(255, 241, 205, 0.18)";
+    const normal = darkModeEnabled ? "rgba(209, 177, 139, 0.1)" : "rgba(224, 198, 160, 0.15)";
+    const darker = darkModeEnabled ? "rgba(79, 57, 34, 0.14)" : "rgba(132, 98, 64, 0.12)";
+    for (let row = 0; row < ROWS; row += 1) {
+      if (row % 2 !== 0) {
+        continue;
+      }
+      for (let x = 0; x < COLS; x += 1) {
+        if ((x + phase) % 2 !== 0) {
+          continue;
+        }
+        const quad = shrinkProjectedQuad(projectShiftedCellQuad(x, row, 0, 0), 0.06);
+        const cycle = (x + phase) % 3;
+        ctx.fillStyle = cycle === 0 ? lighter : cycle === 1 ? normal : darker;
+        fillProjectedQuad(quad, ctx.fillStyle);
+      }
     }
-    ctx.fillStyle = "rgba(20, 25, 30, 0.32)";
-    for (let quarter = 0; quarter < 4; quarter += 1) {
-      const bounds = factoryQuarterBounds(quarter);
-      ctx.fillRect(
-        bounds.x * CELL_SIZE + 8,
-        bounds.y * CELL_SIZE + 8,
-        bounds.width * CELL_SIZE - 16,
-        bounds.height * CELL_SIZE - 16
+    ctx.restore();
+  } else if (activeMap.scenery === "furnace") {
+    ctx.save();
+    for (let i = 0; i < 4; i += 1) {
+      const gearX = canvas.width * (0.2 + i * 0.18);
+      const gearY = canvas.height * (0.68 + (i % 2) * 0.08);
+      drawFactoryGear(
+        gearX + Math.sin((dashOffset + i * 11) * 0.02) * 5,
+        gearY + Math.cos((dashOffset + i * 9) * 0.02) * 3,
+        18 + i * 4,
+        8 + (i % 3),
+        darkModeEnabled ? "rgba(255, 180, 110, 0.08)" : "rgba(180, 94, 34, 0.12)",
+        0.22,
+        dashOffset * 0.012 * (i % 2 === 0 ? 1 : -1)
       );
     }
-    const gearSets = [
-      { x: canvas.width * 0.23, y: canvas.height * 0.28, radius: 28, teeth: 10, rotation: dashOffset * 0.06 },
-      { x: canvas.width * 0.31, y: canvas.height * 0.38, radius: 16, teeth: 8, rotation: -dashOffset * 0.09 },
-      { x: canvas.width * 0.72, y: canvas.height * 0.3, radius: 24, teeth: 9, rotation: -dashOffset * 0.05 },
-      { x: canvas.width * 0.64, y: canvas.height * 0.68, radius: 34, teeth: 12, rotation: dashOffset * 0.04 }
-    ];
-    for (const gear of gearSets) {
-      ctx.save();
-      ctx.translate(gear.x, gear.y);
-      ctx.rotate(gear.rotation);
-      ctx.strokeStyle = "rgba(210, 218, 228, 0.16)";
-      ctx.fillStyle = "rgba(38, 44, 52, 0.22)";
-      ctx.lineWidth = 5;
-      for (let tooth = 0; tooth < gear.teeth; tooth += 1) {
-        ctx.save();
-        ctx.rotate((Math.PI * 2 * tooth) / gear.teeth);
-        ctx.fillRect(gear.radius - 2, -3, 10, 6);
-        ctx.restore();
-      }
-      ctx.beginPath();
-      ctx.arc(0, 0, gear.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(0, 0, gear.radius * 0.34, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
-  } else if (activeMap.scenery === "furnace") {
-    ctx.fillStyle = "rgba(67, 51, 34, 0.34)";
-    for (let index = 0; index < 64; index += 1) {
-      const x = (index * 47) % canvas.width;
-      const y = (index * 91) % canvas.height;
-      ctx.beginPath();
-      ctx.arc(x, y, 5 + (index % 4), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    for (const grate of activeMap.lavaGrates || []) {
-      const left = grate.x * CELL_SIZE;
-      const top = grate.y * CELL_SIZE;
-      const width = grate.width * CELL_SIZE;
-      const height = grate.height * CELL_SIZE;
-      const inset = Math.max(3, Math.round(CELL_SIZE * 0.14));
-      const glowInset = inset + 1;
-      ctx.save();
-      ctx.shadowColor = "rgba(255, 132, 42, 0.76)";
-      ctx.shadowBlur = 20;
-      ctx.fillStyle = "#f07a24";
-      ctx.fillRect(left + glowInset, top + glowInset, width - glowInset * 2, height - glowInset * 2);
-      ctx.restore();
-      ctx.strokeStyle = "rgba(58, 39, 26, 0.92)";
-      ctx.lineWidth = 4;
-      ctx.strokeRect(left + inset, top + inset, width - inset * 2, height - inset * 2);
-      ctx.fillStyle = "rgba(255, 224, 138, 0.32)";
-      for (let bubble = 0; bubble < 4; bubble += 1) {
-        const bx = left + width * (bubble % 2 === 0 ? 0.38 : 0.62);
-        const by = top + height * (bubble < 2 ? 0.38 : 0.62);
-        ctx.beginPath();
-        ctx.arc(bx, by, 2 + (bubble % 2), 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    const furnaceCoreCells = activeMap.furnaceCore || [];
-    if (furnaceCoreCells.length) {
-      const coreXs = furnaceCoreCells.map((cell) => cell.x);
-      const coreYs = furnaceCoreCells.map((cell) => cell.y);
-      const coreBounds = {
-        left: Math.min(...coreXs) * CELL_SIZE + 2,
-        top: Math.min(...coreYs) * CELL_SIZE + 2,
-        width: (Math.max(...coreXs) - Math.min(...coreXs) + 1) * CELL_SIZE - 4,
-        height: (Math.max(...coreYs) - Math.min(...coreYs) + 1) * CELL_SIZE - 4
-      };
-      ctx.save();
-      ctx.shadowColor = "rgba(255, 126, 48, 0.74)";
-      ctx.shadowBlur = 24;
-      ctx.fillStyle = "#f07a24";
-      ctx.fillRect(coreBounds.left, coreBounds.top, coreBounds.width, coreBounds.height);
-      ctx.restore();
-      for (const cell of furnaceCoreCells) {
-        ctx.fillStyle = "rgba(255, 210, 134, 0.2)";
-        ctx.beginPath();
-        ctx.arc(cell.x * CELL_SIZE + CELL_SIZE * 0.5, cell.y * CELL_SIZE + CELL_SIZE * 0.5, 4.2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.strokeStyle = "rgba(36, 29, 23, 0.86)";
-      ctx.lineWidth = 3;
-      for (const cell of furnaceCoreCells) {
-        const cellInset = Math.max(3, Math.round(CELL_SIZE * 0.14));
-        ctx.strokeRect(cell.x * CELL_SIZE + cellInset, cell.y * CELL_SIZE + cellInset, CELL_SIZE - cellInset * 2, CELL_SIZE - cellInset * 2);
-      }
-      ctx.strokeStyle = "rgba(255, 205, 124, 0.42)";
-      ctx.lineWidth = 3;
-      for (let x = coreBounds.left + 5; x < coreBounds.left + coreBounds.width; x += 10) {
-        ctx.beginPath();
-        ctx.moveTo(x, coreBounds.top + 2);
-        ctx.lineTo(x, coreBounds.top + coreBounds.height - 2);
-        ctx.stroke();
-      }
-      for (let y = coreBounds.top + 5; y < coreBounds.top + coreBounds.height; y += 10) {
-        ctx.beginPath();
-        ctx.moveTo(coreBounds.left + 2, y);
-        ctx.lineTo(coreBounds.left + coreBounds.width - 2, y);
-        ctx.stroke();
-      }
-      const centerX = coreBounds.left + coreBounds.width / 2;
-      const centerY = coreBounds.top + coreBounds.height / 2;
-      ctx.strokeStyle = "rgba(255, 142, 52, 0.22)";
-      ctx.lineWidth = 3;
-      ctx.setLineDash([10, 8]);
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, CELL_SIZE * ((activeMap.heatRadius || 2) + 1.25), 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-    ctx.strokeStyle = "rgba(81, 89, 97, 0.6)";
-    ctx.lineWidth = 8;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(canvas.width * 0.06, canvas.height * 0.2);
-    ctx.lineTo(canvas.width * 0.24, canvas.height * 0.2);
-    ctx.lineTo(canvas.width * 0.24, canvas.height * 0.34);
-    ctx.lineTo(canvas.width * 0.44, canvas.height * 0.34);
-    ctx.moveTo(canvas.width * 0.72, canvas.height * 0.14);
-    ctx.lineTo(canvas.width * 0.72, canvas.height * 0.3);
-    ctx.lineTo(canvas.width * 0.9, canvas.height * 0.3);
-    ctx.moveTo(canvas.width * 0.62, canvas.height * 0.78);
-    ctx.lineTo(canvas.width * 0.82, canvas.height * 0.78);
-    ctx.lineTo(canvas.width * 0.82, canvas.height * 0.92);
-    ctx.stroke();
-    const furnaceGearSets = [
-      { x: canvas.width * 0.16, y: canvas.height * 0.78, radius: 20, teeth: 9, rotation: dashOffset * 0.05 },
-      { x: canvas.width * 0.26, y: canvas.height * 0.83, radius: 12, teeth: 7, rotation: -dashOffset * 0.08 },
-      { x: canvas.width * 0.86, y: canvas.height * 0.18, radius: 16, teeth: 8, rotation: dashOffset * 0.06 }
-    ];
-    for (const gear of furnaceGearSets) {
-      ctx.save();
-      ctx.translate(gear.x, gear.y);
-      ctx.rotate(gear.rotation);
-      ctx.strokeStyle = "rgba(153, 162, 170, 0.34)";
-      ctx.fillStyle = "rgba(45, 49, 54, 0.28)";
-      ctx.lineWidth = 4;
-      for (let tooth = 0; tooth < gear.teeth; tooth += 1) {
-        ctx.save();
-        ctx.rotate((Math.PI * 2 * tooth) / gear.teeth);
-        ctx.fillRect(gear.radius - 1, -2.5, 8, 5);
-        ctx.restore();
-      }
-      ctx.beginPath();
-      ctx.arc(0, 0, gear.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(0, 0, gear.radius * 0.34, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
-    const coreGradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 24, canvas.width / 2, canvas.height / 2, 160);
-    coreGradient.addColorStop(0, "rgba(255, 214, 86, 0.42)");
-    coreGradient.addColorStop(0.45, "rgba(255, 122, 45, 0.18)");
-    coreGradient.addColorStop(1, "rgba(255, 98, 31, 0)");
-    ctx.fillStyle = coreGradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
   } else if (activeMap.scenery === "graveyard") {
-    ctx.fillStyle = "rgba(196, 214, 197, 0.06)";
-    for (let x = 18; x < canvas.width; x += 86) {
-      ctx.fillRect(x, 20, 8, canvas.height - 40);
-    }
-    const zone = mapBuildZone();
-    if (zone) {
-      ctx.fillStyle = "rgba(173, 211, 181, 0.12)";
-      ctx.fillRect(zone.x * CELL_SIZE, zone.y * CELL_SIZE, zone.width * CELL_SIZE, zone.height * CELL_SIZE);
-      ctx.strokeStyle = "rgba(205, 235, 210, 0.35)";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(zone.x * CELL_SIZE, zone.y * CELL_SIZE, zone.width * CELL_SIZE, zone.height * CELL_SIZE);
-    }
-  }
-
-  for (const particle of ambientParticles) {
-    ctx.fillStyle = particle.color;
-    ctx.beginPath();
-    ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  if (!activeMap.hidePortals) {
-    for (const portal of activePortals()) {
-      const center = projectCellCenterPoint(portal.x, portal.y);
-      const flatY = 0.66;
-      ctx.fillStyle = "rgba(45, 108, 223, 0.18)";
+    ctx.save();
+    ctx.globalAlpha = 0.26;
+    for (let i = 0; i < 10; i += 1) {
+      const x = backdropNoise(i, phase, 16) * canvas.width;
+      const y = backdropNoise(phase, i, 17) * canvas.height;
+      ctx.fillStyle = backdropNoise(i, phase, 18) > 0.6 ? "rgba(220, 235, 222, 0.08)" : "rgba(102, 122, 108, 0.08)";
       ctx.beginPath();
-      ctx.ellipse(center.x, center.y, 16 * center.scale, 16 * center.scale * flatY, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y, 14 + backdropNoise(i, phase, 19) * 18, 4 + backdropNoise(i, phase, 20) * 8, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "#2d6cdf";
-      ctx.lineWidth = 3 * center.scale;
-      ctx.beginPath();
-      ctx.ellipse(center.x, center.y, 16 * center.scale, 16 * center.scale * flatY, 0, 0, Math.PI * 2);
-      ctx.stroke();
     }
+    ctx.restore();
+  }
+}
+
+function drawMapEndpoints() {
+  if (activeMap.hidePortals) {
+    for (const goal of activeGoals()) {
+      drawEndpoint(goal, "#cc3f5c", { ghostIfBlocked: true });
+    }
+    return;
   }
 
+  for (const portal of activePortals()) {
+    drawEndpoint(portal, "#8b4dff", { ghostIfBlocked: false });
+  }
+  for (const goal of activeGoals()) {
+    drawEndpoint(goal, "#cc3f5c", { ghostIfBlocked: true });
+  }
+}
+
+function drawStackedObstacleCell(obstacle, baseColor, topColor = null, layerCount = obstacleStackLayers()) {
+  const fillBase = baseColor || "#6a7179";
+  const fillTop = topColor || adjustColorLightness(fillBase, 0.05);
+  for (let layer = 0; layer < layerCount; layer += 1) {
+    const quad = projectLayerQuad(obstacle.x, obstacle.y, layer);
+    const tint = layer === layerCount - 1 ? fillTop : fillBase;
+    fillProjectedQuad(quad, tint);
+  }
+}
+
+function drawMapObstacles() {
   for (const obstacle of activeMap.obstacles) {
     const render = projectCellCenterPoint(obstacle.x, obstacle.y);
     const quad = projectCellQuad(obstacle.x, obstacle.y);
     const inner = shrinkProjectedQuad(quad, 0.1);
+    if (activeMap.scenery === "cliffs") {
+      continue;
+    }
     if (activeMap.scenery === "furnace") {
       const isCore = activeMap.furnaceCore?.some((cell) => cell.x === obstacle.x && cell.y === obstacle.y);
       const isPit = (activeMap.lavaGrates || []).some((cell) => obstacle.x >= cell.x && obstacle.x < cell.x + cell.width && obstacle.y >= cell.y && obstacle.y < cell.y + cell.height);
@@ -14891,32 +16724,40 @@ function drawMapScenery() {
       ctx.fillStyle = "rgba(126, 255, 171, 0.16)";
       ctx.fill();
     } else if (selectedMap === "freezingmountains") {
-      fillProjectedQuad(inner, "#eef7ff");
-      ctx.strokeStyle = "rgba(129, 190, 240, 0.5)";
-      ctx.lineWidth = 2 * render.scale;
-      ctx.beginPath();
-      ctx.moveTo(quad.topLeft.x + (quad.topRight.x - quad.topLeft.x) * 0.12, quad.topLeft.y + (quad.bottomLeft.y - quad.topLeft.y) * 0.32);
-      ctx.lineTo(quad.topLeft.x + (quad.topRight.x - quad.topLeft.x) * 0.42, quad.topLeft.y + (quad.bottomLeft.y - quad.topLeft.y) * 0.06);
-      ctx.lineTo(quad.topRight.x - (quad.topRight.x - quad.topLeft.x) * 0.08, quad.topRight.y + (quad.bottomRight.y - quad.topRight.y) * 0.25);
-      ctx.lineTo(quad.bottomRight.x - (quad.bottomRight.x - quad.bottomLeft.x) * 0.26, quad.bottomRight.y - (quad.bottomRight.y - quad.topRight.y) * 0.08);
-      ctx.lineTo(quad.bottomLeft.x + (quad.bottomRight.x - quad.bottomLeft.x) * 0.22, quad.bottomLeft.y - (quad.bottomLeft.y - quad.topLeft.y) * 0.06);
-      ctx.closePath();
-      ctx.stroke();
-      ctx.fillStyle = "rgba(196, 233, 255, 0.28)";
-      ctx.fill();
+      const snowColor = "#9ed0ea";
+      drawStackedObstacleCell(obstacle, snowColor, "#cbe7f7", obstacleStackLayers());
     } else if (activeMap.scenery === "ruins" || activeMap.scenery === "shoals") {
-      fillProjectedQuad(quad, activeMap.scenery === "shoals" ? "#7e6843" : "#4d5047");
-      ctx.strokeStyle = activeMap.scenery === "shoals" ? "rgba(220, 197, 138, 0.82)" : "rgba(178, 186, 166, 0.62)";
-      ctx.lineWidth = 3 * render.scale;
-      ctx.beginPath();
-      ctx.moveTo(quad.topLeft.x, quad.topLeft.y);
-      ctx.lineTo(quad.topRight.x, quad.topRight.y);
-      ctx.lineTo(quad.bottomRight.x, quad.bottomRight.y);
-      ctx.lineTo(quad.bottomLeft.x, quad.bottomLeft.y);
-      ctx.closePath();
-      ctx.stroke();
+      const obstacleColor = selectedMap === "acidcaves"
+        ? (darkModeEnabled ? "#123621" : "#2c6a3b")
+        : activeMap.scenery === "shoals"
+          ? (darkModeEnabled ? "#7a7070" : "#8b8073")
+          : (darkModeEnabled ? "#60666d" : "#70777f");
+      drawStackedObstacleCell(obstacle, obstacleColor, adjustColorLightness(obstacleColor, 0.06));
+    } else if (selectedMap === "acidcaves") {
+      drawStackedObstacleCell(
+        obstacle,
+        darkModeEnabled ? "#123621" : "#2c6a3b",
+        darkModeEnabled ? "#1b4a2d" : "#3e7a49"
+      );
+    } else if (activeMap.scenery === "cliffs") {
+      const side = cliffSideForCell(obstacle);
+      const layerCount = side === "right" ? obstacleStackLayers() + 4 : obstacleStackLayers();
+      const baseColor = side === "right"
+        ? (darkModeEnabled ? "#8d6b49" : "#b7926a")
+        : (darkModeEnabled ? "#6e5338" : "#9d7a55");
+      const topColor = side === "right"
+        ? adjustColorLightness(baseColor, 0.1)
+        : adjustColorLightness(baseColor, 0.05);
+      drawStackedObstacleCell(obstacle, baseColor, topColor, layerCount);
+    } else if (activeMap.scenery === "canyon") {
+      drawStackedObstacleCell(
+        obstacle,
+        darkModeEnabled ? "#a9814f" : "#d8b079",
+        darkModeEnabled ? "#c99d61" : "#edd0a2"
+      );
     } else {
-      fillProjectedQuad(quad, "#474f56", "rgba(140, 150, 162, 0.44)", 2 * render.scale);
+      const obstacleColor = darkModeEnabled ? "#666d74" : "#6b747c";
+      drawStackedObstacleCell(obstacle, obstacleColor, adjustColorLightness(obstacleColor, 0.06));
     }
   }
 }
@@ -14936,7 +16777,7 @@ function drawRoundedRect(x, y, width, height, radius) {
 }
 
 function drawRoute() {
-  if (activeMap.hideRoutes || isGraveyardMap() || !allRoutesOpen(routes)) {
+  if (activeMap.hideRoutes || !allRoutesOpen(routes)) {
     return;
   }
 
@@ -14953,49 +16794,72 @@ function drawRoute() {
     offTrackRoutes.set(key, enemy.route);
   }
 
+  const drawSegmentedRoute = (path, styles) => {
+    for (let index = 1; index < path.length; index += 1) {
+      const start = projectCellCenterPoint(path[index - 1].x, path[index - 1].y);
+      const end = projectCellCenterPoint(path[index].x, path[index].y);
+      const midRender = {
+        x: (start.x + end.x) * 0.5,
+        y: (start.y + end.y) * 0.5
+      };
+      const hidden = entityBehindAnyBlock(midRender.x, midRender.y, 1.2);
+      ctx.save();
+      ctx.strokeStyle = hidden ? styles.ghostStroke : styles.stroke;
+      ctx.globalAlpha = hidden ? styles.ghostAlpha : styles.alpha;
+      ctx.lineWidth = hidden ? styles.ghostWidth : styles.width;
+      ctx.setLineDash(hidden ? styles.ghostDash : styles.dash);
+      ctx.lineDashOffset = hidden ? styles.ghostDashOffset : styles.dashOffset;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
   for (const path of routes) {
-    ctx.save();
-    ctx.setLineDash([2, 13]);
-    ctx.lineDashOffset = -dashOffset;
-    ctx.strokeStyle = "#2d6cdf";
-    ctx.lineWidth = 6;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-
-    path.forEach((point, index) => {
-      const center = projectCellCenterPoint(point.x, point.y);
-      if (index === 0) {
-        ctx.moveTo(center.x, center.y);
-      } else {
-        ctx.lineTo(center.x, center.y);
-      }
+    drawSegmentedRoute(path, {
+      stroke: "#2d6cdf",
+      ghostStroke: "rgba(160, 202, 255, 0.42)",
+      alpha: 1,
+      ghostAlpha: 0.33,
+      width: 6,
+      ghostWidth: 4,
+      dash: [2, 13],
+      ghostDash: [2, 13],
+      dashOffset: -dashOffset,
+      ghostDashOffset: -dashOffset
     });
-
-    ctx.stroke();
-    ctx.restore();
   }
 
   for (const route of offTrackRoutes.values()) {
-    ctx.save();
-    ctx.setLineDash([2, 10]);
-    ctx.lineDashOffset = -dashOffset * 0.8;
-    ctx.strokeStyle = "rgba(125, 176, 255, 0.45)";
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    route.forEach((point, index) => {
-      const center = projectCellCenterPoint(point.x, point.y);
-      if (index === 0) {
-        ctx.moveTo(center.x, center.y);
-      } else {
-        ctx.lineTo(center.x, center.y);
-      }
+    drawSegmentedRoute(route, {
+      stroke: "rgba(125, 176, 255, 0.7)",
+      ghostStroke: "rgba(188, 220, 255, 0.42)",
+      alpha: 0.7,
+      ghostAlpha: 0.26,
+      width: 4,
+      ghostWidth: 3,
+      dash: [2, 10],
+      ghostDash: [2, 10],
+      dashOffset: -dashOffset * 0.7,
+      ghostDashOffset: -dashOffset * 0.7
     });
-    ctx.stroke();
-    ctx.restore();
   }
+}
+
+function drawGhostedRouteCell(routePoint) {
+  const center = projectCellCenterPoint(routePoint.x, routePoint.y);
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+  ctx.lineWidth = 1.5 * center.scale;
+  ctx.setLineDash([3, 8]);
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, 10 * center.scale, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawGhostRoutes(previewRoutes) {
@@ -15031,6 +16895,17 @@ function drawFactoryRouteOverlays() {
   return;
 }
 
+function blockRenderDepth(block) {
+  if (!block?.cells?.length) {
+    return 0;
+  }
+  return block.cells.reduce((maxDepth, cell) => Math.max(maxDepth, cell.y + cell.x * 0.001), -Infinity);
+}
+
+function sortedBlocksBackToFront() {
+  return [...blocks.values()].sort((a, b) => blockRenderDepth(a) - blockRenderDepth(b));
+}
+
 function drawBlockLayer(block, layer, offset = entityRenderOffset(block)) {
   const layerStep = blockLayerStepCells();
   const lift = layer * layerStep;
@@ -15038,6 +16913,13 @@ function drawBlockLayer(block, layer, offset = entityRenderOffset(block)) {
     x: offset.x - lift * CELL_SIZE * 0.05,
     y: offset.y - lift * CELL_SIZE * 0.84
   };
+  const mangoTheme = activeMap.scenery === "mango";
+  const baseColor = mangoTheme
+    ? "#f1cf47"
+    : darkModeEnabled
+      ? adjustColorLightness(block.color, -0.12)
+      : block.color;
+  const layerColor = layer === 11 ? adjustColorLightness(baseColor, 0.05) : baseColor;
 
   for (const cell of block.cells) {
     const quad = projectCellQuad(cell.x, cell.y - lift);
@@ -15046,7 +16928,7 @@ function drawBlockLayer(block, layer, offset = entityRenderOffset(block)) {
     const bottomRight = { x: quad.bottomRight.x + layerOffset.x, y: quad.bottomRight.y + layerOffset.y };
     const bottomLeft = { x: quad.bottomLeft.x + layerOffset.x, y: quad.bottomLeft.y + layerOffset.y };
 
-    ctx.fillStyle = layer === 11 ? adjustColorLightness(block.color, 0.05) : block.color;
+    ctx.fillStyle = layerColor;
     ctx.beginPath();
     ctx.moveTo(topLeft.x, topLeft.y);
     ctx.lineTo(topRight.x, topRight.y);
@@ -15070,6 +16952,18 @@ function entityBehindAnyBlock(renderX, renderY, padding = 4) {
       if (pointInProjectedQuad(point, projectLayerQuad(cell.x, cell.y, 11), padding)) {
         return true;
       }
+    }
+  }
+  return false;
+}
+
+function blockCellOccupiedAt(x, y, ignoreBlock = null) {
+  for (const block of blocks.values()) {
+    if (ignoreBlock && block === ignoreBlock) {
+      continue;
+    }
+    if (block.cells.some((cell) => cell.x === x && cell.y === y)) {
+      return true;
     }
   }
   return false;
@@ -15174,27 +17068,12 @@ function drawTowerShape(type, level, centerX, centerY, aimAngle = -Math.PI / 2, 
   const stats = tower ? towerStats(tower) : null;
   const path1 = tower?.path1 || 0;
   const path2 = tower?.path2 || 0;
-  const shapeScale = Math.max(0.6, Math.min(0.8, (boardScale || 1) * 0.88));
-  const perspectiveDistortion = 0.12;
-  const squashX = type === "trapper"
-    ? 0.985
-    : Math.max(0.88, 0.94 - perspectiveDistortion * 0.22);
-  const squashY = type === "trapper"
-    ? 0.87
-    : Math.min(0.9, 0.82 + perspectiveDistortion * 0.14);
-  const shear = towerOnePointShear(centerX, centerY, tower);
+  const basis = towerProjectedSurfaceBasis(tower || mockTower(type), centerX, centerY);
   ctx.save();
-  ctx.translate(centerX, centerY);
-  ctx.transform(1, shear.skewY, shear.skewX, 1, 0, 0);
+  ctx.translate(basis.centerX, basis.centerY);
+  ctx.transform(basis.axisX.x, basis.axisX.y, basis.axisY.x, basis.axisY.y, 0, 0);
   ctx.rotate(aimAngle);
-  ctx.scale(
-    shapeScale * squashX * (perspectiveStretch.stretchX || 1),
-    shapeScale * squashY * (perspectiveStretch.stretchY || 1)
-  );
-  const leanFactor = type === "trapper" ? 0.038 : 0.06;
-  const leanX = (perspectiveStretch.pullX || 0) * leanFactor;
-  const leanY = (perspectiveStretch.pullY || 0) * (type === "trapper" ? 0.02 : 0.05);
-  ctx.transform(1, leanY, leanX, 1, 0, 0);
+  ctx.scale(perspectiveStretch.stretchX || 1, perspectiveStretch.stretchY || 1);
 
   if (type === "crossbow") {
     ctx.strokeStyle = ghost ? (invalid ? "rgba(255, 225, 225, 0.95)" : "rgba(231, 209, 184, 0.72)") : "#f4dcc1";
@@ -15977,6 +17856,14 @@ function drawTower(tower) {
     }
     ctx.restore();
   }
+
+  drawAffinitySwirlVisual(centerX, centerY, {
+    ...tower,
+    centerX,
+    centerY,
+    renderScale,
+    gridCenterY: tower.centerY
+  });
 
   if (tower.type === "treasury" && stats.tradeEmpireAura > 1) {
     ctx.save();
@@ -16912,6 +18799,40 @@ function drawFreezerAuraVisual(centerX, centerY, stats, emphasized = false) {
   ctx.ellipse(centerX, centerY, radius, radius * flatY, 0, 0, Math.PI * 2);
   ctx.stroke();
 
+  ctx.restore();
+}
+
+function drawAffinitySwirlVisual(centerX, centerY, tower, emphasized = false) {
+  const affinity = towerBlockAffinityBonus(tower);
+  if (!affinity.active) {
+    return;
+  }
+
+  const towerColor = TOWER_INFO[tower.type]?.color || "#ffe08a";
+  const time = lastTimestamp / 1000;
+  const radius = Math.max(10, (tower.renderScale || projectBoardPoint(0, tower.gridCenterY ?? tower.centerY).scale) * 18);
+  const flatY = 0.72;
+
+  ctx.save();
+  ctx.strokeStyle = colorWithAlpha(towerColor, emphasized ? 0.9 : 0.72);
+  ctx.lineWidth = emphasized ? 2.6 : 2;
+  for (let ring = 0; ring < 2; ring += 1) {
+    const orbit = radius * (1 + ring * 0.22);
+    const spin = time * (1.15 + ring * 0.2) * (ring === 0 ? 1 : -1);
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY, orbit, orbit * flatY, 0, spin, spin + Math.PI * 1.18);
+    ctx.stroke();
+  }
+  ctx.fillStyle = colorWithAlpha("#ffe08a", emphasized ? 0.9 : 0.74);
+  for (let spark = 0; spark < 4; spark += 1) {
+    const angle = time * 1.6 + (Math.PI * 2 * spark) / 4;
+    const orbit = radius * (0.78 + (spark % 2) * 0.18);
+    const x = centerX + Math.cos(angle) * orbit;
+    const y = centerY + Math.sin(angle) * orbit * flatY;
+    ctx.beginPath();
+    ctx.arc(x, y, emphasized ? 2.4 : 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -18832,35 +20753,13 @@ function drawEnemyDeathEffects() {
   }
 }
 
-function drawEndpoint(point, fill) {
+function drawEndpoint(point, fill, options = {}) {
   const center = projectCellCenterPoint(point.x, point.y);
-  const offset = entityRenderOffset(point);
-  const flatY = 0.66;
-  ctx.fillStyle = fill;
-  ctx.beginPath();
-  ctx.ellipse(
-    center.x + offset.x,
-    center.y + offset.y,
-    18 * center.scale,
-    18 * center.scale * flatY,
-    0,
-    0,
-    Math.PI * 2
-  );
-  ctx.fill();
-  ctx.lineWidth = 5 * center.scale;
-  ctx.strokeStyle = "#fff9f1";
-  ctx.beginPath();
-  ctx.ellipse(
-    center.x + offset.x,
-    center.y + offset.y,
-    18 * center.scale,
-    18 * center.scale * flatY,
-    0,
-    0,
-    Math.PI * 2
-  );
-  ctx.stroke();
+  const hidden = options.ghostIfBlocked ? entityBehindAnyBlock(center.x, center.y, 1.2) : false;
+  const alpha = hidden ? 0.34 : 1;
+  ctx.globalAlpha = alpha;
+  drawStackedObstacleCell({ x: point.x, y: point.y }, fill, adjustColorLightness(fill, 0.05), 6);
+  ctx.globalAlpha = 1;
 }
 
 function draw() {
@@ -18870,19 +20769,24 @@ function draw() {
     ctx.translate((Math.random() - 0.5) * 2 * screenShakeAmount, (Math.random() - 0.5) * 2 * screenShakeAmount);
   }
   drawMapScenery();
+  drawAmbientEffects();
   drawGrid();
-  drawRoute();
+  drawCliffPlateauBlocks();
+  ctx.save();
+  ctx.filter = darkModeEnabled ? "brightness(0.78) saturate(0.88) contrast(1.04)" : "none";
+  drawMapEndpoints();
   drawEnemies(true);
   drawTraps(true);
 
+  const renderBlocks = sortedBlocksBackToFront();
   for (let layer = 0; layer < 12; layer += 1) {
-    for (const block of blocks.values()) {
+    for (const block of renderBlocks) {
       drawBlockLayer(block, layer);
     }
   }
 
   drawFactoryRouteOverlays();
-
+  drawRoute();
   drawTraps(false);
   drawEnemies(false);
   drawSelectedTowerRange();
@@ -18894,15 +20798,9 @@ function draw() {
   drawProjectiles();
   drawEffects();
   drawEnemyDeathEffects();
+  drawMapObstacles();
   drawBossBar();
-  if (!activeMap.hidePortals) {
-    for (const portal of activePortals()) {
-      drawEndpoint(portal, "#1f8a70");
-    }
-  }
-  for (const goal of activeGoals()) {
-    drawEndpoint(goal, "#cc3f5c");
-  }
+  ctx.restore();
   ctx.restore();
 }
 
@@ -19104,7 +21002,8 @@ function resetGame() {
   money = startingMoney();
   freeBlocks = 3;
   currentBlockCost = BLOCK_COST;
-  lives = DIFFICULTIES[selectedDifficulty].lives;
+  lives = DIFFICULTIES[selectedDifficulty].lives + skillTreeBaseLivesBonus();
+  baseDefenseCooldown = 0;
   waveNumber = 0;
   nextBlockId = 1;
   nextTowerId = 1;
@@ -19153,7 +21052,7 @@ closeTowerPopup();
 
 function updateGame(deltaTime) {
   const simDeltaTime = deltaTime * gameSpeedMultiplier;
-  dashOffset = (dashOffset + simDeltaTime * 18) % DASH_PERIOD;
+  dashOffset = (dashOffset + simDeltaTime * 7) % DASH_PERIOD;
   messageTimer = Math.max(0, messageTimer - simDeltaTime);
   invalidPlacementTimer = Math.max(0, invalidPlacementTimer - simDeltaTime);
   tutorialStepDelayTimer = Math.max(0, tutorialStepDelayTimer - simDeltaTime);
@@ -19197,6 +21096,7 @@ function updateGame(deltaTime) {
   updateAmbientEffects(simDeltaTime);
   updateEnemies(simDeltaTime);
   updateTowers(simDeltaTime);
+  updateBaseDefense(simDeltaTime);
   updateTraps(simDeltaTime);
   updateDrones(simDeltaTime);
   updateProjectiles(simDeltaTime);
@@ -19703,6 +21603,61 @@ mapOptions.addEventListener("click", withUiGuard("Map button", (event) => {
   updateMenuSelectors();
 }));
 
+accountSignupButton?.addEventListener("click", withUiGuard("Account Sign Up", () => {
+  signUpAccount(accountUsernameInput?.value, accountPasswordInput?.value);
+}));
+
+accountLoginButton?.addEventListener("click", withUiGuard("Account Log In", () => {
+  logInAccount(accountUsernameInput?.value, accountPasswordInput?.value);
+}));
+
+accountChangePasswordButton?.addEventListener("click", withUiGuard("Change Password", () => {
+  changeAccountPassword(accountPasswordInput?.value, accountNewPasswordInput?.value);
+}));
+
+accountGuestButton?.addEventListener("click", withUiGuard("Play as Guest", () => {
+  playAsGuest();
+}));
+
+darkModeToggleInput?.addEventListener("change", withUiGuard("Toggle Dark Mode", () => {
+  darkModeEnabled = Boolean(darkModeToggleInput.checked);
+  applyThemeMode();
+  persistMenuState();
+  draw();
+}));
+
+languageSelect?.addEventListener("change", withUiGuard("Change Language", () => {
+  selectedLanguage = ["en", "es", "de"].includes(languageSelect.value) ? languageSelect.value : "en";
+  applyLanguage();
+  persistMenuState();
+}));
+
+settingsChangePasswordButton?.addEventListener("click", withUiGuard("Settings Change Password", () => {
+  changeAccountPassword(settingsCurrentPasswordInput?.value, settingsNewPasswordInput?.value);
+}));
+
+settingsLogoutButton?.addEventListener("click", withUiGuard("Settings Log Out", () => {
+  logOutAccount();
+}));
+
+for (const input of [accountUsernameInput, accountPasswordInput, accountNewPasswordInput]) {
+  input?.addEventListener("keydown", withUiGuard("Account Enter", (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    if (event.shiftKey) {
+      playAsGuest();
+      return;
+    }
+    if (isLoggedInAccount() && accountNewPasswordInput?.value) {
+      changeAccountPassword(accountPasswordInput?.value, accountNewPasswordInput?.value);
+    } else {
+      logInAccount(accountUsernameInput?.value, accountPasswordInput?.value);
+    }
+  }));
+}
+
 rotateButton.addEventListener("click", rotateActivePiece);
 mirrorButton?.addEventListener("click", mirrorActivePiece);
 pieceChoicePrimaryButton?.addEventListener("click", () => selectPieceChoice(0));
@@ -19723,15 +21678,55 @@ speedControls?.addEventListener("click", (event) => {
 });
 pauseButton.addEventListener("click", pauseGame);
 startGameButton.addEventListener("click", withUiGuard("Start Game", startGame));
-openAlmanacButton.addEventListener("click", withUiGuard("Open Almanac", () => openAlmanac("menu")));
-resumeGameButton.addEventListener("click", withUiGuard("Resume", resumeGame));
-pauseAlmanacButton.addEventListener("click", withUiGuard("Pause Almanac", () => openAlmanac("pause")));
-quitToMenuButton.addEventListener("click", withUiGuard("Quit To Menu", quitToMenu));
+  openAlmanacButton.addEventListener("click", withUiGuard("Open Almanac", () => openAlmanac("menu")));
+  openSkillTreeButton.addEventListener("click", withUiGuard("Open Skill Tree", () => {
+    renderSkillTree();
+    openOverlay("skilltree");
+  }));
+  openSettingsButton?.addEventListener("click", withUiGuard("Open Settings", () => {
+    updateAccountControls();
+    openOverlay("settings");
+  }));
+  resumeGameButton.addEventListener("click", withUiGuard("Resume", resumeGame));
+  pauseAlmanacButton.addEventListener("click", withUiGuard("Pause Almanac", () => openAlmanac("pause")));
+  quitToMenuButton.addEventListener("click", withUiGuard("Quit To Menu", quitToMenu));
 tutorialOverlayButton?.addEventListener("click", withUiGuard("Tutorial Continue", dismissTutorialPopup));
 tutorialDismissButton?.addEventListener("click", withUiGuard("Dismiss Tutorial", dismissEntireTutorial));
-closeAlmanacButton.addEventListener("click", withUiGuard("Close Almanac", closeAlmanac));
-closeTowerPopupButton.addEventListener("click", withUiGuard("Close Tower Popup", closeTowerPopup));
-sandboxWaveInput?.addEventListener("change", withUiGuard("Sandbox Set Wave", setSandboxWave));
+  closeAlmanacButton.addEventListener("click", withUiGuard("Close Almanac", closeAlmanac));
+  closeSkillTreeButton.addEventListener("click", withUiGuard("Close Skill Tree", () => openOverlay("menu")));
+  closeSettingsButton?.addEventListener("click", withUiGuard("Close Settings", () => openOverlay("menu")));
+  closeTowerPopupButton.addEventListener("click", withUiGuard("Close Tower Popup", closeTowerPopup));
+  skillTreeGrid?.addEventListener("click", withUiGuard("Skill Tree Select", (event) => {
+    const button = event.target.closest("[data-skill-node-id]");
+    if (!button) {
+      return;
+    }
+    const nodeId = button.dataset.skillNodeId;
+    if (!nodeId || !SKILL_TREE_NODE_BY_ID.has(nodeId)) {
+      return;
+    }
+    skillTreeSelectedNodeId = nodeId;
+    renderSkillTree();
+  }));
+  skillTreeDetail?.addEventListener("click", withUiGuard("Skill Tree Buy", (event) => {
+    const button = event.target.closest("[data-skill-buy]");
+    if (!button) {
+      return;
+    }
+    purchaseSkillNode(button.dataset.skillBuy);
+  }));
+  almanacDetail?.addEventListener("click", withUiGuard("Almanac Upgrade Unlock", (event) => {
+    const button = event.target.closest("[data-almanac-upgrade-type]");
+    if (!button) {
+      return;
+    }
+    purchaseAlmanacUpgrade(
+      button.dataset.almanacUpgradeType,
+      Number(button.dataset.almanacUpgradePath),
+      Number(button.dataset.almanacUpgradeTier)
+    );
+  }));
+  sandboxWaveInput?.addEventListener("change", withUiGuard("Sandbox Set Wave", setSandboxWave));
 sandboxWaveInput?.addEventListener("blur", withUiGuard("Sandbox Set Wave Blur", setSandboxWave));
 sandboxWaveInput?.addEventListener("keydown", withUiGuard("Sandbox Set Wave Enter", (event) => {
   if (event.key !== "Enter") {
@@ -19764,6 +21759,10 @@ restartGameButton?.addEventListener("click", withUiGuard("Restart Game", startGa
 gameOverMenuButton?.addEventListener("click", withUiGuard("Game Over Menu", quitToMenu));
 
 window.addEventListener("keydown", (event) => {
+  if (isFormFieldFocused()) {
+    return;
+  }
+
   if (event.key.startsWith("Arrow")) {
     heldScrollKeys.add(event.key);
     event.preventDefault();
@@ -19847,7 +21846,7 @@ routes = computeRoutes();
 populateSandboxEnemyOptions();
 renderAlmanac();
 updateMenuSelectors();
-openOverlay("menu");
+openOverlay("signin");
 updateHud();
 draw();
 requestAnimationFrame(animationFrame);
