@@ -5,7 +5,6 @@ const statusText = document.getElementById("statusText");
 const routeText = document.getElementById("routeText");
 const moneyText = document.getElementById("moneyText");
 const boardCashText = document.getElementById("boardCashText");
-const freeBlockText = document.getElementById("freeBlockText");
 const livesText = document.getElementById("livesText");
 const waveText = document.getElementById("waveText");
 const enemyText = document.getElementById("enemyText");
@@ -43,6 +42,7 @@ const openSkillTreeButton = document.getElementById("openSkillTreeButton");
 const openSettingsButton = document.getElementById("openSettingsButton");
 const resumeGameButton = document.getElementById("resumeGameButton");
 const pauseAlmanacButton = document.getElementById("pauseAlmanacButton");
+const pauseSkillTreeButton = document.getElementById("pauseSkillTreeButton");
 const quitToMenuButton = document.getElementById("quitToMenuButton");
 const restartGameButton = document.getElementById("restartGameButton");
 const gameOverMenuButton = document.getElementById("gameOverMenuButton");
@@ -189,12 +189,11 @@ const BOARD_CENTER_SHIFT_X = CENTER_COL - LEGACY_CENTER_COL;
 const BOARD_CENTER_SHIFT_Y = CENTER_ROW - LEGACY_CENTER_ROW;
 const BASE_CANVAS_WIDTH = COLS * CELL_SIZE;
 const BASE_CANVAS_HEIGHT = COLS * CELL_SIZE;
-const TOWER_PRICE_MULTIPLIER = 1;
 const ENEMY_CASH_DROP_MULTIPLIER = 1;
-const START_MONEY = 50;
+const START_MONEY = 90;
 const START_LIVES = 100;
 const DASH_PERIOD = 16;
-const BLOCK_COST = 5;
+const BLOCK_COST = 500;
 const TOWER_BASE_COST = {
   tesla: 50,
   missile: 52,
@@ -206,8 +205,8 @@ const TOWER_BASE_COST = {
   orb: 48,
   fireball: 64,
   dippy: 92,
-  support: 44,
-  treasury: 60,
+  support: 32,
+  treasury: 75,
   crossbow: 30,
   gate: 42
 };
@@ -281,7 +280,7 @@ const TOWER_INFO = {
   orb: { name: "Pulse", color: "#b5f0ff", description: "Pulse charges and fires area bursts that damage groups, then unlocks a debuff path or a heavy shockwave path." },
   dippy: { name: "Dippy", color: "#fff1b8", description: "Dippy is an egg. A very powerful egg." },
   support: { name: "Support", color: "#c9b6ff", description: "Support fort boosts nearby towers and can branch into a fortress battery or a stronger logistics aura." },
-  treasury: { name: "Treasury", color: "#ffd46a", description: "Treasury generates end-of-wave cash and can branch into a trade empire or a tax-focused cash economy hub." },
+  treasury: { name: "Treasury", color: "#ffd46a", description: "Treasury generates end-of-wave cash and can branch into a trade empire or a focused economy path." },
   crossbow: { name: "Crossbow", color: "#8b5d33", description: "Outpost crossbow tower. Branches into a fast repeater path or a heavy ballista path." },
   gate: { name: "Acid", color: "#91e59d", description: "Acid coats enemies in corrosive spray. Direct hits are light, but the damage over time and acid weakening build up fast." }
 };
@@ -826,10 +825,10 @@ const ENEMY_TYPES = {
   }
 };
 const DIFFICULTIES = {
-  easy: { name: "Easy", money: 60, lives: 140, hp: 0.85, speed: 0.92, reward: 1.15, interval: 1.08, enemyCount: 1 },
-  standard: { name: "Standard", money: 50, lives: 100, hp: 1, speed: 1, reward: 1, interval: 1 },
-  hard: { name: "Hard", money: 50, lives: 50, hp: 1.1, speed: 1.1, reward: 0.9, interval: 0.88, enemyCount: 1 },
-  brutal: { name: "Brutal", money: 50, lives: 28, hp: 1.25, speed: 1.15, reward: 0.65, interval: 0.94, enemyCount: 1.55 },
+  easy: { name: "Easy", money: 100, lives: 140, hp: 0.85, speed: 0.92, reward: 1.15, interval: 1.08, enemyCount: 1 },
+  standard: { name: "Standard", money: 90, lives: 100, hp: 1, speed: 1, reward: 1, interval: 1 },
+  hard: { name: "Hard", money: 90, lives: 50, hp: 1.1, speed: 1.1, reward: 0.9, interval: 0.88, enemyCount: 1 },
+  brutal: { name: "Brutal", money: 80, lives: 28, hp: 1.25, speed: 1.15, reward: 0.65, interval: 0.94, enemyCount: 1.55 },
   sandbox: { name: "Sandbox", money: 999999, lives: 999999, hp: 1, speed: 1, reward: 1, interval: 1, enemyCount: 1 }
 };
 
@@ -1115,7 +1114,7 @@ const MAPS = {
     ],
     hidePortals: false,
     hideRoutes: false,
-    buildZone: { x: CENTER_COL - 5, y: CENTER_ROW - 3, width: 11, height: 7 },
+    buildZone: { x: CENTER_COL - 7, y: CENTER_ROW - 7, width: 15, height: 15 },
     obstacles: [],
     enemyCount: 3,
     reward: 1 / 3
@@ -1482,6 +1481,7 @@ let repeatableSkillRanks = {};
 let skillTreeSelectedNodeId = "core";
 let baseLivesSkillBonus = 0;
 let baseDefenseCooldown = 0;
+let skillTreeOrigin = "menu";
 
 function normalizeMapKey(mapKey) {
   if (mapKey === "fotification") {
@@ -2440,7 +2440,8 @@ function towerBlockAffinityBonus(tower) {
       projectileSpeedMult: 1,
       trapUsesMult: 1,
       stunMult: 1,
-      attackSpeedAuraMult: 1
+      attackSpeedAuraMult: 1,
+      damageAuraMult: 1
     };
   }
   const footprint = tower.footprintCells?.length ? tower.footprintCells : [{ x: tower.x, y: tower.y }];
@@ -2455,7 +2456,8 @@ function towerBlockAffinityBonus(tower) {
       projectileSpeedMult: 1,
       trapUsesMult: 1,
       stunMult: 1,
-      attackSpeedAuraMult: 1
+      attackSpeedAuraMult: 1,
+      damageAuraMult: 1
     };
   }
   const blockId = grid[cell.y][cell.x].blockId;
@@ -2470,7 +2472,8 @@ function towerBlockAffinityBonus(tower) {
       projectileSpeedMult: 1,
       trapUsesMult: 1,
       stunMult: 1,
-      attackSpeedAuraMult: 1
+      attackSpeedAuraMult: 1,
+      damageAuraMult: 1
     };
   }
   const towerColor = hexColorToRgb(TOWER_INFO[tower.type]?.color || "#ffffff");
@@ -2500,21 +2503,23 @@ function towerBlockAffinityBonus(tower) {
       projectileSpeedMult: 1.08,
       trapUsesMult: 1.12,
       stunMult: 1.08,
-      attackSpeedAuraMult: 1.08
+      attackSpeedAuraMult: 1.08,
+      damageAuraMult: 1.08
     };
   }
-  return {
-    active: false,
-    damageMult: 1,
-    cooldownMult: 1,
-    rangeMult: 1,
-    splashMult: 1,
-    projectileSpeedMult: 1,
-    trapUsesMult: 1,
-    stunMult: 1,
-    attackSpeedAuraMult: 1
-  };
-}
+    return {
+      active: false,
+      damageMult: 1,
+      cooldownMult: 1,
+      rangeMult: 1,
+      splashMult: 1,
+      projectileSpeedMult: 1,
+      trapUsesMult: 1,
+      stunMult: 1,
+      attackSpeedAuraMult: 1,
+      damageAuraMult: 1
+    };
+  }
 
 function skillTreeTowerModifiers(tower) {
   const type = tower?.type || "";
@@ -2526,7 +2531,8 @@ function skillTreeTowerModifiers(tower) {
     projectileSpeedMult: 1,
     trapUsesMult: 1,
     stunMult: 1,
-    attackSpeedAuraMult: 1
+    attackSpeedAuraMult: 1,
+    damageAuraMult: 1
   };
 
   modifiers.damageMult *= 1 + skillTreeNodeRank("general_damage") * 0.018;
@@ -2545,6 +2551,7 @@ function skillTreeTowerModifiers(tower) {
       modifiers.trapUsesMult *= 1 + specialRank * 0.02;
     } else if (type === "support") {
       modifiers.attackSpeedAuraMult *= 1 + specialRank * 0.015;
+      modifiers.damageAuraMult *= 1 + specialRank * 0.015;
     } else if (type === "freezer" || type === "treasury") {
       modifiers.rangeMult *= 1 + specialRank * 0.012;
     } else {
@@ -2566,6 +2573,7 @@ function skillTreeTowerModifiers(tower) {
     modifiers.trapUsesMult *= affinityBonus.trapUsesMult;
     modifiers.stunMult *= affinityBonus.stunMult;
     modifiers.attackSpeedAuraMult *= affinityBonus.attackSpeedAuraMult;
+    modifiers.damageAuraMult *= affinityBonus.damageAuraMult;
   }
 
   return modifiers;
@@ -2858,8 +2866,7 @@ window.__blockDefenceMenuBridge = {
   },
   openSkillTreeFromMenu() {
     persistMenuState();
-    renderSkillTree();
-    return openOverlay("skilltree");
+    return openSkillTree("menu");
   },
   openSettingsFromMenu() {
     persistMenuState();
@@ -3362,7 +3369,20 @@ function enemyCountMultiplier() {
 }
 
 function rewardMultiplier() {
-  return DIFFICULTIES[selectedDifficulty].reward * (activeMap.reward || 1);
+  return DIFFICULTIES[selectedDifficulty].reward * (activeMap.reward || 1) * 10;
+}
+
+function waveEconomyMultiplier(round = waveNumber) {
+  if (round <= 6) {
+    return 1.3;
+  }
+  if (round <= 18) {
+    return 1.3 - (round - 6) * 0.018;
+  }
+  if (round <= 35) {
+    return 1.084 - (round - 18) * 0.00495;
+  }
+  return 1;
 }
 
 function brutalWaveCountScale(round = waveNumber) {
@@ -4279,7 +4299,7 @@ function renderSkillTree() {
   `;
 
   if (skillTreeTokenText) {
-    skillTreeTokenText.textContent = `${uiText("tokens")}: ${skillTokens} | ${uiText("upgradePts")}: ${skillUpgradePoints}`;
+    skillTreeTokenText.hidden = true;
   }
 }
 
@@ -4598,7 +4618,7 @@ function enemyAlmanacStats(entry) {
   const enemy = enemyAlmanacPrimaryEnemy(entry);
   const round = Math.max(waveNumber, 1);
   if (!enemy) {
-    return { hp: 0, speed: 0, reward: 0, extras: [] };
+    return { hp: 0, speed: 0, reward: 0, cashDrop: 0, extras: [] };
   }
 
   if (entry.key === "darkKernel") {
@@ -4607,6 +4627,7 @@ function enemyAlmanacStats(entry) {
       hp: stats.hp,
       speed: stats.speed,
       reward: stats.reward,
+      cashDrop: stats.reward,
       extras: ["Spawned by Popcorn"]
     };
   }
@@ -4617,6 +4638,7 @@ function enemyAlmanacStats(entry) {
       hp: stats.hp,
       speed: stats.speed,
       reward: stats.reward,
+      cashDrop: stats.reward,
       extras: ["Spawned by Popcorn"]
     };
   }
@@ -4627,6 +4649,7 @@ function enemyAlmanacStats(entry) {
       hp: stats.hp,
       speed: stats.speed,
       reward: stats.reward,
+      cashDrop: stats.reward,
       extras: ["Spawned by Popcorn"]
     };
   }
@@ -4638,6 +4661,7 @@ function enemyAlmanacStats(entry) {
       hp: Math.round(((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp) * (isSkrey ? 7.8 : isOverwatch ? 2.6 : 1)),
       speed: ((((30 + round * 2 + enemy.speedBonus + (isSkrey ? 24 : isOverwatch ? 30 : 0)) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1))) / CELL_SIZE,
       reward: Math.max(1, Math.round(enemy.reward * (entry.tier >= 3 ? 10.8 : entry.tier === 2 ? 3.2 : 1))),
+      cashDrop: Math.max(1, Math.round((((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp) * (isSkrey ? 7.8 : isOverwatch ? 2.6 : 1)) * ((((30 + round * 2 + enemy.speedBonus + (isSkrey ? 24 : isOverwatch ? 30 : 0)) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1))) / CELL_SIZE)),
       extras: [
         isSkrey ? "Drops 4 Overwatches" : isOverwatch ? "Drops 8 Sentinels" : "",
         `Appears from ${sandboxWaveForEnemyTier("sentinel", entry.tier)}`
@@ -4650,6 +4674,7 @@ function enemyAlmanacStats(entry) {
       hp: 1200,
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
       reward: Math.max(1, Math.round(enemy.reward)),
+      cashDrop: Math.max(1, Math.round(1200 * (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE)),
       extras: ["Drops 6 Pinks with 250 HP each", `Appears from ${sandboxWaveForEnemyTier("behemoth", 2)}`]
     };
   }
@@ -4659,6 +4684,7 @@ function enemyAlmanacStats(entry) {
       hp: 250,
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
       reward: 0,
+      cashDrop: 0,
       extras: ["T1 Behemoth class", `Appears from ${sandboxWaveForEnemyTier("specialPentagon", 1)}`]
     };
   }
@@ -4669,6 +4695,7 @@ function enemyAlmanacStats(entry) {
       hp: Math.round(80 * (tierStats?.hpMultiplier || 1)),
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (tierStats?.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
       reward: Math.max(1, Math.round(enemy.reward * (tierStats?.rewardMultiplier || 1))),
+      cashDrop: Math.max(1, Math.round(Math.round(80 * (tierStats?.hpMultiplier || 1)) * (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (tierStats?.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE)),
       extras: [`Appears from ${sandboxWaveForEnemyTier("assassin", entry.tier)}`]
     };
   }
@@ -4680,6 +4707,7 @@ function enemyAlmanacStats(entry) {
       hp: Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp * (tierStats?.hpMultiplier || 1)),
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (tierStats?.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
       reward: Math.max(1, Math.round(enemy.reward * (tierStats?.rewardMultiplier || 1))),
+      cashDrop: Math.max(1, Math.round(Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp * (tierStats?.hpMultiplier || 1)) * ((((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (tierStats?.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE))),
       extras: [`Shield ${formatNumber(shieldHp)}`, "Fast while shielded, slow after break", `Appears from ${sandboxWaveForEnemyTier("breacher", entry.tier)}`]
     };
   }
@@ -4689,6 +4717,7 @@ function enemyAlmanacStats(entry) {
       hp: 156,
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
       reward: Math.max(1, Math.round(enemy.reward)),
+      cashDrop: Math.max(1, Math.round(156 * (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE)),
       extras: ["Summons Tier 2 waffles", `Appears from ${sandboxWaveForEnemyTier("idaen", 1)}`]
     };
   }
@@ -4699,6 +4728,7 @@ function enemyAlmanacStats(entry) {
       hp: Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp * (tierConfig?.hpMultiplier || 1)),
       speed: 0.5,
       reward: Math.max(1, Math.round(enemy.reward * (tierConfig?.rewardMultiplier || 1))),
+      cashDrop: Math.max(1, Math.round(Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp * (tierConfig?.hpMultiplier || 1)) * 0.5)),
       extras: [`Appears from ${sandboxWaveForEnemyTier(entry.key, entry.tier)}`]
     };
   }
@@ -4707,6 +4737,7 @@ function enemyAlmanacStats(entry) {
       hp: Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp),
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
       reward: Math.max(0, Math.round(enemy.reward)),
+      cashDrop: Math.max(1, Math.round(Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp) * ((((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE))),
       extras: [
         entry.key === "idine"
           ? "Splits into 4 Celuns and 4 Celris"
@@ -4725,6 +4756,7 @@ function enemyAlmanacStats(entry) {
       hp: splitterHpForTier(entry.tier),
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
       reward: Math.max(1, Math.round(enemy.reward * Math.pow(1.46, Math.max(0, entry.tier - 1)))),
+      cashDrop: Math.max(1, Math.round(splitterHpForTier(entry.tier) * (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE)),
       extras: [`Splits into 2 Tier ${Math.max(1, entry.tier - 1)}s`, `Appears from ${sandboxWaveForEnemyTier("splitter", entry.tier)}`]
     };
   }
@@ -4734,6 +4766,7 @@ function enemyAlmanacStats(entry) {
       hp: Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp * (tierStats.hpMultiplier || 1)),
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (tierStats.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
       reward: Math.max(1, Math.round(enemy.reward * (tierStats.rewardMultiplier || 1))),
+      cashDrop: Math.max(1, Math.round(Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp * (tierStats.hpMultiplier || 1)) * ((((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (tierStats.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE))),
       extras: [`Regens ${formatNumber(entry.tier >= 3 ? 1.1 : entry.tier === 2 ? 0.75 : 0.45)}/s`, `Appears from ${sandboxWaveForEnemyTier("health", entry.tier)}`]
     };
   }
@@ -4743,6 +4776,7 @@ function enemyAlmanacStats(entry) {
       hp: Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp * (tierStats.hpMultiplier || 1)),
       speed: (((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (tierStats.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
       reward: Math.max(1, Math.round(enemy.reward * (tierStats.rewardMultiplier || 1))),
+      cashDrop: Math.max(1, Math.round(Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp * (tierStats.hpMultiplier || 1)) * ((((30 + round * 2 + enemy.speedBonus) / DIFFICULTIES.standard.interval) * (tierStats.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE))),
       extras: [`Regens ${formatNumber(entry.tier >= 3 ? 1.8 : entry.tier === 2 ? 1.2 : 0.8)}/s`, "Heals nearby enemies", `Appears from ${sandboxWaveForEnemyTier("life", entry.tier)}`]
     };
   }
@@ -4754,6 +4788,7 @@ function enemyAlmanacStats(entry) {
       hp: Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp * (tierStats.hpMultiplier || 1)),
       speed: (fastBaseSpeed * (speedyMultipliers[entry.tier] || 2)) / CELL_SIZE,
       reward: Math.max(1, Math.round(enemy.reward * (tierStats.rewardMultiplier || 1))),
+      cashDrop: Math.max(1, Math.round(Math.round((5 + round) * enemy.hpMultiplier * DIFFICULTIES.standard.hp * (tierStats.hpMultiplier || 1)) * ((fastBaseSpeed * (speedyMultipliers[entry.tier] || 2)) / CELL_SIZE))),
       extras: [`${formatNumber(speedyMultipliers[entry.tier] || 2)}x Fast speed`, `Appears from ${sandboxWaveForEnemyTier("speedy", entry.tier)}`]
     };
   }
@@ -4778,6 +4813,7 @@ function enemyAlmanacStats(entry) {
     hp: Math.round(baseHp * (tierConfig?.hpMultiplier || 1)),
     speed: (((baseSpeed + waffleSpeedBonus) / DIFFICULTIES.standard.interval) * (tierConfig?.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE,
     reward: Math.max(1, Math.round(enemy.reward * waffleRewardMultiplier * (tierConfig?.rewardMultiplier || 1))),
+    cashDrop: Math.max(1, Math.round(Math.round(baseHp * (tierConfig?.hpMultiplier || 1)) * ((((baseSpeed + waffleSpeedBonus) / DIFFICULTIES.standard.interval) * (tierConfig?.speedMultiplier || 1) * (MAPS[selectedMap]?.enemySpeed || 1)) / CELL_SIZE))),
     extras
   };
 }
@@ -4957,6 +4993,7 @@ function renderEnemyAlmanacDetail(id) {
   }
   const enemy = enemyAlmanacPrimaryEnemy(entry);
   const stats = enemyAlmanacStats(entry);
+  const cashDrop = Math.max(1, Math.round((stats.hp || 0) * (stats.speed || 0) * 0.75 - (entry.key === "speedy" ? 2 : 0)));
   const effects = [];
   if (enemy.hidden) {
     effects.push("Hidden");
@@ -4991,7 +5028,7 @@ function renderEnemyAlmanacDetail(id) {
       </div>
       <p>${enemyAlmanacDescription(enemy, entry)}</p>
     </div>
-    <p><strong>${uiText("health")}:</strong> ${formatNumber(stats.hp)} | <strong>${uiText("speed")}:</strong> ${formatNumber(stats.speed)} cells/s | <strong>${uiText("reward")}:</strong> ${formatNumber(stats.reward)}</p>
+    <p><strong>${uiText("health")}:</strong> ${formatNumber(stats.hp)} | <strong>${uiText("speed")}:</strong> ${formatNumber(stats.speed)} cells/s | <strong>Cash drop:</strong> ${formatNumber(cashDrop)}</p>
     <p><strong>${uiText("effects")}:</strong> ${effects.length ? effects.join(", ") : uiText("none")}</p>
     ${stats.extras.length ? `<p><strong>${uiText("details")}:</strong> ${stats.extras.join(", ")}</p>` : ""}
     ${renderEnemyFamilyVariantBlock(entry)}`;
@@ -5277,7 +5314,7 @@ function waffleRampThreshold(round) {
 
 function waveRewardForRound(round) {
   const mapConfig = almanacWaveMapConfig();
-  return Math.max(2, Math.round((5 + round) * (DIFFICULTIES[selectedDifficulty].reward || 1) * (mapConfig.reward || 1)));
+  return Math.max(2, Math.round((5 + round) * (DIFFICULTIES[selectedDifficulty].reward || 1) * (mapConfig.reward || 1) * waveEconomyMultiplier(round)));
 }
 
 function deterministicRolledTierForWave(enemyKey, round, rng) {
@@ -6152,6 +6189,12 @@ function openAlmanac(origin) {
   openOverlay("almanac");
 }
 
+function openSkillTree(origin = "menu") {
+  skillTreeOrigin = origin;
+  renderSkillTree();
+  openOverlay("skilltree");
+}
+
 function closeAlmanac() {
   if (almanacOrigin === "pause") {
     gameMode = "paused";
@@ -6161,6 +6204,16 @@ function closeAlmanac() {
   }
 
   gameMode = "menu";
+  openOverlay("menu");
+}
+
+function closeSkillTree() {
+  if (skillTreeOrigin === "pause" || gameMode === "paused") {
+    openOverlay("pause");
+    presentQueuedTutorialPopup();
+    return;
+  }
+
   openOverlay("menu");
 }
 
@@ -7847,10 +7900,26 @@ function supportWaveIncomeBonus() {
 }
 
 function towerCost(type) {
-  const baseCost = type === "crossbow" && crossbowUnlocked ? 14 : TOWER_BASE_COST[type];
-  const treasuryMultiplier = type === "treasury" ? 1.5 : 1;
-  const discountMultiplier = skillTreeNodeOwned(skillTreeTowerDiscountNodeId(type)) ? 0.9 : 1;
-  return Math.round(baseCost * treasuryMultiplier * discountMultiplier * TOWER_PRICE_MULTIPLIER);
+  const stats = towerStats(mockTower(type));
+  if (type === "treasury") {
+    return Math.max(1, Math.round((stats.waveCash || 0) * 15));
+  }
+  if (type === "support") {
+    const attackBoost = Math.max(0, (stats.attackSpeedAura || 1) - 1);
+    const damageBoost = Math.max(0, (stats.damageAura || 1) - 1);
+    return Math.max(1, Math.round((attackBoost + damageBoost) * 100 * 10));
+  }
+  const cost = towerAttackCostMultiplier(mockTower(type));
+  return Math.max(1, Math.round(cost));
+}
+
+function towerAttackCostMultiplier(towerOrSummary) {
+  const summary = towerOrSummary && typeof towerOrSummary === "object" && "dps" in towerOrSummary
+    ? towerOrSummary
+    : towerStatSummary(towerOrSummary);
+  const rangeCells = Math.max(1, (summary.range || CELL_SIZE) / CELL_SIZE);
+  const dps = Math.max(1, summary.dps || 1);
+  return Math.max(1, rangeCells * dps * 5);
 }
 
 function scaleEnemyCashDrop(value) {
@@ -7861,7 +7930,11 @@ function enemyCashDropMultiplier(enemy) {
   if (!enemy || enemy.spawnedAsChild || enemy.isChild) {
     return 1;
   }
-  return (enemy.tier || 1) >= 2 ? 0.8 : 1;
+  const hpValue = Math.max(1, Number(enemy.maxHp || enemy.hp || 1));
+  const speedValue = Math.max(0.5, Number(enemy.speed || 0) / CELL_SIZE);
+  const baseDrop = hpValue * speedValue * 0.75 * waveEconomyMultiplier(enemy.waveNumber || waveNumber);
+  const speedyPenalty = enemy.key === "speedy" ? 2 : 0;
+  return Math.max(1, baseDrop - speedyPenalty);
 }
 
 function previewEnemyCashDrop(value, minimum = 1) {
@@ -7884,7 +7957,7 @@ function mockTower(type, overrides = {}) {
     orbRotationDirection: null,
     orbType: null,
     cannonPriorities: ["first", "strong", "last"],
-    spent: towerCost(type),
+    spent: TOWER_BASE_COST[type] || 0,
     x: 0,
     y: 0,
     footprintCells: towerPlacementCells(type, 0, 0),
@@ -7903,17 +7976,19 @@ function mockTower(type, overrides = {}) {
 
 function upgradeCost(tower, path = null) {
   if (typeof tower === "number") {
-    return (4 + tower * 3) * TOWER_PRICE_MULTIPLIER;
+    return Math.max(1, Math.round(tower));
   }
   if (PATH_TOWER_TYPES.has(tower.type) && path !== null) {
     const nextTier = (path === 1 ? tower.path1 : tower.path2) + 1;
-    const treasuryMultiplier = tower.type === "treasury" ? 1.5 : 1;
-    return Math.round(UPGRADE_COSTS[tower.type][`path${path}`][nextTier - 1] * treasuryMultiplier * TOWER_PRICE_MULTIPLIER);
+    const table = UPGRADE_COSTS[tower.type]?.[`path${path}`];
+    return Math.max(1, Math.round(table?.[nextTier - 1] ?? 0));
   }
   const nextLevel = tower.level + 1;
   const table = UPGRADE_COSTS[tower.type];
-  const treasuryMultiplier = tower.type === "treasury" ? 1.5 : 1;
-  return Array.isArray(table) ? Math.round(table[Math.max(0, nextLevel - 2)] * treasuryMultiplier * TOWER_PRICE_MULTIPLIER) : Math.round((4 + tower.level * 3) * treasuryMultiplier * TOWER_PRICE_MULTIPLIER);
+  if (Array.isArray(table)) {
+    return Math.max(1, Math.round(table[Math.max(0, nextLevel - 2)] ?? table[table.length - 1] ?? 0));
+  }
+  return Math.max(1, Math.round(4 + tower.level * 3));
 }
 
 function almanacUpgradeKey(type, path, tier) {
@@ -8525,12 +8600,10 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     : stats.damage;
   const range = type === "trapper" && stats.turretMode
     ? stats.turretRange
-    : type === "drone" && stats.rocket
-    ? stats.droneRange
-    : type === "drone" && (stats.supportCount || 0) > 0
-    ? stats.supportRange
     : type === "drone"
-    ? stats.droneRange
+    ? stats.range
+    : type === "support"
+    ? stats.auraRadius
     : stats.range;
   const aps = Number.isFinite(cooldown) && cooldown > 0 ? 1 / cooldown : 0;
   const dps = type === "trapper" && stats.turretMode
@@ -8677,7 +8750,6 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     extras.push(`Support drones ${stats.supportCount}`);
     extras.push(`Mini drone damage ${formatNumber(stats.supportDamage)}`);
     extras.push(`Mini drone guns ${stats.supportGuns}`);
-    extras.push(`Mini drone range ${formatRange(stats.supportRange)}`);
     extras.push(`Mini drone DPS ${formatNumber(supportDroneDps)}`);
   }
   if (type === "drone") {
@@ -8735,31 +8807,23 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     extras.push(`Shake ${formatNumber(stats.screenShake)}`);
   }
   if (type === "support") {
-    if (stats.damage > 0) {
-      extras.push(`Sentries ${formatNumber(stats.sentryCount || 1)}`);
-    }
-    extras.push(`Aura radius ${formatRange(stats.auraRadius)}`);
-    if (stats.mortar) {
-      extras.push(`Mortar every ${formatNumber(stats.mortarCooldown)}s`);
-    }
-    if (stats.attackSpeedAura > 1) {
-      extras.push(`Attack speed x${formatNumber(stats.attackSpeedAura)}`);
-    }
+    specialRows.push({ label: "Attack speed boost", value: `x${formatNumber(stats.attackSpeedAura || 1)}`, deltaValue: Math.max(0, (stats.attackSpeedAura || 1) - 1) * 100, deltaSuffix: "%" });
+    specialRows.push({ label: "Aura radius", value: formatRange(stats.auraRadius), deltaValue: stats.auraRadius / CELL_SIZE, deltaSuffix: " blocks" });
+    specialRows.push({ label: "Damage boost", value: `x${formatNumber(stats.damageAura || 1)}`, deltaValue: Math.max(0, (stats.damageAura || 1) - 1) * 100, deltaSuffix: "%" });
     if (stats.munitions) {
-      extras.push("Munitions aura");
-      extras.push("Nearby towers deal explosive damage");
-      extras.push("Nearby towers hit armoured");
+      specialRows.push({ label: "Damage type", value: "Explosive/armoured", deltaValue: 1 });
     }
-    if (stats.detectHiddenAura) {
-      extras.push("Telescope aura");
-      extras.push("Nearby towers detect hidden");
-    }
+    specialRows.push({ label: "Hidden detection", value: stats.detectHiddenAura ? "Yes" : "No", deltaValue: stats.detectHiddenAura ? 1 : 0 });
     if (stats.helpMissile) {
-      extras.push(`Fortress missile every ${formatNumber(stats.helpMissileCooldown)}s`);
+      specialRows.push({ label: "Fortress missile", value: `${formatNumber(stats.helpMissileCooldown)}s`, deltaValue: stats.helpMissileCooldown, deltaSuffix: "s" });
     }
+    if (stats.mortar) {
+      specialRows.push({ label: "Mortar", value: `${formatNumber(stats.mortarCooldown)}s`, deltaValue: stats.mortarCooldown, deltaSuffix: "s" });
+    }
+    extras.push("Support aura effects");
   }
   if (type === "treasury") {
-    extras.push(`Wave cash ${formatNumber(stats.waveCash)}`);
+    extras.push(`Wave cash ${formatNumber(stats.waveCash || 0)}`);
     if ((stats.enemyDropMultiplier || 1) > 1) {
       extras.push(`Enemy drops x${formatNumber(stats.enemyDropMultiplier)}`);
     }
@@ -8807,6 +8871,9 @@ function towerStatSummary(typeOrTower, overrides = {}) {
       ...specialRows.map((row) => row.label)
     ]
     : [];
+  if (type === "support") {
+    goldRows.push("Attack speed boost", "Damage boost");
+  }
   if (affinityBonus.active) {
     extras.unshift("Affinity buff active");
   }
@@ -8817,6 +8884,7 @@ function towerStatSummary(typeOrTower, overrides = {}) {
     range,
     aps,
     dps,
+    displayMode: type === "support" ? "support" : null,
     chainLength,
     burnStat,
     specialRows,
@@ -8973,6 +9041,29 @@ function effectiveShotgunPelletCount(stats) {
 
 function towerCoreStatRows(summary, preview = null) {
   const apsText = Number.isFinite(summary.cooldown) && summary.cooldown > 0 ? `${formatNumber(summary.aps)}` : "Passive";
+  if (summary.displayMode === "support") {
+    const rows = [
+      { label: "Aura radius", value: formatRange(summary.range), previewValue: preview ? formatRange(preview.range) : null }
+    ];
+
+    if (Array.isArray(summary.specialRows)) {
+      for (const row of summary.specialRows) {
+        const previewMatch = Array.isArray(preview?.specialRows)
+          ? preview.specialRows.find((entry) => entry.label === row.label)
+          : null;
+        rows.push({
+          label: row.label,
+          value: row.value,
+          previewValue: previewMatch ? previewMatch.value : null,
+          deltaValue: row.deltaValue,
+          previewDeltaValue: previewMatch ? previewMatch.deltaValue : null,
+          deltaSuffix: row.deltaSuffix || ""
+        });
+      }
+    }
+
+    return rows;
+  }
   if (summary.type === "orb") {
     const rows = [
       { label: "Damage", value: formatNumber(summary.damage), previewValue: preview ? formatNumber(preview.damage) : null },
@@ -9281,7 +9372,9 @@ function estimateTowerDpsFromStats(type, tower, stats) {
   if (type === "trapper") {
     return stats.turretMode
       ? safeDivide(stats.turretDamage * Math.max(stats.turretBarrels || 1, 1), stats.turretCooldown) + Math.max(stats.turretCap || 0, 0) * 1.6
-      : safeDivide((stats.damage || 1) + Math.max(stats.trapUses || 0, 0) * 0.4, stats.cooldown) + (stats.mine ? 18 : 0) + (stats.mango ? 45 : 0);
+      : ((stats.damage || 0) * Math.max(stats.trapUses || 0, 0))
+        + (stats.mine ? 58 : 0)
+        + (stats.mango ? 202 + 5 * 52 : 0);
   }
   if (type === "laser") {
     let dps = safeDivide(stats.damage * (stats.doubleBeam ? 2 : 1), stats.cooldown) + (stats.burnDamage || 0) * 0.55;
@@ -9344,48 +9437,36 @@ function estimateTowerDpsFromStats(type, tower, stats) {
     return dps;
   }
   if (type === "support") {
-    return safeDivide((stats.damage || 0) * Math.max(stats.sentryCount || 1, 1), stats.cooldown || Infinity)
-      + safeDivide((stats.mortarDamage || 0) * 1.2, stats.mortarCooldown || Infinity)
-      + (stats.helpMissile ? safeDivide(stats.damage, stats.helpMissileCooldown || Infinity) * 1.15 : 0)
-      + Math.max(0, (stats.attackSpeedAura || 1) - 1) * 180
-      + (stats.detectHiddenAura ? 15 : 0)
-      + (stats.munitions ? 620 : 0);
+    return 0;
   }
   if (type === "treasury") {
-    return (stats.waveCash || 0) * 0.42
-      + Math.max(0, (stats.enemyDropMultiplier || 1) - 1) * 260
-      + Math.max(0, (stats.tradeEmpireAura || 1) - 1) * 420
-      ;
+    return (stats.waveCash || 0) * 15;
   }
   if (type === "gate") {
-    return safeDivide(stats.damage, stats.cooldown)
-      + (stats.acidDot || 0) * 0.58
-      + Math.max(0, (stats.acidAmp || 1) - 1) * 38
-      + Math.max(0, stats.acidDuration || 0) * 3.2;
+    const acidDamage = (stats.damage || 0) + (stats.acidDot || 0) * Math.max(stats.acidDuration || 0, 0);
+    return acidDamage * safeDivide(1, stats.cooldown);
   }
   return safeDivide(stats.damage || 0, stats.cooldown || Infinity);
 }
 
-function lateTierTargetDps(type, tower) {
+function lateTierTargetDps(type, tower, stats) {
   if (!PATH_TOWER_TYPES.has(type)) {
+    return 0;
+  }
+  if (!stats) {
+    return 0;
+  }
+  const currentDps = estimateTowerDpsFromStats(type, tower, stats);
+  if (currentDps <= 0) {
     return 0;
   }
   const path1 = tower.path1 || 0;
   const path2 = tower.path2 || 0;
-  let cost = 0;
-  if (path1 >= 4) {
-    cost = Math.max(cost, UPGRADE_COSTS[type].path1[3]);
-  }
-  if (path1 >= 5) {
-    cost = Math.max(cost, UPGRADE_COSTS[type].path1[4]);
-  }
-  if (path2 >= 4) {
-    cost = Math.max(cost, UPGRADE_COSTS[type].path2[3]);
-  }
-  if (path2 >= 5) {
-    cost = Math.max(cost, UPGRADE_COSTS[type].path2[4]);
-  }
-  return cost / 20;
+  const lateTierBonus = 1
+    + Math.max(0, path1 - 3) * 0.14
+    + Math.max(0, path2 - 3) * 0.14;
+  const rangeBonus = Math.max(1, (stats.range || CELL_SIZE) / CELL_SIZE) * 0.05;
+  return Math.max(1, currentDps * (lateTierBonus + rangeBonus));
 }
 
 function scaleLateTierStats(type, tower, stats, scale) {
@@ -9469,7 +9550,7 @@ function scaleLateTierStats(type, tower, stats, scale) {
 
 function applyLateTierPowerScale(tower, stats) {
   const type = tower.type;
-  const targetDps = lateTierTargetDps(type, tower);
+  const targetDps = lateTierTargetDps(type, tower, stats);
   if (targetDps <= 0) {
     return stats;
   }
@@ -11187,7 +11268,7 @@ function updateEnemies(deltaTime) {
 function applySkillTreeModifiersToStats(tower, stats) {
   const modifiers = skillTreeTowerModifiers(tower);
   const next = { ...stats };
-  for (const key of ["damage", "bulletDamage", "rocketDamage", "supportDamage", "turretDamage", "fieldDamage", "pulseDamage", "mortarDamage", "helpMissileDamage", "burnDamage", "acidDot", "shellDamage", "syrupDamage"]) {
+  for (const key of ["damage", "bulletDamage", "rocketDamage", "supportDamage", "turretDamage", "fieldDamage", "pulseDamage", "mortarDamage", "helpMissileDamage", "burnDamage", "acidDot", "shellDamage", "syrupDamage", "damageAura"]) {
     if (Number.isFinite(next[key])) {
       next[key] *= modifiers.damageMult;
     }
@@ -11238,6 +11319,9 @@ function applySkillTreeModifiersToStats(tower, stats) {
   }
   if (Number.isFinite(next.attackSpeedAura)) {
     next.attackSpeedAura *= modifiers.attackSpeedAuraMult;
+  }
+  if (Number.isFinite(next.damageAura)) {
+    next.damageAura *= modifiers.damageAuraMult;
   }
   return next;
 }
@@ -11411,7 +11495,7 @@ function towerStats(tower) {
       burnDuration: 0,
       detectHidden: false,
       chargeClock: chargeTime,
-      fireInterval,
+      fireInterval: maxFireInterval,
       bulletType: railgun ? "rail" : "bullet"
     });
   }
@@ -11503,7 +11587,8 @@ function towerStats(tower) {
       mortarSpeed: path1 >= 5 ? 410 : 340,
       munitions: path2 >= 5,
       detectHiddenAura: path2 >= 4,
-      attackSpeedAura: path2 >= 5 ? 1.58 : path2 >= 4 ? 1.34 : path2 >= 3 ? 1.18 : path2 >= 2 ? 1.08 : 1,
+      attackSpeedAura: path2 >= 5 ? 1.58 : path2 >= 4 ? 1.34 : path2 >= 3 ? 1.18 : 1.1,
+      damageAura: path2 >= 5 ? 1.3 : path2 >= 4 ? 1.18 : path2 >= 3 ? 1.08 : 1.05,
       helpMissile: path1 >= 5,
       helpMissileCooldown: path1 >= 5 ? 2.4 : 8.8,
       speed: path1 >= 5 ? 196 : 142,
@@ -11747,7 +11832,8 @@ function supportBuffsForTower(tower) {
   const buffs = {
     munitions: false,
     detectHidden: false,
-    attackSpeedMultiplier: 1
+    attackSpeedMultiplier: 1,
+    damageMultiplier: 1
   };
 
   if (!tower) {
@@ -11767,6 +11853,7 @@ function supportBuffsForTower(tower) {
     buffs.munitions ||= Boolean(stats.munitions);
     buffs.detectHidden ||= Boolean(stats.detectHiddenAura);
     buffs.attackSpeedMultiplier = Math.max(buffs.attackSpeedMultiplier, stats.attackSpeedAura || 1);
+    buffs.damageMultiplier = Math.max(buffs.damageMultiplier, stats.damageAura || 1);
   }
 
   for (const effect of effects) {
@@ -11853,11 +11940,11 @@ function addSkillUpgradeDamage(amount) {
     return;
   }
   skillDamageTowardPoint += amount;
-  const earned = Math.floor(skillDamageTowardPoint / 50);
+  const earned = Math.floor(skillDamageTowardPoint / 15);
   if (earned <= 0) {
     return;
   }
-  skillDamageTowardPoint -= earned * 50;
+  skillDamageTowardPoint -= earned * 15;
   skillUpgradePoints += earned;
   persistProgressionState();
 }
@@ -13959,6 +14046,14 @@ function updateTowers(deltaTime) {
     const supportBuffs = supportBuffsForTower(tower);
     const detectHidden = Boolean(stats.detectHidden || supportBuffs.detectHidden);
     const cooldownRate = supportBuffs.attackSpeedMultiplier || 1;
+    const damageRate = supportBuffs.damageMultiplier || 1;
+    if (damageRate > 1) {
+      for (const key of ["damage", "bulletDamage", "rocketDamage", "supportDamage", "turretDamage", "fieldDamage", "pulseDamage", "mortarDamage", "helpMissileDamage", "burnDamage", "acidDot", "shellDamage", "syrupDamage"]) {
+        if (Number.isFinite(stats[key])) {
+          stats[key] *= damageRate;
+        }
+      }
+    }
     if (tower.type === "fireball") {
       tower.burstShotsRemaining = 0;
       tower.burstTimer = 0;
@@ -16200,9 +16295,11 @@ function updateHud() {
   }
   boardCashText.textContent = `Cash: ${money}`;
   if (skillTokenText) {
-    skillTokenText.textContent = `${uiText("tokens")}: ${skillTokens} | ${uiText("upgradePts")}: ${skillUpgradePoints}`;
+    skillTokenText.hidden = true;
   }
-  freeBlockText.textContent = freeBlocks > 0 ? `Free blocks left: ${freeBlocks} | Block price after free: ${currentBlockCost}` : `Block price: ${currentBlockCost}`;
+  if (skillTreeTokenText) {
+    skillTreeTokenText.hidden = true;
+  }
   livesText.textContent = `Base HP: ${Math.max(0, Math.ceil(lives))}`;
   waveText.textContent = `Wave: ${waveNumber}`;
   enemyText.textContent = `Enemies: ${enemies.length}`;
@@ -16447,6 +16544,28 @@ function drawGrid() {
 
   drawProjectedGrid(0, 0, gridStroke, gridEdge);
 
+  if (isGraveyardMap()) {
+    const zone = mapBuildZone();
+    if (zone) {
+      const zoneQuad = projectCellQuad(zone.x, zone.y, zone.width, zone.height);
+      ctx.save();
+      ctx.fillStyle = "rgba(143, 77, 255, 0.08)";
+      fillProjectedQuad(zoneQuad, ctx.fillStyle);
+      ctx.strokeStyle = "rgba(201, 162, 255, 0.9)";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 7]);
+      ctx.beginPath();
+      ctx.moveTo(zoneQuad.topLeft.x, zoneQuad.topLeft.y);
+      ctx.lineTo(zoneQuad.topRight.x, zoneQuad.topRight.y);
+      ctx.lineTo(zoneQuad.bottomRight.x, zoneQuad.bottomRight.y);
+      ctx.lineTo(zoneQuad.bottomLeft.x, zoneQuad.bottomLeft.y);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+  }
+
   if (activeMap.scenery === "factory" && factoryState) {
     const hole = factoryQuarterBounds(factoryState.holeIndex);
     const holeQuad = projectCellQuad(hole.x, hole.y, hole.width, hole.height);
@@ -16652,16 +16771,16 @@ function drawBackdropDetails() {
 function drawMapEndpoints() {
   if (activeMap.hidePortals) {
     for (const goal of activeGoals()) {
-      drawEndpoint(goal, "#cc3f5c", { ghostIfBlocked: true });
+      drawEndpoint(goal, "#cc3f5c", { ghostIfBlocked: true, kind: "goal" });
     }
     return;
   }
 
   for (const portal of activePortals()) {
-    drawEndpoint(portal, "#8b4dff", { ghostIfBlocked: false });
+    drawEndpoint(portal, "#8b4dff", { ghostIfBlocked: false, kind: "portal" });
   }
   for (const goal of activeGoals()) {
-    drawEndpoint(goal, "#cc3f5c", { ghostIfBlocked: true });
+    drawEndpoint(goal, "#cc3f5c", { ghostIfBlocked: true, kind: "goal" });
   }
 }
 
@@ -16675,90 +16794,112 @@ function drawStackedObstacleCell(obstacle, baseColor, topColor = null, layerCoun
   }
 }
 
-function drawMapObstacles() {
-  for (const obstacle of activeMap.obstacles) {
-    const render = projectCellCenterPoint(obstacle.x, obstacle.y);
-    const quad = projectCellQuad(obstacle.x, obstacle.y);
-    const inner = shrinkProjectedQuad(quad, 0.1);
-    if (activeMap.scenery === "cliffs") {
-      continue;
-    }
-    if (activeMap.scenery === "furnace") {
-      const isCore = activeMap.furnaceCore?.some((cell) => cell.x === obstacle.x && cell.y === obstacle.y);
-      const isPit = (activeMap.lavaGrates || []).some((cell) => obstacle.x >= cell.x && obstacle.x < cell.x + cell.width && obstacle.y >= cell.y && obstacle.y < cell.y + cell.height);
-      if (isCore || isPit) {
-        ctx.save();
-        ctx.shadowColor = isCore ? "rgba(255, 126, 48, 0.7)" : "rgba(255, 98, 28, 0.62)";
-        ctx.shadowBlur = isCore ? 20 : 14;
-        fillProjectedQuad(isCore ? shrinkProjectedQuad(quad, 0.17) : inner, isCore ? "#f07a24" : "#d95f1d");
-        ctx.restore();
-        const outline = isCore ? shrinkProjectedQuad(quad, 0.17) : inner;
-        ctx.strokeStyle = "rgba(58, 39, 26, 0.92)";
-        ctx.lineWidth = (isCore ? 3 : 2.5) * render.scale;
-        ctx.beginPath();
-        ctx.moveTo(outline.topLeft.x, outline.topLeft.y);
-        ctx.lineTo(outline.topRight.x, outline.topRight.y);
-        ctx.lineTo(outline.bottomRight.x, outline.bottomRight.y);
-        ctx.lineTo(outline.bottomLeft.x, outline.bottomLeft.y);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fillStyle = "rgba(255, 224, 138, 0.25)";
-        ctx.beginPath();
-        ctx.arc(render.x - 5 * render.scale, render.y - 4 * render.scale, (isCore ? 4.2 : 3.2) * render.scale, 0, Math.PI * 2);
-        ctx.arc(render.x + 5 * render.scale, render.y + 4 * render.scale, (isCore ? 3.6 : 2.8) * render.scale, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        fillProjectedQuad(inner, "#6b747c", "rgba(255, 255, 255, 0.12)", 1.2 * render.scale);
-      }
-    } else if (selectedMap === "acidcaves") {
-      fillProjectedQuad(inner, "#173a2d");
-      ctx.strokeStyle = "rgba(154, 255, 196, 0.4)";
-      ctx.lineWidth = 2 * render.scale;
+function drawObstacleCell(obstacle) {
+  const render = projectCellCenterPoint(obstacle.x, obstacle.y);
+  const quad = projectCellQuad(obstacle.x, obstacle.y);
+  const inner = shrinkProjectedQuad(quad, 0.1);
+  if (activeMap.scenery === "furnace") {
+    const isCore = activeMap.furnaceCore?.some((cell) => cell.x === obstacle.x && cell.y === obstacle.y);
+    const isPit = (activeMap.lavaGrates || []).some((cell) => obstacle.x >= cell.x && obstacle.x < cell.x + cell.width && obstacle.y >= cell.y && obstacle.y < cell.y + cell.height);
+    if (isCore || isPit) {
+      ctx.save();
+      ctx.shadowColor = isCore ? "rgba(255, 126, 48, 0.7)" : "rgba(255, 98, 28, 0.62)";
+      ctx.shadowBlur = isCore ? 20 : 14;
+      fillProjectedQuad(isCore ? shrinkProjectedQuad(quad, 0.17) : inner, isCore ? "#f07a24" : "#d95f1d");
+      ctx.restore();
+      const outline = isCore ? shrinkProjectedQuad(quad, 0.17) : inner;
+      ctx.strokeStyle = "rgba(58, 39, 26, 0.92)";
+      ctx.lineWidth = (isCore ? 3 : 2.5) * render.scale;
       ctx.beginPath();
-      ctx.moveTo(quad.topLeft.x + (quad.topRight.x - quad.topLeft.x) * 0.5, quad.topLeft.y + (quad.bottomLeft.y - quad.topLeft.y) * 0.12);
-      ctx.lineTo(quad.topRight.x - (quad.topRight.x - quad.topLeft.x) * 0.08, quad.topRight.y + (quad.bottomRight.y - quad.topRight.y) * 0.25);
-      ctx.lineTo(quad.bottomRight.x - (quad.bottomRight.x - quad.bottomLeft.x) * 0.3, quad.bottomRight.y - (quad.bottomRight.y - quad.topRight.y) * 0.08);
-      ctx.lineTo(quad.bottomLeft.x + (quad.bottomRight.x - quad.bottomLeft.x) * 0.18, quad.bottomLeft.y - (quad.bottomLeft.y - quad.topLeft.y) * 0.28);
+      ctx.moveTo(outline.topLeft.x, outline.topLeft.y);
+      ctx.lineTo(outline.topRight.x, outline.topRight.y);
+      ctx.lineTo(outline.bottomRight.x, outline.bottomRight.y);
+      ctx.lineTo(outline.bottomLeft.x, outline.bottomLeft.y);
       ctx.closePath();
       ctx.stroke();
-      ctx.fillStyle = "rgba(126, 255, 171, 0.16)";
+      ctx.fillStyle = "rgba(255, 224, 138, 0.25)";
+      ctx.beginPath();
+      ctx.arc(render.x - 5 * render.scale, render.y - 4 * render.scale, (isCore ? 4.2 : 3.2) * render.scale, 0, Math.PI * 2);
+      ctx.arc(render.x + 5 * render.scale, render.y + 4 * render.scale, (isCore ? 3.6 : 2.8) * render.scale, 0, Math.PI * 2);
       ctx.fill();
-    } else if (selectedMap === "freezingmountains") {
-      const snowColor = "#9ed0ea";
-      drawStackedObstacleCell(obstacle, snowColor, "#cbe7f7", obstacleStackLayers());
-    } else if (activeMap.scenery === "ruins" || activeMap.scenery === "shoals") {
-      const obstacleColor = selectedMap === "acidcaves"
-        ? (darkModeEnabled ? "#123621" : "#2c6a3b")
-        : activeMap.scenery === "shoals"
-          ? (darkModeEnabled ? "#7a7070" : "#8b8073")
-          : (darkModeEnabled ? "#60666d" : "#70777f");
-      drawStackedObstacleCell(obstacle, obstacleColor, adjustColorLightness(obstacleColor, 0.06));
-    } else if (selectedMap === "acidcaves") {
-      drawStackedObstacleCell(
-        obstacle,
-        darkModeEnabled ? "#123621" : "#2c6a3b",
-        darkModeEnabled ? "#1b4a2d" : "#3e7a49"
-      );
-    } else if (activeMap.scenery === "cliffs") {
-      const side = cliffSideForCell(obstacle);
-      const layerCount = side === "right" ? obstacleStackLayers() + 4 : obstacleStackLayers();
-      const baseColor = side === "right"
-        ? (darkModeEnabled ? "#8d6b49" : "#b7926a")
-        : (darkModeEnabled ? "#6e5338" : "#9d7a55");
-      const topColor = side === "right"
-        ? adjustColorLightness(baseColor, 0.1)
-        : adjustColorLightness(baseColor, 0.05);
-      drawStackedObstacleCell(obstacle, baseColor, topColor, layerCount);
-    } else if (activeMap.scenery === "canyon") {
-      drawStackedObstacleCell(
-        obstacle,
-        darkModeEnabled ? "#a9814f" : "#d8b079",
-        darkModeEnabled ? "#c99d61" : "#edd0a2"
-      );
     } else {
-      const obstacleColor = darkModeEnabled ? "#666d74" : "#6b747c";
-      drawStackedObstacleCell(obstacle, obstacleColor, adjustColorLightness(obstacleColor, 0.06));
+      fillProjectedQuad(inner, "#6b747c", "rgba(255, 255, 255, 0.12)", 1.2 * render.scale);
     }
+    return;
+  }
+
+  if (selectedMap === "acidcaves") {
+    fillProjectedQuad(inner, "#173a2d");
+    ctx.strokeStyle = "rgba(154, 255, 196, 0.4)";
+    ctx.lineWidth = 2 * render.scale;
+    ctx.beginPath();
+    ctx.moveTo(quad.topLeft.x + (quad.topRight.x - quad.topLeft.x) * 0.5, quad.topLeft.y + (quad.bottomLeft.y - quad.topLeft.y) * 0.12);
+    ctx.lineTo(quad.topRight.x - (quad.topRight.x - quad.topLeft.x) * 0.08, quad.topRight.y + (quad.bottomRight.y - quad.topRight.y) * 0.25);
+    ctx.lineTo(quad.bottomRight.x - (quad.bottomRight.x - quad.bottomLeft.x) * 0.3, quad.bottomRight.y - (quad.bottomRight.y - quad.topRight.y) * 0.08);
+    ctx.lineTo(quad.bottomLeft.x + (quad.bottomRight.x - quad.bottomLeft.x) * 0.18, quad.bottomLeft.y - (quad.bottomLeft.y - quad.topLeft.y) * 0.28);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(126, 255, 171, 0.16)";
+    ctx.fill();
+  } else if (selectedMap === "freezingmountains") {
+    drawStackedObstacleCell(obstacle, "#9ed0ea", "#cbe7f7", obstacleStackLayers());
+  } else if (activeMap.scenery === "ruins" || activeMap.scenery === "shoals") {
+    const obstacleColor = selectedMap === "acidcaves"
+      ? (darkModeEnabled ? "#123621" : "#2c6a3b")
+      : activeMap.scenery === "shoals"
+        ? (darkModeEnabled ? "#7a7070" : "#8b8073")
+        : (darkModeEnabled ? "#60666d" : "#70777f");
+    drawStackedObstacleCell(obstacle, obstacleColor, adjustColorLightness(obstacleColor, 0.06));
+  } else if (selectedMap === "acidcaves") {
+    drawStackedObstacleCell(
+      obstacle,
+      darkModeEnabled ? "#123621" : "#2c6a3b",
+      darkModeEnabled ? "#1b4a2d" : "#3e7a49"
+    );
+  } else if (activeMap.scenery === "cliffs") {
+    const side = cliffSideForCell(obstacle);
+    const layerCount = side === "right" ? obstacleStackLayers() + 4 : obstacleStackLayers();
+    const baseColor = side === "right"
+      ? (darkModeEnabled ? "#8d6b49" : "#b7926a")
+      : (darkModeEnabled ? "#6e5338" : "#9d7a55");
+    const topColor = side === "right"
+      ? adjustColorLightness(baseColor, 0.1)
+      : adjustColorLightness(baseColor, 0.05);
+    drawStackedObstacleCell(obstacle, baseColor, topColor, layerCount);
+  } else if (activeMap.scenery === "canyon") {
+    drawStackedObstacleCell(
+      obstacle,
+      darkModeEnabled ? "#a9814f" : "#d8b079",
+      darkModeEnabled ? "#c99d61" : "#edd0a2"
+    );
+  } else {
+    const obstacleColor = darkModeEnabled ? "#666d74" : "#6b747c";
+    drawStackedObstacleCell(obstacle, obstacleColor, adjustColorLightness(obstacleColor, 0.06));
+  }
+}
+
+function structureRenderDepth(blockOrCells) {
+  const cells = Array.isArray(blockOrCells) ? blockOrCells : blockOrCells?.cells || [];
+  return cells.reduce((maxDepth, cell) => Math.max(maxDepth, cell.y + cell.x * 0.001), -Infinity);
+}
+
+function drawMapStructures() {
+  const entries = [];
+  for (const block of blocks.values()) {
+    entries.push({
+      depth: structureRenderDepth(block),
+      draw: () => drawBlock(block)
+    });
+  }
+  for (const obstacle of activeMap.obstacles) {
+    entries.push({
+      depth: obstacle.y + obstacle.x * 0.001,
+      draw: () => drawObstacleCell(obstacle)
+    });
+  }
+  entries.sort((left, right) => left.depth - right.depth);
+  for (const entry of entries) {
+    entry.draw();
   }
 }
 
@@ -20758,7 +20899,41 @@ function drawEndpoint(point, fill, options = {}) {
   const hidden = options.ghostIfBlocked ? entityBehindAnyBlock(center.x, center.y, 1.2) : false;
   const alpha = hidden ? 0.34 : 1;
   ctx.globalAlpha = alpha;
-  drawStackedObstacleCell({ x: point.x, y: point.y }, fill, adjustColorLightness(fill, 0.05), 6);
+  drawStackedObstacleCell({ x: point.x, y: point.y }, fill, adjustColorLightness(fill, 0.08), 12);
+  if (options.kind === "goal" && skillTreeNodeOwned("core_shooting")) {
+    const render = projectCellCenterPoint(point.x, point.y);
+    ctx.save();
+    ctx.translate(render.x, render.y - 10 * render.scale);
+    const scale = render.scale;
+    const bodyFill = hidden ? "rgba(167, 120, 70, 0.55)" : "#8b5d33";
+    const limbFill = hidden ? "rgba(255, 245, 220, 0.45)" : "#f4d6a6";
+    const stringStroke = hidden ? "rgba(255, 250, 235, 0.5)" : "#fff7ea";
+    ctx.fillStyle = bodyFill;
+    ctx.strokeStyle = hidden ? "rgba(255, 247, 232, 0.5)" : "#fff4cf";
+    ctx.lineWidth = 1.4 * scale;
+    ctx.fillRect(-2.2 * scale, -6.8 * scale, 4.4 * scale, 6.2 * scale);
+    ctx.fillRect(-4.6 * scale, -2.3 * scale, 9.2 * scale, 1.8 * scale);
+    ctx.beginPath();
+    ctx.moveTo(-4.8 * scale, -1.3 * scale);
+    ctx.lineTo(0, -6.6 * scale);
+    ctx.lineTo(4.8 * scale, -1.3 * scale);
+    ctx.lineTo(3.2 * scale, -0.5 * scale);
+    ctx.lineTo(0, -3.9 * scale);
+    ctx.lineTo(-3.2 * scale, -0.5 * scale);
+    ctx.closePath();
+    ctx.fillStyle = limbFill;
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = stringStroke;
+    ctx.lineWidth = 1.05 * scale;
+    ctx.beginPath();
+    ctx.moveTo(-3.8 * scale, -1.5 * scale);
+    ctx.lineTo(3.8 * scale, -1.5 * scale);
+    ctx.stroke();
+    ctx.fillStyle = hidden ? "rgba(255, 230, 180, 0.55)" : "#ffe29d";
+    ctx.fillRect(-0.9 * scale, -8.9 * scale, 1.8 * scale, 2.4 * scale);
+    ctx.restore();
+  }
   ctx.globalAlpha = 1;
 }
 
@@ -20777,13 +20952,7 @@ function draw() {
   drawMapEndpoints();
   drawEnemies(true);
   drawTraps(true);
-
-  const renderBlocks = sortedBlocksBackToFront();
-  for (let layer = 0; layer < 12; layer += 1) {
-    for (const block of renderBlocks) {
-      drawBlockLayer(block, layer);
-    }
-  }
+  drawMapStructures();
 
   drawFactoryRouteOverlays();
   drawRoute();
@@ -20798,7 +20967,6 @@ function draw() {
   drawProjectiles();
   drawEffects();
   drawEnemyDeathEffects();
-  drawMapObstacles();
   drawBossBar();
   ctx.restore();
   ctx.restore();
@@ -21679,21 +21847,19 @@ speedControls?.addEventListener("click", (event) => {
 pauseButton.addEventListener("click", pauseGame);
 startGameButton.addEventListener("click", withUiGuard("Start Game", startGame));
   openAlmanacButton.addEventListener("click", withUiGuard("Open Almanac", () => openAlmanac("menu")));
-  openSkillTreeButton.addEventListener("click", withUiGuard("Open Skill Tree", () => {
-    renderSkillTree();
-    openOverlay("skilltree");
-  }));
+  openSkillTreeButton.addEventListener("click", withUiGuard("Open Skill Tree", () => openSkillTree("menu")));
   openSettingsButton?.addEventListener("click", withUiGuard("Open Settings", () => {
     updateAccountControls();
     openOverlay("settings");
   }));
   resumeGameButton.addEventListener("click", withUiGuard("Resume", resumeGame));
   pauseAlmanacButton.addEventListener("click", withUiGuard("Pause Almanac", () => openAlmanac("pause")));
+  pauseSkillTreeButton?.addEventListener("click", withUiGuard("Pause Skill Tree", () => openSkillTree("pause")));
   quitToMenuButton.addEventListener("click", withUiGuard("Quit To Menu", quitToMenu));
 tutorialOverlayButton?.addEventListener("click", withUiGuard("Tutorial Continue", dismissTutorialPopup));
 tutorialDismissButton?.addEventListener("click", withUiGuard("Dismiss Tutorial", dismissEntireTutorial));
   closeAlmanacButton.addEventListener("click", withUiGuard("Close Almanac", closeAlmanac));
-  closeSkillTreeButton.addEventListener("click", withUiGuard("Close Skill Tree", () => openOverlay("menu")));
+  closeSkillTreeButton.addEventListener("click", withUiGuard("Close Skill Tree", closeSkillTree));
   closeSettingsButton?.addEventListener("click", withUiGuard("Close Settings", () => openOverlay("menu")));
   closeTowerPopupButton.addEventListener("click", withUiGuard("Close Tower Popup", closeTowerPopup));
   skillTreeGrid?.addEventListener("click", withUiGuard("Skill Tree Select", (event) => {

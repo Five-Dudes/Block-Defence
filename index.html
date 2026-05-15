@@ -107,6 +107,7 @@
       <div class="overlay-actions">
         <button id="resumeGameButton">Resume</button>
         <button id="pauseAlmanacButton" class="secondary">Almanac</button>
+        <button id="pauseSkillTreeButton" class="secondary">Skill Tree</button>
         <button id="quitToMenuButton" class="secondary">Quit To Main Menu</button>
       </div>
     </div>
@@ -273,25 +274,6 @@
             </label>
           </div>
         </div>
-        <div class="panel" id="blocksPanel">
-          <div class="panel-head">
-            <h2>Blocks</h2>
-          </div>
-          <div class="tower-grid tower-grid-column tool-grid" id="toolGrid"></div>
-          <div class="board-piece-choices board-piece-choices-panel">
-            <p class="next-piece" id="nextPieceText">Block choices: waiting</p>
-            <p class="hint" id="blockChoicePriceText">Block price: 5</p>
-            <div class="piece-choice-grid" id="pieceChoiceGrid">
-              <button class="secondary piece-choice" id="pieceChoicePrimary" type="button" aria-label="Block choice 1"></button>
-              <button class="secondary piece-choice" id="pieceChoiceSecondary" type="button" aria-label="Block choice 2"></button>
-            </div>
-            <div class="board-piece-actions">
-              <button id="rotateButton">Rotate Block</button>
-              <button id="mirrorButton">Mirror Block</button>
-            </div>
-            <p class="hint" id="blockChoiceHotkeys">R rotate | M mirror</p>
-          </div>
-        </div>
         <div class="panel warning-panel" id="warningPanel" hidden>
           <div class="panel-head">
             <h2 id="warningPanelTitle">Warning</h2>
@@ -304,12 +286,11 @@
       <section class="board-panel">
         <div class="board-topbar">
           <div class="board-left">
-            <p class="board-cash" id="boardCashText">Cash: 20</p>
             <p class="board-free" id="skillTokenText">Tokens: 0</p>
-            <p class="board-free" id="freeBlockText">Free block: 1</p>
           </div>
           <div class="board-hud">
             <p id="livesText">Lives: 20</p>
+            <p class="board-cash" id="boardCashText">Cash: 20</p>
             <p id="waveText">Wave: 0</p>
             <p id="enemyText">Enemies: 0</p>
             <button id="pauseButton" class="secondary">Pause</button>
@@ -317,6 +298,22 @@
         </div>
         <div class="play-area">
           <div class="board-frame">
+            <div class="board-piece-choices board-piece-choices-panel" id="blocksPanel">
+              <div class="tower-grid tower-grid-column tool-grid" id="toolGrid"></div>
+              <div class="board-piece-choices-inner">
+                <p class="next-piece" id="nextPieceText">Block choices: waiting</p>
+                <p class="hint" id="blockChoicePriceText">Block price: 5</p>
+                <div class="piece-choice-grid" id="pieceChoiceGrid">
+                  <button class="secondary piece-choice" id="pieceChoicePrimary" type="button" aria-label="Block choice 1"></button>
+                  <button class="secondary piece-choice" id="pieceChoiceSecondary" type="button" aria-label="Block choice 2"></button>
+                </div>
+                <div class="board-piece-actions">
+                  <button id="rotateButton">Rotate Block</button>
+                  <button id="mirrorButton">Mirror Block</button>
+                </div>
+                <p class="hint" id="blockChoiceHotkeys">R rotate | M mirror</p>
+              </div>
+            </div>
             <canvas id="board" width="960" height="960" aria-label="Tower defense board"></canvas>
           </div>
           <div class="panel towers-strip" data-panel="towers">
@@ -342,7 +339,7 @@
             <button class="tower-type" data-tower-type="gate" type="button">Acid (56)</button>
           </div>
         </div>
-        <p class="hint" id="towerDescription">Tesla: chain lightning with fast bursts.</p>
+          <p class="hint" id="towerDescription">Tesla: chain lightning with fast bursts.</p>
           </div>
         </div>
         <div class="board-actions">

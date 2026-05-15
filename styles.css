@@ -1206,7 +1206,8 @@ button.secondary {
   gap: 2px;
   align-content: start;
   min-height: 0;
-  z-index: 2;
+  z-index: 12;
+  padding-bottom: 0;
 }
 
 .board-topbar {
@@ -1232,6 +1233,18 @@ button.secondary {
   color: var(--accent-dark);
 }
 
+.board-cash {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 249, 240, 0.92);
+  border: 1px solid rgba(127, 61, 29, 0.18);
+  box-shadow: var(--shadow);
+}
+
+.board-free {
+  display: none;
+}
+
 .board-hud p {
   margin: 0;
   padding: 6px 10px;
@@ -1245,24 +1258,32 @@ button.secondary {
 .play-area {
   display: grid;
   grid-template-columns: minmax(0, 780px) 150px;
+  grid-template-rows: 1fr auto;
   justify-content: center;
   gap: 14px;
   align-items: start;
   min-height: 0;
   position: relative;
+  margin-top: 0;
 }
 
 .board-frame {
+  grid-column: 1;
+  grid-row: 1;
   padding: 4px;
-  aspect-ratio: 1 / 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
   width: min(100%, 780px);
   max-width: 780px;
   min-height: 0;
   margin-left: 0;
-  margin-top: -6px;
+  margin-top: 0;
   overflow: hidden;
   position: relative;
   z-index: 1;
+  align-content: start;
 }
 
 .board-inline-actions {
@@ -1296,10 +1317,29 @@ button.secondary {
 
 .board-piece-choices-panel {
   position: static;
+  grid-column: 1;
+  grid-row: 1;
   width: 100%;
-  margin-top: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 10px 10px;
   box-shadow: none;
+  border: none;
+  background: rgba(255, 249, 240, 0.88);
+  border-radius: 14px 14px 10px 10px;
+}
+
+#blocksPanel .tower-grid,
+#blocksPanel .board-piece-choices-inner {
+  background: rgba(255, 249, 240, 0.88);
   border: 1px solid rgba(127, 61, 29, 0.12);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 8px 10px;
+}
+
+#blocksPanel .tower-grid {
+  margin-bottom: 8px;
 }
 
 .piece-choice-grid {
@@ -1340,6 +1380,45 @@ button.secondary {
 #blockChoicePriceText,
 #blockChoiceHotkeys {
   margin: 0;
+}
+
+#blocksPanel {
+  position: static;
+  z-index: 20;
+}
+
+#blocksPanel,
+#blocksPanel .board-piece-choices-inner,
+#blocksPanel .tower-grid {
+  width: 100%;
+}
+
+.board-frame > canvas {
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 0;
+}
+
+.towers-strip {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.board-actions {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.board-piece-choices-panel .tower-grid,
+.board-piece-choices-panel .board-piece-choices-inner {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.board-piece-choices-panel .tower-grid {
+  margin-bottom: 6px;
 }
 
 .speed-controls {
@@ -1621,7 +1700,7 @@ button.secondary {
   position: absolute;
   top: 4px;
   bottom: 0;
-  z-index: 6;
+  z-index: 30;
   width: 320px;
 }
 
