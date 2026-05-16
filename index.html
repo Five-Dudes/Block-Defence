@@ -65,6 +65,7 @@
             <button class="menu-option" data-difficulty="brutal">Brutal</button>
             <button class="menu-option" data-difficulty="sandbox">Sandbox</button>
           </div>
+          <p class="hint menu-difficulty-description" id="menuDifficultyDescription">Standard: 1x enemy HP, speed, reward, interval, and enemy count. 1x cash drops.</p>
         </section>
         <section>
           <p class="eyebrow" data-i18n="map">Map</p>
@@ -90,7 +91,7 @@
       <div class="overlay-actions">
         <button id="startGameButton" data-i18n="startGame">Start Game</button>
         <button id="openAlmanacButton" class="secondary" data-i18n="almanac">Almanac</button>
-        <button id="openSkillTreeButton" class="secondary" data-i18n="skillTree">Skill Tree</button>
+        <button id="openSkillTreeButton" class="secondary" data-i18n="skills">Skills</button>
         <button id="openSettingsButton" class="secondary" data-i18n="settings">Settings</button>
       </div>
       <div class="menu-update-log" aria-live="polite">
@@ -107,7 +108,7 @@
       <div class="overlay-actions">
         <button id="resumeGameButton">Resume</button>
         <button id="pauseAlmanacButton" class="secondary">Almanac</button>
-        <button id="pauseSkillTreeButton" class="secondary">Skill Tree</button>
+        <button id="pauseSkillTreeButton" class="secondary" data-i18n="skills">Skills</button>
         <button id="quitToMenuButton" class="secondary">Quit To Main Menu</button>
       </div>
     </div>
@@ -143,6 +144,7 @@
         <h2 id="almanacTitle">Almanac</h2>
         <button id="closeAlmanacButton" class="secondary">Close</button>
       </div>
+      <p class="hint almanac-currency" id="almanacCurrencyText">Tokens: 0 | Upgrade pts: 0</p>
   <div class="almanac-tabs" id="almanacTabs">
     <button class="secondary active" data-almanac-tab="enemies" data-i18n="enemies">Enemies</button>
     <button class="secondary" data-almanac-tab="waves" data-i18n="waves">Waves</button>
@@ -161,11 +163,11 @@
   <div class="overlay" id="skillTreeOverlay">
     <div class="overlay-card overlay-wide skill-tree-card">
       <div class="panel-head">
-        <h2>Skill Tree</h2>
+        <h2 data-i18n="skills">Skills</h2>
         <button id="closeSkillTreeButton" class="secondary" data-i18n="close">Close</button>
       </div>
       <p class="hint" data-i18n="skillTreeHint">Click the tower families below to see the upgrade chains that lead through each path.</p>
-      <p class="hint skill-tree-tokens" id="skillTreeTokenText">Tokens: 0</p>
+      <p class="hint skill-tree-tokens" id="skillTreeTokenText">Tokens: 0 | Upgrade pts: 0</p>
       <div class="skill-tree-layout">
         <div class="skill-tree-grid" id="skillTreeGrid"></div>
         <aside class="skill-tree-detail" id="skillTreeDetail">
@@ -300,6 +302,22 @@
           <div class="board-frame">
             <div class="board-piece-choices board-piece-choices-panel" id="blocksPanel">
               <div class="tower-grid tower-grid-column tool-grid" id="toolGrid"></div>
+              <div class="tower-grid tower-grid-row tower-picker-bar" id="towerGrid" aria-label="Tower choices">
+                <button class="tower-type active" data-tower-type="tesla" type="button">Tesla (7)</button>
+                <button class="tower-type" data-tower-type="missile" type="button">Cannon (9)</button>
+                <button class="tower-type" data-tower-type="trapper" type="button">Trap Setter (6)</button>
+                <button class="tower-type" data-tower-type="laser" type="button">Laser (10)</button>
+                <button class="tower-type" data-tower-type="shotgun" type="button">Shotgun (10)</button>
+                <button class="tower-type" data-tower-type="freezer" type="button">Freezer (8)</button>
+                <button class="tower-type" data-tower-type="drone" type="button">Drone (8)</button>
+                <button class="tower-type" data-tower-type="fireball" type="button">Torch (48)</button>
+                <button class="tower-type" data-tower-type="dippy" type="button">Dippy (100)</button>
+                <button class="tower-type" data-tower-type="support" type="button">Support (42)</button>
+                <button class="tower-type" data-tower-type="treasury" type="button">Treasury (60)</button>
+                <button class="tower-type" data-tower-type="orb" type="button">Orb (48)</button>
+                <button class="tower-type" data-tower-type="crossbow" type="button">Crossbow (28)</button>
+                <button class="tower-type" data-tower-type="gate" type="button">Acid (56)</button>
+              </div>
               <div class="board-piece-choices-inner">
                 <p class="next-piece" id="nextPieceText">Block choices: waiting</p>
                 <p class="hint" id="blockChoicePriceText">Block price: 5</p>
@@ -316,32 +334,7 @@
             </div>
             <canvas id="board" width="960" height="960" aria-label="Tower defense board"></canvas>
           </div>
-          <div class="panel towers-strip" data-panel="towers">
-            <div class="panel-head">
-              <h2>Towers</h2>
-              <button class="panel-toggle secondary" data-toggle-panel="towers">Hide</button>
-            </div>
-            <div class="tower-scroll tower-scroll-column">
-              <div class="tower-grid tower-grid-column" id="towerGrid">
-                <button class="tower-type active" data-tower-type="tesla" type="button">Tesla (7)</button>
-        <button class="tower-type" data-tower-type="missile" type="button">Cannon (9)</button>
-        <button class="tower-type" data-tower-type="trapper" type="button">Trap Setter (6)</button>
-        <button class="tower-type" data-tower-type="laser" type="button">Laser (10)</button>
-        <button class="tower-type" data-tower-type="shotgun" type="button">Shotgun (10)</button>
-        <button class="tower-type" data-tower-type="freezer" type="button">Freezer (8)</button>
-        <button class="tower-type" data-tower-type="drone" type="button">Drone (8)</button>
-            <button class="tower-type" data-tower-type="fireball" type="button">Torch (48)</button>
-            <button class="tower-type" data-tower-type="dippy" type="button">Dippy (100)</button>
-            <button class="tower-type" data-tower-type="support" type="button">Support (42)</button>
-            <button class="tower-type" data-tower-type="treasury" type="button">Treasury (60)</button>
-<button class="tower-type" data-tower-type="orb" type="button">Orb (48)</button>
-            <button class="tower-type" data-tower-type="crossbow" type="button">Crossbow (28)</button>
-            <button class="tower-type" data-tower-type="gate" type="button">Acid (56)</button>
-          </div>
-        </div>
-          <p class="hint" id="towerDescription">Tesla: chain lightning with fast bursts.</p>
-          </div>
-        </div>
+          <p class="hint tower-description-inline" id="towerDescription">Tesla: chain lightning with fast bursts.</p>
         <div class="board-actions">
           <button id="waveButton">Start Wave</button>
           <div class="speed-controls" id="speedControls" aria-label="Game speed">
@@ -394,6 +387,7 @@
         const settingsLogoutButton = document.getElementById("settingsLogoutButton");
         const almanacTabs = document.getElementById("almanacTabs");
         const almanacGrid = document.getElementById("almanacGrid");
+        const menuDifficultyDescription = document.getElementById("menuDifficultyDescription");
         const menuMapDescription = document.getElementById("menuMapDescription");
         const getBridge = () => window.__blockDefenceMenuBridge;
         const getMaps = () => window.__blockDefenceMenuMaps || {};
@@ -419,6 +413,10 @@
           });
 
           const map = bridge?.mapText ? bridge.mapText(state.map) : getMaps()[state.map];
+          const difficulty = bridge?.difficultyText ? bridge.difficultyText(state.difficulty) : null;
+          if (difficulty && menuDifficultyDescription) {
+            menuDifficultyDescription.textContent = difficulty;
+          }
           if (map && menuMapDescription) {
             menuMapDescription.textContent = `${map.name}: ${map.description}`;
           }
